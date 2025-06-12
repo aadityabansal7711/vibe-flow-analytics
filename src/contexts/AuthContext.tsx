@@ -181,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Fix the premium unlock logic - only unlock for admin email, not for all users
+  // Only unlock for admin email or users with active subscription
   const isUnlocked = profile?.email === 'aadityabansal1112@gmail.com' || profile?.has_active_subscription || false;
 
   return (

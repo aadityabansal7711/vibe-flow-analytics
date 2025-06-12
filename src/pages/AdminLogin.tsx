@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useNavigate } from 'react-router-dom';
 import { Music, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -20,13 +21,39 @@ const AdminLogin = () => {
     setIsLoading(true);
     setError('');
 
-    // Check credentials - fixed the password
-    if (email === 'aadityabansal1112@gmail.com' && password === 'Hyundai1$') {
-      localStorage.setItem('admin_logged_in', 'true');
-      localStorage.setItem('admin_email', email);
-      navigate('/admin');
-    } else {
-      setError('Invalid credentials. Please try again.');
+    try {
+      // Check if this is the admin email
+      if (email !== 'aadityabansal1112@gmail.com') {
+        setError('Access denied. Admin credentials required.');
+        setIsLoading(false);
+        return;
+      }
+
+      // For now, use the fixed password, but in production you should hash passwords properly
+      if (password === 'Hyundai1$') {
+        // Check admin_users table
+        const { data: adminUser, error: adminError } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('email', email)
+          .single();
+
+        if (adminError || !adminUser) {
+          setError('Admin user not found in database.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Set admin session (you could also use a proper auth session here)
+        localStorage.setItem('admin_logged_in', 'true');
+        localStorage.setItem('admin_email', email);
+        navigate('/admin');
+      } else {
+        setError('Invalid credentials. Please try again.');
+      }
+    } catch (err) {
+      setError('Login failed. Please try again.');
+      console.error('Admin login error:', err);
     }
     
     setIsLoading(false);
@@ -38,8 +65,7 @@ const AdminLogin = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-3">
             <div className="relative">
-              <Music className="h-10 w-10 text-primary animate-pulse-slow" />
-              <div className="absolute inset-0 h-10 w-10 text-primary/30 animate-ping"></div>
+              <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10" />
             </div>
             <span className="text-3xl font-bold text-gradient">MyVibeLytics</span>
           </Link>

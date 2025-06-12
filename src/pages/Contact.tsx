@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Link } from 'react-router-dom';
-import { Music, Mail, MapPin, Phone, Send, CheckCircle } from 'lucide-react';
+import { Music, Mail, MessageSquare, Send, ArrowLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -15,37 +17,84 @@ const Contact = () => {
     subject: '',
     message: ''
   });
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simulate form submission
-    console.log('Contact form submitted:', formData);
-    setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 3000);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.email || !formData.message) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from('contact_requests')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            subject: formData.subject || null,
+            message: formData.message,
+            status: 'pending'
+          }
+        ]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Message sent!",
+        description: "We'll get back to you as soon as possible.",
+      });
+
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        subject: '',
+        message: ''
+      });
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-dark">
-      {/* Navigation */}
+      {/* Header */}
       <nav className="sticky top-0 z-50 glass-effect-strong border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
           <Link to="/" className="flex items-center space-x-3">
             <div className="relative">
-              <Music className="h-8 w-8 text-primary animate-pulse-slow" />
-              <div className="absolute inset-0 h-8 w-8 text-primary/30 animate-ping"></div>
+              <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8" />
             </div>
             <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
           </Link>
           <Link to="/">
-            <Button variant="outline" className="border-primary/50 text-foreground hover:bg-primary/10 hover:border-primary">
+            <Button variant="outline" className="border-primary/50 text-foreground hover:bg-primary/10">
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Home
             </Button>
           </Link>
@@ -56,141 +105,138 @@ const Contact = () => {
         <div className="absolute inset-0 bg-gradient-hero"></div>
         <div className="relative px-6 py-16">
           <div className="max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="text-center mb-16">
-              <h1 className="text-4xl md:text-6xl font-bold text-gradient mb-4">
-                Get in Touch
-              </h1>
+            <div className="text-center mb-12">
+              <h1 className="text-5xl font-bold text-gradient mb-6">Get in Touch</h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Have questions about MyVibeLytics? We'd love to hear from you.
+                Have questions about MyVibeLytics? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               {/* Contact Form */}
               <Card className="glass-effect border-border/50">
                 <CardHeader>
-                  <CardTitle className="text-foreground text-2xl">Send us a Message</CardTitle>
+                  <CardTitle className="flex items-center space-x-2 text-foreground">
+                    <MessageSquare className="h-5 w-5" />
+                    <span>Send us a Message</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {isSubmitted ? (
-                    <div className="text-center py-8">
-                      <CheckCircle className="h-16 w-16 text-primary mx-auto mb-4" />
-                      <h3 className="text-foreground font-semibold text-lg mb-2">Message Sent!</h3>
-                      <p className="text-muted-foreground">We'll get back to you as soon as possible.</p>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="name" className="text-foreground">Name</Label>
-                          <Input
-                            id="name"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            className="bg-background/50 border-border text-foreground"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="email" className="text-foreground">Email</Label>
-                          <Input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="bg-background/50 border-border text-foreground"
-                            required
-                          />
-                        </div>
-                      </div>
-                      
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="subject" className="text-foreground">Subject</Label>
+                        <Label htmlFor="name" className="text-foreground">Name *</Label>
                         <Input
-                          id="subject"
-                          name="subject"
-                          value={formData.subject}
-                          onChange={handleChange}
+                          id="name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
                           className="bg-background/50 border-border text-foreground"
+                          placeholder="Your full name"
                           required
                         />
                       </div>
-                      
                       <div>
-                        <Label htmlFor="message" className="text-foreground">Message</Label>
-                        <Textarea
-                          id="message"
-                          name="message"
-                          rows={5}
-                          value={formData.message}
-                          onChange={handleChange}
-                          className="bg-background/50 border-border text-foreground resize-none"
+                        <Label htmlFor="email" className="text-foreground">Email *</Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          className="bg-background/50 border-border text-foreground"
+                          placeholder="your@email.com"
                           required
                         />
                       </div>
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
-                      >
-                        <Send className="mr-2 h-4 w-4" />
-                        Send Message
-                      </Button>
-                    </form>
-                  )}
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="subject" className="text-foreground">Subject</Label>
+                      <Input
+                        id="subject"
+                        name="subject"
+                        value={formData.subject}
+                        onChange={handleInputChange}
+                        className="bg-background/50 border-border text-foreground"
+                        placeholder="What's this about?"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="message" className="text-foreground">Message *</Label>
+                      <Textarea
+                        id="message"
+                        name="message"
+                        value={formData.message}
+                        onChange={handleInputChange}
+                        className="bg-background/50 border-border text-foreground min-h-[120px]"
+                        placeholder="Tell us how we can help you..."
+                        required
+                      />
+                    </div>
+                    
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      {isSubmitting ? 'Sending...' : 'Send Message'}
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
 
               {/* Contact Information */}
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <Card className="glass-effect border-border/50">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="p-3 rounded-lg bg-primary/10">
-                        <Mail className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-foreground font-semibold">Email</h3>
-                        <p className="text-muted-foreground">aadityabansal1112@gmail.com</p>
-                      </div>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2 text-foreground">
+                      <Mail className="h-5 w-5" />
+                      <span>Contact Information</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h3 className="text-foreground font-medium mb-2">Email</h3>
+                      <p className="text-muted-foreground">aadityabansal1112@gmail.com</p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-foreground font-medium mb-2">Address</h3>
+                      <p className="text-muted-foreground">
+                        2-3 Prakash Enclave<br />
+                        Bypass Road<br />
+                        Agra, India
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-foreground font-medium mb-2">Response Time</h3>
+                      <p className="text-muted-foreground">
+                        We typically respond within 24 hours during business days.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="glass-effect border-border/50">
                   <CardContent className="p-6">
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="p-3 rounded-lg bg-primary/10">
-                        <MapPin className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-foreground font-semibold">Address</h3>
-                        <p className="text-muted-foreground">
-                          2-3 Prakash Enclave<br />
-                          Bypass Road<br />
-                          Agra, India
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-effect border-border/50">
-                  <CardContent className="p-6">
-                    <h3 className="text-foreground font-semibold mb-4">Quick Links</h3>
+                    <h3 className="text-foreground font-medium mb-4">Quick Questions?</h3>
                     <div className="space-y-3">
-                      <Link to="/privacy" className="block text-muted-foreground hover:text-primary transition-colors">
-                        Privacy Policy
-                      </Link>
-                      <Link to="/terms" className="block text-muted-foreground hover:text-primary transition-colors">
-                        Terms of Service
-                      </Link>
-                      <Link to="/buy" className="block text-muted-foreground hover:text-primary transition-colors">
-                        Pricing
-                      </Link>
+                      <div>
+                        <p className="text-foreground text-sm font-medium">About Premium Features</p>
+                        <p className="text-muted-foreground text-sm">Check out our pricing page for detailed information.</p>
+                      </div>
+                      <div>
+                        <p className="text-foreground text-sm font-medium">Technical Issues</p>
+                        <p className="text-muted-foreground text-sm">Try refreshing your Spotify connection first.</p>
+                      </div>
+                      <div>
+                        <p className="text-foreground text-sm font-medium">Account Problems</p>
+                        <p className="text-muted-foreground text-sm">Include your email address in your message.</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -199,31 +245,6 @@ const Contact = () => {
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="mt-20 border-t border-border/30 glass-effect-strong">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-3 mb-6 md:mb-0">
-              <Music className="h-6 w-6 text-primary" />
-              <span className="text-foreground font-bold text-lg">MyVibeLytics</span>
-            </div>
-            <div className="flex space-x-8 text-muted-foreground">
-              <Link to="/terms" className="hover:text-primary transition-colors duration-200 font-medium">Terms</Link>
-              <Link to="/privacy" className="hover:text-primary transition-colors duration-200 font-medium">Privacy</Link>
-              <Link to="/contact" className="hover:text-primary transition-colors duration-200 font-medium">Contact</Link>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-border/20 text-center">
-            <p className="text-muted-foreground text-sm">
-              © 2024 MyVibeLytics. Discover your music DNA with beautiful analytics.
-            </p>
-            <p className="text-muted-foreground text-xs mt-2">
-              Owned by Arnam Enterprises | GST: 09ABZFA4207B1ZG
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

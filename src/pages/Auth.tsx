@@ -65,8 +65,7 @@ const Auth = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-3">
             <div className="relative">
-              <Music className="h-10 w-10 text-primary animate-pulse-slow" />
-              <div className="absolute inset-0 h-10 w-10 text-primary/30 animate-ping"></div>
+              <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10" />
             </div>
             <span className="text-3xl font-bold text-gradient">MyVibeLytics</span>
           </Link>

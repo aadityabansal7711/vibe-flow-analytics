@@ -7,12 +7,37 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Link, Navigate } from 'react-router-dom';
 import { Music, Shield, User, Key, Save, LogOut, Users, DollarSign, Activity, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface UserData {
+  id: string;
+  email: string;
+  full_name?: string;
+  has_active_subscription: boolean;
+  spotify_connected: boolean;
+  created_at: string;
+}
+
+interface ContactRequest {
+  id: string;
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  status: string;
+  created_at: string;
+}
 
 const Admin = () => {
   const [userEmail, setUserEmail] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [message, setMessage] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if admin is logged in
@@ -21,8 +46,48 @@ const Admin = () => {
     
     if (adminLoggedIn === 'true' && adminEmail === 'aadityabansal1112@gmail.com') {
       setIsAuthenticated(true);
+      fetchUsers();
+      fetchContactRequests();
     }
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch users",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const fetchContactRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contact_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setContactRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching contact requests:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch contact requests",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('admin_logged_in');
@@ -30,17 +95,67 @@ const Admin = () => {
     setIsAuthenticated(false);
   };
 
-  const handleToggleAccess = () => {
+  const handleToggleAccess = async () => {
     if (!userEmail) {
       setMessage('Please enter a user email');
       return;
     }
 
-    // Simulate user access toggle
-    setMessage(`Access ${isUnlocked ? 'granted' : 'revoked'} for ${userEmail}`);
-    
-    // In a real app, this would make an API call to update the database
-    console.log(`Toggling access for ${userEmail} to ${isUnlocked}`);
+    setLoading(true);
+    try {
+      // Find user by email
+      const { data: user, error: userError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', userEmail)
+        .single();
+
+      if (userError || !user) {
+        setMessage('User not found');
+        setLoading(false);
+        return;
+      }
+
+      // Update user's premium access
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ has_active_subscription: isUnlocked })
+        .eq('email', userEmail);
+
+      if (updateError) throw updateError;
+
+      // Also update user_management table
+      const { error: managementError } = await supabase
+        .from('user_management')
+        .upsert({
+          user_id: user.user_id,
+          email: userEmail,
+          premium_access: isUnlocked,
+          managed_by_admin: 'admin_id', // You might want to get actual admin ID
+          updated_at: new Date().toISOString()
+        });
+
+      if (managementError) throw managementError;
+
+      setMessage(`Access ${isUnlocked ? 'granted' : 'revoked'} for ${userEmail}`);
+      
+      // Refresh users list
+      fetchUsers();
+      
+      toast({
+        title: "Success",
+        description: `User access ${isUnlocked ? 'granted' : 'revoked'} successfully`,
+      });
+    } catch (error) {
+      console.error('Error updating user access:', error);
+      setMessage('Failed to update user access');
+      toast({
+        title: "Error",
+        description: "Failed to update user access",
+        variant: "destructive"
+      });
+    }
+    setLoading(false);
   };
 
   // Redirect to login if not authenticated
@@ -48,26 +163,14 @@ const Admin = () => {
     return <Navigate to="/admin-login" replace />;
   }
 
+  const premiumUsers = users.filter(user => user.has_active_subscription);
+  const spotifyConnectedUsers = users.filter(user => user.spotify_connected);
+
   const adminStats = [
-    { name: 'Total Users', count: '1,234', icon: <Users className="h-6 w-6" />, color: 'text-blue-400' },
-    { name: 'Premium Users', count: '567', icon: <DollarSign className="h-6 w-6" />, color: 'text-green-400' },
-    { name: 'Daily Active Users', count: '892', icon: <Activity className="h-6 w-6" />, color: 'text-purple-400' },
-    { name: 'Monthly Revenue', count: '$8,910', icon: <TrendingUp className="h-6 w-6" />, color: 'text-yellow-400' }
-  ];
-
-  const recentUsers = [
-    { name: 'John Doe', email: 'john@example.com', status: 'Premium', joined: '2 hours ago' },
-    { name: 'Sarah Smith', email: 'sarah@example.com', status: 'Free', joined: '5 hours ago' },
-    { name: 'Mike Johnson', email: 'mike@example.com', status: 'Premium', joined: '1 day ago' },
-    { name: 'Emily Davis', email: 'emily@example.com', status: 'Free', joined: '2 days ago' }
-  ];
-
-  const recentActivity = [
-    { time: '2 minutes ago', action: 'New user registered', user: 'john@example.com' },
-    { time: '15 minutes ago', action: 'Premium upgrade', user: 'sarah@example.com' },
-    { time: '1 hour ago', action: 'Analytics data refreshed', user: 'System' },
-    { time: '2 hours ago', action: 'Spotify connection', user: 'mike@example.com' },
-    { time: '3 hours ago', action: 'Dashboard accessed', user: 'emily@example.com' }
+    { name: 'Total Users', count: users.length.toString(), icon: <Users className="h-6 w-6" />, color: 'text-blue-400' },
+    { name: 'Premium Users', count: premiumUsers.length.toString(), icon: <DollarSign className="h-6 w-6" />, color: 'text-green-400' },
+    { name: 'Spotify Connected', count: spotifyConnectedUsers.length.toString(), icon: <Activity className="h-6 w-6" />, color: 'text-purple-400' },
+    { name: 'Contact Requests', count: contactRequests.length.toString(), icon: <TrendingUp className="h-6 w-6" />, color: 'text-yellow-400' }
   ];
 
   return (
@@ -77,8 +180,7 @@ const Admin = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <Shield className="h-8 w-8 text-primary animate-pulse-slow" />
-              <div className="absolute inset-0 h-8 w-8 text-primary/30 animate-ping"></div>
+              <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8" />
             </div>
             <span className="text-2xl font-bold text-gradient">Admin Panel</span>
           </div>
@@ -156,10 +258,11 @@ const Admin = () => {
                     
                     <Button
                       onClick={handleToggleAccess}
+                      disabled={loading}
                       className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
                     >
                       <Save className="mr-2 h-4 w-4" />
-                      Update User Access
+                      {loading ? 'Updating...' : 'Update User Access'}
                     </Button>
                     
                     {message && (
@@ -172,28 +275,61 @@ const Admin = () => {
                   <div className="space-y-4">
                     <Label className="text-foreground text-lg">Recent Users</Label>
                     <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {recentUsers.map((user, index) => (
+                      {users.slice(0, 5).map((user, index) => (
                         <div key={index} className="glass-effect border-border/30 p-4 rounded-lg">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="text-foreground font-medium">{user.name}</p>
+                              <p className="text-foreground font-medium">{user.full_name || 'Unknown'}</p>
                               <p className="text-muted-foreground text-sm">{user.email}</p>
                             </div>
                             <div className="text-right">
                               <span className={`text-xs px-2 py-1 rounded-full ${
-                                user.status === 'Premium' 
+                                user.has_active_subscription 
                                   ? 'bg-primary/20 text-primary' 
                                   : 'bg-muted text-muted-foreground'
                               }`}>
-                                {user.status}
+                                {user.has_active_subscription ? 'Premium' : 'Free'}
                               </span>
-                              <p className="text-muted-foreground text-xs mt-1">{user.joined}</p>
+                              <p className="text-muted-foreground text-xs mt-1">
+                                {new Date(user.created_at).toLocaleDateString()}
+                              </p>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contact Requests */}
+            <Card className="glass-effect border-border/50">
+              <CardHeader>
+                <CardTitle className="text-foreground">Contact Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {contactRequests.map((request, index) => (
+                    <div key={index} className="glass-effect border-border/30 p-4 rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-foreground font-medium">{request.name}</p>
+                          <p className="text-muted-foreground text-sm">{request.email}</p>
+                          {request.subject && (
+                            <p className="text-foreground text-sm mt-1">Subject: {request.subject}</p>
+                          )}
+                        </div>
+                        <span className="text-muted-foreground text-xs">
+                          {new Date(request.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-sm">{request.message}</p>
+                    </div>
+                  ))}
+                  {contactRequests.length === 0 && (
+                    <p className="text-muted-foreground text-center py-8">No contact requests yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -218,9 +354,9 @@ const Admin = () => {
                       />
                     </div>
                     <div>
-                      <Label className="text-foreground">Admin Email</Label>
+                      <Label className="text-foreground">Spotify Redirect URL</Label>
                       <Input
-                        value="aadityabansal1112@gmail.com"
+                        value="https://vibe-flow-analytics.lovable.app/spotify-callback"
                         readOnly
                         className="bg-muted border-border text-muted-foreground"
                       />
@@ -243,26 +379,6 @@ const Admin = () => {
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card className="glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="text-foreground">Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {recentActivity.map((activity, index) => (
-                    <div key={index} className="flex justify-between items-center py-3 border-b border-border/20 last:border-b-0">
-                      <div>
-                        <span className="text-foreground text-sm font-medium">{activity.action}</span>
-                        <p className="text-muted-foreground text-xs">{activity.user}</p>
-                      </div>
-                      <span className="text-muted-foreground text-xs">{activity.time}</span>
-                    </div>
-                  ))}
                 </div>
               </CardContent>
             </Card>
