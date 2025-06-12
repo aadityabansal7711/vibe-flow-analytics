@@ -16,6 +16,8 @@ import Loading from "./pages/Loading";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
+import SpotifyCallback from "./pages/SpotifyCallback";
 
 const queryClient = new QueryClient();
 
@@ -28,12 +30,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/buy" element={<Buy />} />
             <Route path="/terms" element={<TermsConditions />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/callback" element={<Callback />} />
+            <Route path="/spotify-callback" element={<SpotifyCallback />} />
             <Route path="/loading" element={<Loading />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin-login" element={<AdminLogin />} />

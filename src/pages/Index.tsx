@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 
 const Index = () => {
-  const { user, login } = useAuth();
+  const { user, loading } = useAuth();
 
   const features = [
     { icon: <Music className="h-5 w-5" />, title: "Top Tracks", description: "Your most played songs of all time" },
@@ -60,6 +60,17 @@ const Index = () => {
     { icon: <Palette className="h-5 w-5" />, title: "Genre Mood Map", description: "Interactive genre-emotion visualization" }
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <Music className="h-16 w-16 text-primary mx-auto animate-pulse-slow mb-4" />
+          <p className="text-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-dark">
       {/* Navigation */}
@@ -81,13 +92,12 @@ const Index = () => {
                 </Button>
               </Link>
             ) : (
-              <Button 
-                onClick={login} 
-                className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Login with Spotify
-              </Button>
+              <Link to="/auth">
+                <Button className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl">
+                  <Play className="mr-2 h-4 w-4" />
+                  Get Started
+                </Button>
+              </Link>
             )}
           </div>
         </div>
@@ -120,13 +130,11 @@ const Index = () => {
                 </Button>
               </Link>
             ) : (
-              <Button 
-                onClick={login} 
-                size="lg" 
-                className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-xl px-8 py-4 text-lg font-semibold"
-              >
-                Get Started Free <Play className="ml-2 h-5 w-5" />
-              </Button>
+              <Link to="/auth">
+                <Button size="lg" className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-xl px-8 py-4 text-lg font-semibold">
+                  Get Started Free <Play className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
             )}
             <Link to="/buy">
               <Button 
@@ -174,7 +182,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Quick Access Section */}
       <div className="px-6 py-16 bg-gradient-to-b from-transparent to-black/20">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-gradient mb-12">
