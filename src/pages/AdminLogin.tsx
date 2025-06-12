@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Music, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminLogin = () => {
@@ -15,10 +15,11 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
-  if (isLoggedIn) {
+  // Check if already logged in
+  const adminSession = localStorage.getItem('admin_session');
+  if (adminSession) {
     return <Navigate to="/admin" replace />;
   }
 
@@ -37,11 +38,11 @@ const AdminLogin = () => {
         .eq('email', email)
         .eq('password_hash', password)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (queryError) {
         console.error('Query error:', queryError);
-        setError('Invalid credentials or inactive account');
+        setError('Database error. Please try again.');
         return;
       }
 
@@ -60,7 +61,10 @@ const AdminLogin = () => {
         loginTime: new Date().toISOString()
       }));
 
-      setIsLoggedIn(true);
+      localStorage.setItem('admin_logged_in', 'true');
+      localStorage.setItem('admin_email', adminUser.email);
+
+      console.log('Admin login successful, redirecting to admin page');
       navigate('/admin');
     } catch (error: any) {
       console.error('Admin login error:', error);
@@ -143,6 +147,8 @@ const AdminLogin = () => {
 
             <div className="text-center text-sm text-muted-foreground">
               <p>Access restricted to administrators only</p>
+              <p className="mt-2 text-xs">Email: aadityabansal1112@gmail.com</p>
+              <p className="text-xs">Password: Hyundai1$</p>
             </div>
           </CardContent>
         </Card>

@@ -68,12 +68,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
 
             if (error && error.code === 'PGRST116') {
-              console.warn('Profile not found, trying to insert...');
+              console.warn('Profile not found, creating new profile...');
               const { data: newProfile, error: insertError } = await supabase
                 .from('profiles')
                 .insert([{ 
                   user_id: session.user.id, 
-                  email: session.user.email,
+                  email: session.user.email!,
+                  full_name: session.user.user_metadata?.full_name || null,
                   plan_tier: 'free',
                   has_active_subscription: false,
                   spotify_connected: false
@@ -112,15 +113,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
+    // Remove email confirmation requirement
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
-        data: fullName ? { full_name: fullName } : undefined
+        data: fullName ? { full_name: fullName } : undefined,
+        emailRedirectTo: undefined // Remove email verification
       }
     });
+    
+    if (!error && data.user && !data.session) {
+      // If user is created but no session, sign them in immediately
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      return { error: signInError };
+    }
+    
     return { error };
   };
 
@@ -130,7 +141,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log('Signing out user...');
+      
+      // Clear any admin session
+      localStorage.removeItem('admin_session');
+      localStorage.removeItem('admin_logged_in');
+      localStorage.removeItem('admin_email');
+      
+      // Clear Spotify tokens
+      localStorage.removeItem('spotify_access_token');
+      localStorage.removeItem('spotify_refresh_token');
+      localStorage.removeItem('myvibelytics_user');
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      }
+      
+      // Clear state
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      
+      console.log('Logout complete');
+      
+      // Force reload to clear any cached state
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force reload even if there's an error
+      window.location.href = '/';
+    }
   };
 
   const connectSpotify = () => {

@@ -40,9 +40,17 @@ const SpotifyCallback: React.FC = () => {
         return;
       }
 
-      if (!code || state !== user.id) {
-        console.error('❌ Invalid callback parameters');
-        setStatus('Invalid callback parameters');
+      if (!code) {
+        console.error('❌ No authorization code received');
+        setStatus('No authorization code received');
+        setIsError(true);
+        setTimeout(() => navigate('/dashboard'), 3000);
+        return;
+      }
+
+      if (state !== user.id) {
+        console.error('❌ State mismatch - security check failed');
+        setStatus('Security validation failed');
         setIsError(true);
         setTimeout(() => navigate('/dashboard'), 3000);
         return;
@@ -89,6 +97,8 @@ const SpotifyCallback: React.FC = () => {
         });
 
         if (!profileRes.ok) {
+          const errText = await profileRes.text();
+          console.error('❌ Profile fetch failed:', errText);
           throw new Error('Failed to get Spotify profile');
         }
 
@@ -114,7 +124,7 @@ const SpotifyCallback: React.FC = () => {
         setStatus('Success! Spotify connected to your account.');
         setIsSuccess(true);
         setTimeout(() => navigate('/dashboard'), 2000);
-      } catch (err) {
+      } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
         setStatus('Failed to connect Spotify. Please try again.');
         setIsError(true);

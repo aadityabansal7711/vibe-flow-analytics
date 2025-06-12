@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Link, Navigate } from 'react-router-dom';
-import { Music, Shield, User, Key, Save, LogOut, Users, DollarSign, Activity, TrendingUp } from 'lucide-react';
+import { User, Key, Save, LogOut, Users, DollarSign, Activity, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,13 +41,24 @@ const Admin = () => {
 
   useEffect(() => {
     // Check if admin is logged in
+    const adminSession = localStorage.getItem('admin_session');
     const adminLoggedIn = localStorage.getItem('admin_logged_in');
-    const adminEmail = localStorage.getItem('admin_email');
     
-    if (adminLoggedIn === 'true' && adminEmail === 'aadityabansal1112@gmail.com') {
-      setIsAuthenticated(true);
-      fetchUsers();
-      fetchContactRequests();
+    console.log('Checking admin auth:', { adminSession: !!adminSession, adminLoggedIn });
+    
+    if (adminSession && adminLoggedIn === 'true') {
+      try {
+        const session = JSON.parse(adminSession);
+        if (session.email === 'aadityabansal1112@gmail.com') {
+          setIsAuthenticated(true);
+          fetchUsers();
+          fetchContactRequests();
+        }
+      } catch (error) {
+        console.error('Error parsing admin session:', error);
+        localStorage.removeItem('admin_session');
+        localStorage.removeItem('admin_logged_in');
+      }
     }
   }, []);
 
@@ -60,6 +71,7 @@ const Admin = () => {
       
       if (error) throw error;
       setUsers(data || []);
+      console.log('Fetched users:', data?.length);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -79,6 +91,7 @@ const Admin = () => {
       
       if (error) throw error;
       setContactRequests(data || []);
+      console.log('Fetched contact requests:', data?.length);
     } catch (error) {
       console.error('Error fetching contact requests:', error);
       toast({
@@ -90,9 +103,62 @@ const Admin = () => {
   };
 
   const handleLogout = () => {
+    console.log('Admin logging out...');
+    localStorage.removeItem('admin_session');
     localStorage.removeItem('admin_logged_in');
     localStorage.removeItem('admin_email');
     setIsAuthenticated(false);
+    window.location.href = '/admin-login';
+  };
+
+  const clearAllUsers = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL users? This action cannot be undone.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Delete all users from profiles table
+      const { error: profilesError } = await supabase
+        .from('profiles')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (profilesError) throw profilesError;
+
+      // Delete all subscriptions
+      const { error: subscriptionsError } = await supabase
+        .from('subscriptions')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (subscriptionsError) throw subscriptionsError;
+
+      // Delete all user management records
+      const { error: userMgmtError } = await supabase
+        .from('user_management')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (userMgmtError) throw userMgmtError;
+
+      setMessage('All users deleted successfully');
+      fetchUsers();
+      
+      toast({
+        title: "Success",
+        description: "All users have been deleted",
+      });
+    } catch (error: any) {
+      console.error('Error deleting users:', error);
+      setMessage('Failed to delete users');
+      toast({
+        title: "Error",
+        description: "Failed to delete users",
+        variant: "destructive"
+      });
+    }
+    setLoading(false);
   };
 
   const handleToggleAccess = async () => {
@@ -108,7 +174,7 @@ const Admin = () => {
         .from('profiles')
         .select('*')
         .eq('email', userEmail)
-        .single();
+        .maybeSingle();
 
       if (userError || !user) {
         setMessage('User not found');
@@ -131,7 +197,7 @@ const Admin = () => {
           user_id: user.user_id,
           email: userEmail,
           premium_access: isUnlocked,
-          managed_by_admin: 'admin_id', // You might want to get actual admin ID
+          managed_by_admin: 'admin_id',
           updated_at: new Date().toISOString()
         });
 
@@ -146,7 +212,7 @@ const Admin = () => {
         title: "Success",
         description: `User access ${isUnlocked ? 'granted' : 'revoked'} successfully`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user access:', error);
       setMessage('Failed to update user access');
       toast({
@@ -179,10 +245,7 @@ const Admin = () => {
       <nav className="sticky top-0 z-50 glass-effect-strong border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
           <div className="flex items-center space-x-3">
-            <div className="relative">
-              <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8" />
-            </div>
-            <span className="text-2xl font-bold text-gradient">Admin Panel</span>
+            <span className="text-2xl font-bold text-gradient">MyVibeLytics Admin</span>
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-muted-foreground text-sm">Welcome, Admin</span>
@@ -264,6 +327,15 @@ const Admin = () => {
                       <Save className="mr-2 h-4 w-4" />
                       {loading ? 'Updating...' : 'Update User Access'}
                     </Button>
+
+                    <Button
+                      onClick={clearAllUsers}
+                      disabled={loading}
+                      variant="destructive"
+                      className="w-full"
+                    >
+                      {loading ? 'Deleting...' : 'Delete All Users'}
+                    </Button>
                     
                     {message && (
                       <div className="p-3 bg-primary/20 border border-primary/30 rounded text-primary text-sm">
@@ -297,6 +369,9 @@ const Admin = () => {
                           </div>
                         </div>
                       ))}
+                      {users.length === 0 && (
+                        <p className="text-muted-foreground text-center py-8">No users found</p>
+                      )}
                     </div>
                   </div>
                 </div>
