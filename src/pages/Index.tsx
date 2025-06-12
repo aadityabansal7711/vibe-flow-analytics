@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,22 +10,26 @@ const Index = () => {
     {
       icon: <BarChart3 className="h-8 w-8" />,
       title: "Deep Analytics",
-      description: "Comprehensive insights into your listening habits, top tracks, and musical journey over time."
+      description: "Comprehensive insights into your listening habits, top tracks, and musical journey over time.",
+      isLocked: false
     },
     {
       icon: <TrendingUp className="h-8 w-8" />,
       title: "Trend Analysis",
-      description: "Track your music evolution and discover how your taste changes across different periods."
+      description: "Track your music evolution and discover how your taste changes across different periods.",
+      isLocked: false
     },
     {
       icon: <Heart className="h-8 w-8" />,
       title: "Personalized Insights",
-      description: "Get personalized recommendations and insights based on your unique listening patterns."
+      description: "Get personalized recommendations and insights based on your unique listening patterns.",
+      isLocked: false
     },
     {
       icon: <Users className="h-8 w-8" />,
       title: "Social Sharing",
-      description: "Share your music stats and connect with friends who have similar music taste."
+      description: "Share your music stats and connect with friends who have similar music taste.",
+      isLocked: false
     }
   ];
 
@@ -149,6 +152,7 @@ const Index = () => {
                 icon={feature.icon}
                 title={feature.title}
                 description={feature.description}
+                isLocked={feature.isLocked}
               />
             ))}
           </div>
