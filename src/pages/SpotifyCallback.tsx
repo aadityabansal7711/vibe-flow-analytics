@@ -75,7 +75,7 @@ const SpotifyCallback: React.FC = () => {
           body: new URLSearchParams({
             grant_type: 'authorization_code',
             code,
-            redirect_uri: 'https://vibe-flow-analytics.lovable.app/spotify-callback',
+            redirect_uri: 'https://id-preview--e765dce8-aeab-4d72-9ec0-dadf11a50e42.lovable.app/spotify-callback',
           }),
         });
 
