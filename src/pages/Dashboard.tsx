@@ -28,7 +28,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 
 const Dashboard = () => {
-  const { user, logout, isUnlocked } = useAuth();
+  const { user, profile, signOut, isUnlocked } = useAuth();
   const [topTracks, setTopTracks] = useState([]);
   const [topArtists, setTopArtists] = useState([]);
 
@@ -74,7 +74,7 @@ const Dashboard = () => {
             <span className="text-2xl font-bold text-foreground">MyVibeLytics</span>
           </Link>
           <div className="text-muted-foreground">
-            Welcome, {user.name || user.email}!
+            Welcome, {profile?.full_name || user.email}!
           </div>
         </div>
         <div className="flex items-center space-x-4">
@@ -86,7 +86,7 @@ const Dashboard = () => {
               </Button>
             </Link>
           )}
-          <Button onClick={logout} variant="outline" className="border-border text-foreground hover:bg-muted">
+          <Button onClick={signOut} variant="outline" className="border-border text-foreground hover:bg-muted">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>
