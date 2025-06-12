@@ -36,42 +36,83 @@ const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [users, setUsers] = useState<UserData[]>([]);
   const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if admin is logged in
-    const adminSession = localStorage.getItem('admin_session');
-    const adminLoggedIn = localStorage.getItem('admin_logged_in');
-    
-    console.log('Checking admin auth:', { adminSession: !!adminSession, adminLoggedIn });
-    
-    if (adminSession && adminLoggedIn === 'true') {
-      try {
-        const session = JSON.parse(adminSession);
-        if (session.email === 'aadityabansal1112@gmail.com') {
-          setIsAuthenticated(true);
-          fetchUsers();
-          fetchContactRequests();
+    const checkAuth = () => {
+      console.log('🔍 Checking admin authentication...');
+      const adminSession = localStorage.getItem('admin_session');
+      const adminLoggedIn = localStorage.getItem('admin_logged_in');
+      
+      console.log('Admin session check:', { 
+        hasSession: !!adminSession, 
+        loggedIn: adminLoggedIn 
+      });
+      
+      if (adminSession && adminLoggedIn === 'true') {
+        try {
+          const session = JSON.parse(adminSession);
+          console.log('Parsed admin session:', session);
+          
+          if (session.email === 'aadityabansal1112@gmail.com') {
+            console.log('✅ Admin authenticated');
+            setIsAuthenticated(true);
+            loadInitialData();
+          } else {
+            console.log('❌ Invalid admin email');
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.error('Error parsing admin session:', error);
+          localStorage.removeItem('admin_session');
+          localStorage.removeItem('admin_logged_in');
+          setIsAuthenticated(false);
         }
-      } catch (error) {
-        console.error('Error parsing admin session:', error);
-        localStorage.removeItem('admin_session');
-        localStorage.removeItem('admin_logged_in');
+      } else {
+        console.log('❌ No valid admin session found');
+        setIsAuthenticated(false);
       }
-    }
+      
+      setLoading(false);
+    };
+
+    checkAuth();
   }, []);
+
+  const loadInitialData = async () => {
+    console.log('📊 Loading initial admin data...');
+    setDataLoading(true);
+    
+    try {
+      await Promise.all([
+        fetchUsers(),
+        fetchContactRequests()
+      ]);
+      console.log('✅ Initial data loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading initial data:', error);
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
+      console.log('👥 Fetching users...');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error fetching users:', error);
+        throw error;
+      }
+      
+      console.log('✅ Users fetched:', data?.length || 0);
       setUsers(data || []);
-      console.log('Fetched users:', data?.length);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -84,26 +125,27 @@ const Admin = () => {
 
   const fetchContactRequests = async () => {
     try {
+      console.log('📬 Fetching contact requests...');
       const { data, error } = await supabase
         .from('contact_requests')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') { // Ignore table doesn't exist error
+        console.error('❌ Error fetching contact requests:', error);
+        throw error;
+      }
+      
+      console.log('✅ Contact requests fetched:', data?.length || 0);
       setContactRequests(data || []);
-      console.log('Fetched contact requests:', data?.length);
     } catch (error) {
       console.error('Error fetching contact requests:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch contact requests",
-        variant: "destructive"
-      });
+      // Don't show error toast for contact requests as table might not exist
     }
   };
 
   const handleLogout = () => {
-    console.log('Admin logging out...');
+    console.log('🚪 Admin logging out...');
     localStorage.removeItem('admin_session');
     localStorage.removeItem('admin_logged_in');
     localStorage.removeItem('admin_email');
@@ -116,7 +158,8 @@ const Admin = () => {
       return;
     }
 
-    setLoading(true);
+    console.log('🗑️ Clearing all users...');
+    setDataLoading(true);
     try {
       // Delete all users from profiles table
       const { error: profilesError } = await supabase
@@ -126,24 +169,16 @@ const Admin = () => {
 
       if (profilesError) throw profilesError;
 
-      // Delete all subscriptions
-      const { error: subscriptionsError } = await supabase
-        .from('subscriptions')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-
-      if (subscriptionsError) throw subscriptionsError;
-
-      // Delete all user management records
-      const { error: userMgmtError } = await supabase
-        .from('user_management')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-
-      if (userMgmtError) throw userMgmtError;
+      // Try to delete from other tables if they exist
+      try {
+        await supabase.from('subscriptions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('user_management').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (error) {
+        console.log('Note: Some tables may not exist:', error);
+      }
 
       setMessage('All users deleted successfully');
-      fetchUsers();
+      await fetchUsers();
       
       toast({
         title: "Success",
@@ -158,7 +193,7 @@ const Admin = () => {
         variant: "destructive"
       });
     }
-    setLoading(false);
+    setDataLoading(false);
   };
 
   const handleToggleAccess = async () => {
@@ -167,7 +202,8 @@ const Admin = () => {
       return;
     }
 
-    setLoading(true);
+    console.log('🔄 Toggling access for:', userEmail);
+    setDataLoading(true);
     try {
       // Find user by email
       const { data: user, error: userError } = await supabase
@@ -178,7 +214,7 @@ const Admin = () => {
 
       if (userError || !user) {
         setMessage('User not found');
-        setLoading(false);
+        setDataLoading(false);
         return;
       }
 
@@ -190,23 +226,25 @@ const Admin = () => {
 
       if (updateError) throw updateError;
 
-      // Also update user_management table
-      const { error: managementError } = await supabase
-        .from('user_management')
-        .upsert({
-          user_id: user.user_id,
-          email: userEmail,
-          premium_access: isUnlocked,
-          managed_by_admin: 'admin_id',
-          updated_at: new Date().toISOString()
-        });
-
-      if (managementError) throw managementError;
+      // Try to update user_management table if it exists
+      try {
+        await supabase
+          .from('user_management')
+          .upsert({
+            user_id: user.user_id,
+            email: userEmail,
+            premium_access: isUnlocked,
+            managed_by_admin: 'admin_id',
+            updated_at: new Date().toISOString()
+          });
+      } catch (error) {
+        console.log('Note: user_management table may not exist:', error);
+      }
 
       setMessage(`Access ${isUnlocked ? 'granted' : 'revoked'} for ${userEmail}`);
       
       // Refresh users list
-      fetchUsers();
+      await fetchUsers();
       
       toast({
         title: "Success",
@@ -221,8 +259,20 @@ const Admin = () => {
         variant: "destructive"
       });
     }
-    setLoading(false);
+    setDataLoading(false);
   };
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-foreground">Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
@@ -294,6 +344,13 @@ const Admin = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {dataLoading && (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-muted-foreground">Loading...</p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="space-y-4">
                     <div>
@@ -321,20 +378,20 @@ const Admin = () => {
                     
                     <Button
                       onClick={handleToggleAccess}
-                      disabled={loading}
+                      disabled={dataLoading}
                       className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
                     >
                       <Save className="mr-2 h-4 w-4" />
-                      {loading ? 'Updating...' : 'Update User Access'}
+                      {dataLoading ? 'Updating...' : 'Update User Access'}
                     </Button>
 
                     <Button
                       onClick={clearAllUsers}
-                      disabled={loading}
+                      disabled={dataLoading}
                       variant="destructive"
                       className="w-full"
                     >
-                      {loading ? 'Deleting...' : 'Delete All Users'}
+                      {dataLoading ? 'Deleting...' : 'Delete All Users'}
                     </Button>
                     
                     {message && (
@@ -345,7 +402,7 @@ const Admin = () => {
                   </div>
                   
                   <div className="space-y-4">
-                    <Label className="text-foreground text-lg">Recent Users</Label>
+                    <Label className="text-foreground text-lg">Recent Users ({users.length})</Label>
                     <div className="space-y-3 max-h-64 overflow-y-auto">
                       {users.slice(0, 5).map((user, index) => (
                         <div key={index} className="glass-effect border-border/30 p-4 rounded-lg">
@@ -362,6 +419,11 @@ const Admin = () => {
                               }`}>
                                 {user.has_active_subscription ? 'Premium' : 'Free'}
                               </span>
+                              {user.spotify_connected && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 ml-1">
+                                  Spotify
+                                </span>
+                              )}
                               <p className="text-muted-foreground text-xs mt-1">
                                 {new Date(user.created_at).toLocaleDateString()}
                               </p>
@@ -369,7 +431,7 @@ const Admin = () => {
                           </div>
                         </div>
                       ))}
-                      {users.length === 0 && (
+                      {users.length === 0 && !dataLoading && (
                         <p className="text-muted-foreground text-center py-8">No users found</p>
                       )}
                     </div>
@@ -381,7 +443,7 @@ const Admin = () => {
             {/* Contact Requests */}
             <Card className="glass-effect border-border/50">
               <CardHeader>
-                <CardTitle className="text-foreground">Contact Requests</CardTitle>
+                <CardTitle className="text-foreground">Contact Requests ({contactRequests.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -402,7 +464,7 @@ const Admin = () => {
                       <p className="text-muted-foreground text-sm">{request.message}</p>
                     </div>
                   ))}
-                  {contactRequests.length === 0 && (
+                  {contactRequests.length === 0 && !dataLoading && (
                     <p className="text-muted-foreground text-center py-8">No contact requests yet</p>
                   )}
                 </div>
@@ -429,9 +491,9 @@ const Admin = () => {
                       />
                     </div>
                     <div>
-                      <Label className="text-foreground">Spotify Redirect URL</Label>
+                      <Label className="text-foreground">Current Environment</Label>
                       <Input
-                        value="https://vibe-flow-analytics.lovable.app/spotify-callback"
+                        value={window.location.origin}
                         readOnly
                         className="bg-muted border-border text-muted-foreground"
                       />
@@ -439,9 +501,9 @@ const Admin = () => {
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-foreground">Domain</Label>
+                      <Label className="text-foreground">Spotify Redirect URL</Label>
                       <Input
-                        value="https://vibe-flow-analytics.lovable.app"
+                        value={`${window.location.origin}/spotify-callback`}
                         readOnly
                         className="bg-muted border-border text-muted-foreground"
                       />

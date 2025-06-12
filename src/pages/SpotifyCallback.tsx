@@ -7,7 +7,7 @@ import { Music, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 const SpotifyCallback: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateProfile, loading } = useAuth();
-  const [status, setStatus] = useState('Processing your Spotify connection...');
+  const [status, setStatus] = useState('Connecting your Spotify account...');
   const [isSuccess, setIsSuccess] = useState(false);
   const [isError, setIsError] = useState(false);
 
@@ -15,7 +15,7 @@ const SpotifyCallback: React.FC = () => {
     if (loading) return;
 
     const handleCallback = async () => {
-      console.log('🔁 Starting Spotify callback handling...');
+      console.log('🎵 Starting Spotify callback handling...');
 
       if (!user) {
         console.error('❌ No user found for Spotify callback');
@@ -40,9 +40,13 @@ const SpotifyCallback: React.FC = () => {
 
       if (error) {
         console.error('❌ Spotify auth error:', error);
-        setStatus(`Spotify connection failed: ${error}`);
+        if (error === 'access_denied') {
+          setStatus('Spotify access was denied. Please try connecting again.');
+        } else {
+          setStatus(`Spotify connection failed: ${error}`);
+        }
         setIsError(true);
-        setTimeout(() => navigate('/dashboard'), 3000);
+        setTimeout(() => navigate('/dashboard'), 4000);
         return;
       }
 
@@ -66,8 +70,7 @@ const SpotifyCallback: React.FC = () => {
         console.log('🔄 Exchanging code for access token...');
         setStatus('Exchanging authorization code...');
 
-        const currentOrigin = window.location.origin;
-        const redirectUri = `${currentOrigin}/spotify-callback`;
+        const redirectUri = `${window.location.origin}/spotify-callback`;
         
         console.log('🔗 Using redirect URI:', redirectUri);
 
@@ -87,9 +90,9 @@ const SpotifyCallback: React.FC = () => {
         console.log('📊 Token response status:', tokenResponse.status);
 
         if (!tokenResponse.ok) {
-          const errorData = await tokenResponse.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('❌ Token exchange failed:', errorData);
-          throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`);
+          const errorText = await tokenResponse.text();
+          console.error('❌ Token exchange failed:', errorText);
+          throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
         }
 
         const tokenData = await tokenResponse.json();
@@ -107,9 +110,9 @@ const SpotifyCallback: React.FC = () => {
         console.log('📊 Profile response status:', profileResponse.status);
 
         if (!profileResponse.ok) {
-          const errorData = await profileResponse.json().catch(() => ({ error: 'Profile fetch failed' }));
-          console.error('❌ Profile fetch failed:', errorData);
-          throw new Error(`Profile fetch failed: ${errorData.error?.message || 'Unable to fetch profile'}`);
+          const errorText = await profileResponse.text();
+          console.error('❌ Profile fetch failed:', errorText);
+          throw new Error(`Profile fetch failed: ${profileResponse.status}`);
         }
 
         const profileData = await profileResponse.json();

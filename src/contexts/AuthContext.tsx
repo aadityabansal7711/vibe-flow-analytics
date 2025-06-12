@@ -183,12 +183,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const clientId = 'fe34af0e9c494464a7a8ba2012f382bb';
+    const redirectUri = `${window.location.origin}/spotify-callback`;
     
-    // Dynamically determine the correct redirect URI based on current environment
-    const currentOrigin = window.location.origin;
-    const redirectUri = `${currentOrigin}/spotify-callback`;
-    
-    console.log('Using redirect URI:', redirectUri);
+    console.log('🎵 Initiating Spotify OAuth with redirect URI:', redirectUri);
     
     const scopes = [
       'user-read-private',
@@ -200,14 +197,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       'playlist-read-collaborative'
     ].join(' ');
 
+    // Clear any existing Spotify data
+    localStorage.removeItem('spotify_access_token');
+    localStorage.removeItem('spotify_refresh_token');
+
     const authUrl = `https://accounts.spotify.com/authorize?` +
       `client_id=${clientId}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `scope=${encodeURIComponent(scopes)}&` +
-      `state=${user.id}`;
+      `state=${user.id}&` +
+      `show_dialog=true`;
 
-    console.log('Redirecting to Spotify auth:', authUrl);
+    console.log('🔗 Redirecting to Spotify auth URL:', authUrl);
     window.location.href = authUrl;
   };
 

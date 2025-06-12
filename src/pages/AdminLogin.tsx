@@ -19,7 +19,16 @@ const AdminLogin = () => {
   // Check if already logged in
   const adminSession = localStorage.getItem('admin_session');
   if (adminSession) {
-    return <Navigate to="/admin" replace />;
+    try {
+      const session = JSON.parse(adminSession);
+      if (session.email === 'aadityabansal1112@gmail.com') {
+        return <Navigate to="/admin" replace />;
+      }
+    } catch (error) {
+      // Clear invalid session
+      localStorage.removeItem('admin_session');
+      localStorage.removeItem('admin_logged_in');
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,11 +37,11 @@ const AdminLogin = () => {
     setError('');
 
     try {
-      console.log('Attempting admin login for:', email);
+      console.log('🔐 Attempting admin login for:', email);
       
       // Simple direct authentication check
       if (email === 'aadityabansal1112@gmail.com' && password === 'Hyundai1$') {
-        console.log('Admin credentials verified');
+        console.log('✅ Admin credentials verified');
         
         // Store admin session in localStorage
         const adminData = {
@@ -46,14 +55,18 @@ const AdminLogin = () => {
         localStorage.setItem('admin_logged_in', 'true');
         localStorage.setItem('admin_email', email);
 
-        console.log('Admin login successful, redirecting to admin page');
+        console.log('✅ Admin login successful, redirecting to admin page');
         navigate('/admin');
       } else {
-        console.log('Invalid admin credentials provided:', { email, passwordLength: password.length });
+        console.log('❌ Invalid admin credentials provided:', { 
+          email, 
+          passwordLength: password.length,
+          expectedEmail: 'aadityabansal1112@gmail.com'
+        });
         setError('Invalid admin credentials. Please check your email and password.');
       }
     } catch (error: any) {
-      console.error('Admin login error:', error);
+      console.error('❌ Admin login error:', error);
       setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
