@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,51 +49,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Calculate isUnlocked based on profile data
   const isUnlocked = profile?.has_active_subscription || false;
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          // Fetch user profile
-          setTimeout(async () => {
-            try {
-              const { data: profileData, error } = await supabase
+          try {
+            const { data: profileData, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+
+            if (error && error.code === 'PGRST116') {
+              console.warn('Profile not found, trying to insert...');
+              const { data: newProfile, error: insertError } = await supabase
                 .from('profiles')
-                .select('*')
-                .eq('user_id', session.user.id)
+                .insert([{ user_id: session.user.id, email: session.user.email }])
+                .select()
                 .single();
-              
-              if (error) {
-                console.error('Error fetching profile:', error);
+
+              if (insertError) {
+                console.error('Failed to insert profile:', insertError);
               } else {
-                setProfile(profileData);
+                setProfile(newProfile);
               }
-            } catch (err) {
-              console.error('Profile fetch error:', err);
+            } else if (error) {
+              console.error('Error fetching profile:', error);
+            } else {
+              setProfile(profileData);
             }
-            setLoading(false);
-          }, 0);
+          } catch (err) {
+            console.error('Profile fetch error:', err);
+          }
         } else {
           setProfile(null);
-          setLoading(false);
         }
+
+        setLoading(false);
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (!session) {
-        setLoading(false);
-      }
+      if (!session) setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -102,7 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -115,10 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
