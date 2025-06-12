@@ -40,7 +40,7 @@ const SpotifyCallback: React.FC = () => {
 
       if (error) {
         console.error('❌ Spotify auth error:', error);
-        setStatus('Spotify connection cancelled or failed');
+        setStatus(`Spotify connection failed: ${error}`);
         setIsError(true);
         setTimeout(() => navigate('/dashboard'), 3000);
         return;
@@ -48,7 +48,7 @@ const SpotifyCallback: React.FC = () => {
 
       if (!code) {
         console.error('❌ No authorization code received');
-        setStatus('No authorization code received');
+        setStatus('No authorization code received from Spotify');
         setIsError(true);
         setTimeout(() => navigate('/dashboard'), 3000);
         return;
@@ -56,7 +56,7 @@ const SpotifyCallback: React.FC = () => {
 
       if (state !== user.id) {
         console.error('❌ State mismatch - security check failed');
-        setStatus('Security validation failed');
+        setStatus('Security validation failed - please try connecting again');
         setIsError(true);
         setTimeout(() => navigate('/dashboard'), 3000);
         return;
@@ -64,13 +64,12 @@ const SpotifyCallback: React.FC = () => {
 
       try {
         console.log('🔄 Exchanging code for access token...');
-        setStatus('Exchanging code for access token...');
+        setStatus('Exchanging authorization code...');
 
-        // Use dynamic redirect URI based on current origin
         const currentOrigin = window.location.origin;
         const redirectUri = `${currentOrigin}/spotify-callback`;
         
-        console.log('Using redirect URI for token exchange:', redirectUri);
+        console.log('🔗 Using redirect URI:', redirectUri);
 
         const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
@@ -85,18 +84,18 @@ const SpotifyCallback: React.FC = () => {
           }),
         });
 
-        console.log('Token response status:', tokenResponse.status);
+        console.log('📊 Token response status:', tokenResponse.status);
 
         if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text();
-          console.error('❌ Token exchange failed:', errorText);
-          throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
+          const errorData = await tokenResponse.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('❌ Token exchange failed:', errorData);
+          throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`);
         }
 
         const tokenData = await tokenResponse.json();
-        console.log('✅ Token exchange successful, access token received');
+        console.log('✅ Token exchange successful');
 
-        setStatus('Getting your Spotify profile...');
+        setStatus('Fetching your Spotify profile...');
         console.log('🔄 Fetching Spotify profile...');
 
         const profileResponse = await fetch('https://api.spotify.com/v1/me', {
@@ -105,12 +104,12 @@ const SpotifyCallback: React.FC = () => {
           },
         });
 
-        console.log('Profile response status:', profileResponse.status);
+        console.log('📊 Profile response status:', profileResponse.status);
 
         if (!profileResponse.ok) {
-          const errorText = await profileResponse.text();
-          console.error('❌ Profile fetch failed:', errorText);
-          throw new Error(`Profile fetch failed: ${profileResponse.status} - ${errorText}`);
+          const errorData = await profileResponse.json().catch(() => ({ error: 'Profile fetch failed' }));
+          console.error('❌ Profile fetch failed:', errorData);
+          throw new Error(`Profile fetch failed: ${errorData.error?.message || 'Unable to fetch profile'}`);
         }
 
         const profileData = await profileResponse.json();
@@ -120,7 +119,7 @@ const SpotifyCallback: React.FC = () => {
           email: profileData.email
         });
 
-        setStatus('Saving your connection...');
+        setStatus('Saving your Spotify connection...');
         console.log('🔄 Updating user profile with Spotify data...');
 
         const updateData = {
@@ -132,7 +131,7 @@ const SpotifyCallback: React.FC = () => {
           spotify_avatar_url: profileData.images?.[0]?.url || null,
         };
 
-        console.log('Updating profile with data:', updateData);
+        console.log('💾 Saving profile data...');
 
         await updateProfile(updateData);
 
@@ -140,16 +139,19 @@ const SpotifyCallback: React.FC = () => {
         setStatus('Success! Spotify connected to your account.');
         setIsSuccess(true);
         
-        // Clear the URL parameters before redirecting
+        // Clear the URL parameters
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        setTimeout(() => navigate('/dashboard'), 2000);
+        setTimeout(() => {
+          console.log('🔄 Redirecting to dashboard...');
+          navigate('/dashboard');
+        }, 2000);
 
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
         setStatus(`Failed to connect Spotify: ${err.message}`);
         setIsError(true);
-        setTimeout(() => navigate('/dashboard'), 3000);
+        setTimeout(() => navigate('/dashboard'), 4000);
       }
     };
 
@@ -195,6 +197,7 @@ const SpotifyCallback: React.FC = () => {
           {isError && (
             <div className="mt-4">
               <p className="text-muted-foreground">Redirecting to dashboard...</p>
+              <p className="text-sm text-red-400 mt-2">You can try connecting again from the dashboard</p>
             </div>
           )}
         </div>

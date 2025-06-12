@@ -115,70 +115,72 @@ const useSpotifyData = (): SpotifyData => {
         return response;
       };
 
-      console.log('📡 Starting parallel API requests...');
+      console.log('📡 Starting API requests...');
 
-      const [topTracksRes, topArtistsRes, recentlyPlayedRes, currentlyPlayingRes] = await Promise.allSettled([
-        makeSpotifyRequest('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term'),
-        makeSpotifyRequest('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term'),
-        makeSpotifyRequest('https://api.spotify.com/v1/me/player/recently-played?limit=20'),
-        makeSpotifyRequest('https://api.spotify.com/v1/me/player/currently-playing')
-      ]);
+      // Fetch data sequentially to avoid rate limiting and better error handling
+      const topTracksRes = await makeSpotifyRequest('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term');
+      const topArtistsRes = await makeSpotifyRequest('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term');
+      const recentlyPlayedRes = await makeSpotifyRequest('https://api.spotify.com/v1/me/player/recently-played?limit=20');
 
-      console.log('📊 All Spotify API requests completed');
+      console.log('📊 API requests completed');
 
-      const processResponse = async (result: any, name: string) => {
-        if (result.status === 'fulfilled') {
-          const response = result.value;
-          if (response.ok) {
-            try {
-              const text = await response.text();
-              if (!text) {
-                console.log(`📭 No content for ${name}`);
-                return null;
-              }
-              return JSON.parse(text);
-            } catch (e) {
-              console.error(`❌ Error parsing ${name} response:`, e);
+      const processResponse = async (response: Response, name: string) => {
+        if (response.ok) {
+          try {
+            const text = await response.text();
+            if (!text) {
+              console.log(`📭 No content for ${name}`);
               return null;
             }
-          } else if (response.status === 204) {
-            console.log(`📭 No content for ${name}`);
-            return null;
-          } else {
-            const errorText = await response.text();
-            console.error(`❌ ${name} request failed:`, response.status, errorText);
+            const data = JSON.parse(text);
+            console.log(`✅ ${name} data:`, data.items?.length || 0, 'items');
+            return data;
+          } catch (e) {
+            console.error(`❌ Error parsing ${name} response:`, e);
             return null;
           }
+        } else if (response.status === 204) {
+          console.log(`📭 No content for ${name}`);
+          return null;
+        } else if (response.status === 403) {
+          console.warn(`🚫 Insufficient permissions for ${name}`);
+          return null;
         } else {
-          console.error(`❌ ${name} request rejected:`, result.reason);
+          const errorText = await response.text().catch(() => 'Unknown error');
+          console.error(`❌ ${name} request failed:`, response.status, errorText);
           return null;
         }
       };
 
-      const [topTracksData, topArtistsData, recentlyPlayedData, currentlyPlayingData] = await Promise.all([
+      const [topTracksData, topArtistsData, recentlyPlayedData] = await Promise.all([
         processResponse(topTracksRes, 'top tracks'),
         processResponse(topArtistsRes, 'top artists'),
-        processResponse(recentlyPlayedRes, 'recently played'),
-        processResponse(currentlyPlayingRes, 'currently playing')
+        processResponse(recentlyPlayedRes, 'recently played')
       ]);
 
       const topTracks = topTracksData?.items || [];
       const topArtists = topArtistsData?.items || [];
       const recentlyPlayed = recentlyPlayedData?.items?.map((item: any) => item.track) || [];
-      const currentlyPlaying = currentlyPlayingData?.item || null;
 
       console.log('✅ Spotify data processed successfully:', {
         topTracks: topTracks.length,
         topArtists: topArtists.length,
-        recentlyPlayed: recentlyPlayed.length,
-        currentlyPlaying: !!currentlyPlaying
+        recentlyPlayed: recentlyPlayed.length
       });
+
+      if (topTracks.length === 0 && topArtists.length === 0 && recentlyPlayed.length === 0) {
+        setData(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: 'No Spotify data found. Try listening to some music first!' 
+        }));
+        return;
+      }
 
       setData({
         topTracks,
         topArtists,
         recentlyPlayed,
-        currentlyPlaying,
         loading: false,
         error: null
       });
