@@ -14,6 +14,7 @@ import Contact from "./pages/Contact";
 import Callback from "./pages/Callback";
 import Loading from "./pages/Loading";
 import Admin from "./pages/Admin";
+import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/callback" element={<Callback />} />
             <Route path="/loading" element={<Loading />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -2,11 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Music, Loader2 } from 'lucide-react';
+import { Music, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const Callback = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('Processing your Spotify login...');
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -16,12 +18,14 @@ const Callback = () => {
 
       if (error) {
         setStatus('Login cancelled or failed');
+        setIsError(true);
         setTimeout(() => navigate('/'), 3000);
         return;
       }
 
       if (!code) {
         setStatus('No authorization code received');
+        setIsError(true);
         setTimeout(() => navigate('/'), 3000);
         return;
       }
@@ -80,16 +84,18 @@ const Callback = () => {
         
         localStorage.setItem('myvibelytics_user', JSON.stringify(user));
         
-        setStatus('Success! Redirecting to dashboard...');
+        setStatus('Success! Welcome to MyVibeLytics!');
+        setIsSuccess(true);
         
-        // Reload the page to trigger auth context update
+        // Redirect after a short delay
         setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1500);
+          navigate('/dashboard');
+        }, 2000);
 
       } catch (error) {
         console.error('Callback error:', error);
         setStatus('Failed to complete login. Please try again.');
+        setIsError(true);
         setTimeout(() => navigate('/'), 3000);
       }
     };
@@ -98,21 +104,48 @@ const Callback = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-      <div className="text-center">
-        <div className="flex items-center justify-center mb-8">
-          <Music className="h-16 w-16 text-green-400 animate-pulse" />
-        </div>
-        
-        <h1 className="text-3xl font-bold text-white mb-4">MyVibeLytics</h1>
-        
-        <div className="flex items-center justify-center space-x-3 mb-4">
-          <Loader2 className="h-5 w-5 text-green-400 animate-spin" />
-          <p className="text-gray-300">{status}</p>
-        </div>
-        
-        <div className="w-64 h-2 bg-gray-700 rounded-full mx-auto overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-green-400 to-blue-400 rounded-full animate-pulse"></div>
+    <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+      <div className="max-w-md w-full mx-auto text-center">
+        <div className="glass-effect-strong rounded-2xl p-8 border border-border/50">
+          <div className="flex items-center justify-center mb-8">
+            {isError ? (
+              <AlertCircle className="h-16 w-16 text-red-400" />
+            ) : isSuccess ? (
+              <CheckCircle className="h-16 w-16 text-primary animate-pulse-slow" />
+            ) : (
+              <div className="relative">
+                <Music className="h-16 w-16 text-primary animate-float" />
+                <div className="absolute inset-0 h-16 w-16 text-primary/20 animate-glow rounded-full"></div>
+              </div>
+            )}
+          </div>
+          
+          <h1 className="text-3xl font-bold text-gradient mb-4">MyVibeLytics</h1>
+          
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            {!isError && !isSuccess && (
+              <Loader2 className="h-5 w-5 text-primary animate-spin" />
+            )}
+            <p className="text-foreground text-lg">{status}</p>
+          </div>
+          
+          {!isError && !isSuccess && (
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-spotify rounded-full animate-pulse"></div>
+            </div>
+          )}
+
+          {isSuccess && (
+            <div className="mt-4">
+              <p className="text-muted-foreground">Redirecting to your dashboard...</p>
+            </div>
+          )}
+
+          {isError && (
+            <div className="mt-4">
+              <p className="text-muted-foreground">Redirecting to home page...</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
