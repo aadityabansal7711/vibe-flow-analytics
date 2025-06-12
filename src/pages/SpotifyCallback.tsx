@@ -85,14 +85,16 @@ const SpotifyCallback: React.FC = () => {
           }),
         });
 
+        console.log('Token response status:', tokenResponse.status);
+
         if (!tokenResponse.ok) {
           const errorText = await tokenResponse.text();
           console.error('❌ Token exchange failed:', errorText);
-          throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+          throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
         }
 
         const tokenData = await tokenResponse.json();
-        console.log('✅ Token exchange successful');
+        console.log('✅ Token exchange successful, access token received');
 
         setStatus('Getting your Spotify profile...');
         console.log('🔄 Fetching Spotify profile...');
@@ -103,35 +105,49 @@ const SpotifyCallback: React.FC = () => {
           },
         });
 
+        console.log('Profile response status:', profileResponse.status);
+
         if (!profileResponse.ok) {
           const errorText = await profileResponse.text();
           console.error('❌ Profile fetch failed:', errorText);
-          throw new Error(`Profile fetch failed: ${profileResponse.status}`);
+          throw new Error(`Profile fetch failed: ${profileResponse.status} - ${errorText}`);
         }
 
         const profileData = await profileResponse.json();
-        console.log('✅ Spotify profile retrieved:', profileData.display_name);
+        console.log('✅ Spotify profile retrieved:', {
+          id: profileData.id,
+          display_name: profileData.display_name,
+          email: profileData.email
+        });
 
         setStatus('Saving your connection...');
         console.log('🔄 Updating user profile with Spotify data...');
 
-        await updateProfile({
+        const updateData = {
           spotify_connected: true,
           spotify_access_token: tokenData.access_token,
           spotify_refresh_token: tokenData.refresh_token,
           spotify_user_id: profileData.id,
           spotify_display_name: profileData.display_name,
           spotify_avatar_url: profileData.images?.[0]?.url || null,
-        });
+        };
+
+        console.log('Updating profile with data:', updateData);
+
+        await updateProfile(updateData);
 
         console.log('✅ Spotify successfully connected');
         setStatus('Success! Spotify connected to your account.');
         setIsSuccess(true);
+        
+        // Clear the URL parameters before redirecting
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
         setTimeout(() => navigate('/dashboard'), 2000);
 
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
-        setStatus('Failed to connect Spotify. Please try again.');
+        setStatus(`Failed to connect Spotify: ${err.message}`);
         setIsError(true);
         setTimeout(() => navigate('/dashboard'), 3000);
       }

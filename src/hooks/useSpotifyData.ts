@@ -90,7 +90,7 @@ const useSpotifyData = (): SpotifyData => {
       let accessToken = profile.spotify_access_token;
 
       const makeSpotifyRequest = async (url: string, retryCount = 0): Promise<Response> => {
-        console.log(`📡 Making request to: ${url}`);
+        console.log(`📡 Making request to: ${url.replace('https://api.spotify.com/v1/', '')}`);
         
         let response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -108,12 +108,14 @@ const useSpotifyData = (): SpotifyData => {
             console.log(`📊 Retry response status: ${response.status}`);
           } catch (refreshError) {
             console.error('❌ Token refresh failed:', refreshError);
-            throw new Error('Failed to refresh Spotify token');
+            throw new Error('Failed to refresh Spotify token. Please reconnect your account.');
           }
         }
 
         return response;
       };
+
+      console.log('📡 Starting parallel API requests...');
 
       const [topTracksRes, topArtistsRes, recentlyPlayedRes, currentlyPlayingRes] = await Promise.allSettled([
         makeSpotifyRequest('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term'),
@@ -129,7 +131,12 @@ const useSpotifyData = (): SpotifyData => {
           const response = result.value;
           if (response.ok) {
             try {
-              return await response.json();
+              const text = await response.text();
+              if (!text) {
+                console.log(`📭 No content for ${name}`);
+                return null;
+              }
+              return JSON.parse(text);
             } catch (e) {
               console.error(`❌ Error parsing ${name} response:`, e);
               return null;
@@ -160,7 +167,7 @@ const useSpotifyData = (): SpotifyData => {
       const recentlyPlayed = recentlyPlayedData?.items?.map((item: any) => item.track) || [];
       const currentlyPlaying = currentlyPlayingData?.item || null;
 
-      console.log('✅ Spotify data processed:', {
+      console.log('✅ Spotify data processed successfully:', {
         topTracks: topTracks.length,
         topArtists: topArtists.length,
         recentlyPlayed: recentlyPlayed.length,
@@ -181,7 +188,7 @@ const useSpotifyData = (): SpotifyData => {
       setData(prev => ({ 
         ...prev, 
         loading: false, 
-        error: `Failed to fetch Spotify data: ${error.message}. Please try reconnecting your account.` 
+        error: `Failed to fetch Spotify data: ${error.message}` 
       }));
     }
   };
