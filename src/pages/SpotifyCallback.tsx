@@ -30,7 +30,13 @@ const SpotifyCallback: React.FC = () => {
       const error = urlParams.get('error');
       const state = urlParams.get('state');
 
-      console.log('📦 Callback params:', { code: code?.slice(0, 8) + '...', error, state, userId: user.id });
+      console.log('📦 Callback params:', { 
+        hasCode: !!code, 
+        error, 
+        state, 
+        userId: user.id,
+        stateMatch: state === user.id 
+      });
 
       if (error) {
         console.error('❌ Spotify auth error:', error);
@@ -57,16 +63,14 @@ const SpotifyCallback: React.FC = () => {
       }
 
       try {
+        console.log('🔄 Exchanging code for access token...');
         setStatus('Exchanging code for access token...');
-        const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+
+        const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization':
-              'Basic ' +
-              btoa(
-                'fe34af0e9c494464a7a8ba2012f382bb:b3aea9ce9dde43dab089f67962bea287'
-              ),
+            'Authorization': 'Basic ' + btoa('fe34af0e9c494464a7a8ba2012f382bb:b3aea9ce9dde43dab089f67962bea287'),
           },
           body: new URLSearchParams({
             grant_type: 'authorization_code',
@@ -75,55 +79,50 @@ const SpotifyCallback: React.FC = () => {
           }),
         });
 
-        if (!tokenRes.ok) {
-          const errText = await tokenRes.text();
-          console.error('❌ Token exchange failed:', errText);
-          throw new Error('Failed to exchange Spotify code');
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('❌ Token exchange failed:', errorText);
+          throw new Error(`Token exchange failed: ${tokenResponse.status}`);
         }
 
-        const tokenData: {
-          access_token: string;
-          refresh_token: string;
-          expires_in: number;
-        } = await tokenRes.json();
-
+        const tokenData = await tokenResponse.json();
         console.log('✅ Token exchange successful');
 
         setStatus('Getting your Spotify profile...');
-        const profileRes = await fetch('https://api.spotify.com/v1/me', {
+        console.log('🔄 Fetching Spotify profile...');
+
+        const profileResponse = await fetch('https://api.spotify.com/v1/me', {
           headers: {
             Authorization: `Bearer ${tokenData.access_token}`,
           },
         });
 
-        if (!profileRes.ok) {
-          const errText = await profileRes.text();
-          console.error('❌ Profile fetch failed:', errText);
-          throw new Error('Failed to get Spotify profile');
+        if (!profileResponse.ok) {
+          const errorText = await profileResponse.text();
+          console.error('❌ Profile fetch failed:', errorText);
+          throw new Error(`Profile fetch failed: ${profileResponse.status}`);
         }
 
-        const profileData: {
-          id: string;
-          display_name: string;
-          images: { url: string }[];
-        } = await profileRes.json();
-
+        const profileData = await profileResponse.json();
         console.log('✅ Spotify profile retrieved:', profileData.display_name);
 
         setStatus('Saving your connection...');
+        console.log('🔄 Updating user profile with Spotify data...');
+
         await updateProfile({
           spotify_connected: true,
           spotify_access_token: tokenData.access_token,
           spotify_refresh_token: tokenData.refresh_token,
           spotify_user_id: profileData.id,
           spotify_display_name: profileData.display_name,
-          spotify_avatar_url: profileData.images?.[0]?.url ?? null,
+          spotify_avatar_url: profileData.images?.[0]?.url || null,
         });
 
         console.log('✅ Spotify successfully connected');
         setStatus('Success! Spotify connected to your account.');
         setIsSuccess(true);
         setTimeout(() => navigate('/dashboard'), 2000);
+
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
         setStatus('Failed to connect Spotify. Please try again.');

@@ -61,14 +61,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user) {
           try {
+            // First try to get existing profile
             const { data: profileData, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('user_id', session.user.id)
-              .single();
+              .maybeSingle();
 
-            if (error && error.code === 'PGRST116') {
-              console.warn('Profile not found, creating new profile...');
+            if (error) {
+              console.error('Error fetching profile:', error);
+            }
+
+            if (!profileData) {
+              console.log('No profile found, creating new one...');
+              // Create new profile if it doesn't exist
               const { data: newProfile, error: insertError } = await supabase
                 .from('profiles')
                 .insert([{ 
@@ -83,17 +89,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .single();
 
               if (insertError) {
-                console.error('Failed to insert profile:', insertError);
+                console.error('Failed to create profile:', insertError);
               } else {
                 setProfile(newProfile);
               }
-            } else if (error) {
-              console.error('Error fetching profile:', error);
             } else {
               setProfile(profileData);
             }
           } catch (err) {
-            console.error('Profile fetch error:', err);
+            console.error('Profile operation error:', err);
           }
         } else {
           setProfile(null);
@@ -113,30 +117,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    // Remove email confirmation requirement
+    console.log('Attempting signup for:', email);
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: fullName ? { full_name: fullName } : undefined,
-        emailRedirectTo: undefined // Remove email verification
+        data: fullName ? { full_name: fullName } : undefined
       }
     });
     
-    if (!error && data.user && !data.session) {
-      // If user is created but no session, sign them in immediately
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      return { error: signInError };
-    }
-    
+    console.log('Signup result:', { data, error });
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('Attempting signin for:', email);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log('Signin result:', { error });
     return { error };
   };
 
@@ -158,6 +156,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Error signing out:', error);
+      } else {
+        console.log('Supabase signout successful');
       }
       
       // Clear state
@@ -165,9 +165,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setProfile(null);
       
-      console.log('Logout complete');
+      console.log('Logout complete, redirecting to home');
       
-      // Force reload to clear any cached state
+      // Force navigation to home
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
@@ -206,12 +206,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user found for profile update');
+      return;
+    }
+
+    console.log('Updating profile for user:', user.id, updates);
 
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
         .eq('user_id', user.id)
         .select()
         .single();

@@ -31,44 +31,31 @@ const AdminLogin = () => {
     try {
       console.log('Attempting admin login for:', email);
       
-      // Query the admin_users table directly
-      const { data: adminUser, error: queryError } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('email', email)
-        .eq('password_hash', password)
-        .eq('is_active', true)
-        .maybeSingle();
+      // Simple direct authentication check
+      if (email === 'aadityabansal1112@gmail.com' && password === 'Hyundai1$') {
+        console.log('Admin credentials verified');
+        
+        // Store admin session in localStorage
+        const adminData = {
+          id: 'admin-user-id',
+          email: email,
+          full_name: 'Admin User',
+          loginTime: new Date().toISOString()
+        };
 
-      if (queryError) {
-        console.error('Query error:', queryError);
-        setError('Database error. Please try again.');
-        return;
+        localStorage.setItem('admin_session', JSON.stringify(adminData));
+        localStorage.setItem('admin_logged_in', 'true');
+        localStorage.setItem('admin_email', email);
+
+        console.log('Admin login successful, redirecting to admin page');
+        navigate('/admin');
+      } else {
+        console.log('Invalid admin credentials');
+        setError('Invalid admin credentials');
       }
-
-      if (!adminUser) {
-        setError('Invalid credentials or inactive account');
-        return;
-      }
-
-      console.log('Admin user found:', adminUser);
-      
-      // Store admin session in localStorage
-      localStorage.setItem('admin_session', JSON.stringify({
-        id: adminUser.id,
-        email: adminUser.email,
-        full_name: adminUser.full_name,
-        loginTime: new Date().toISOString()
-      }));
-
-      localStorage.setItem('admin_logged_in', 'true');
-      localStorage.setItem('admin_email', adminUser.email);
-
-      console.log('Admin login successful, redirecting to admin page');
-      navigate('/admin');
     } catch (error: any) {
       console.error('Admin login error:', error);
-      setError(error.message || 'Login failed. Please try again.');
+      setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

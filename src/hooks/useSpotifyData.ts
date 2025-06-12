@@ -60,19 +60,20 @@ const useSpotifyData = (): SpotifyData => {
         const tokenData = await response.json();
         console.log('✅ Token refreshed successfully');
         
-        // Update the profile with new token
         await updateProfile({
           spotify_access_token: tokenData.access_token
         });
         
         return tokenData.access_token;
       } else {
-        console.error('❌ Token refresh failed:', response.status);
+        const errorText = await response.text();
+        console.error('❌ Token refresh failed:', response.status, errorText);
+        throw new Error(`Token refresh failed: ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Token refresh error:', error);
+      throw error;
     }
-    return accessToken;
   };
 
   const fetchSpotifyData = async () => {
@@ -88,56 +89,71 @@ const useSpotifyData = (): SpotifyData => {
     try {
       let accessToken = profile.spotify_access_token;
 
-      // Function to make authenticated requests with token refresh
-      const makeSpotifyRequest = async (url: string) => {
+      const makeSpotifyRequest = async (url: string, retryCount = 0): Promise<Response> => {
+        console.log(`📡 Making request to: ${url}`);
+        
         let response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
-        // If token expired, try to refresh
-        if (response.status === 401 && profile.spotify_refresh_token) {
+        console.log(`📊 Response status: ${response.status}`);
+
+        if (response.status === 401 && profile.spotify_refresh_token && retryCount === 0) {
           console.log('🔄 Token expired, refreshing...');
-          accessToken = await refreshTokenIfNeeded(accessToken, profile.spotify_refresh_token);
-          response = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-          });
+          try {
+            accessToken = await refreshTokenIfNeeded(accessToken, profile.spotify_refresh_token);
+            response = await fetch(url, {
+              headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            console.log(`📊 Retry response status: ${response.status}`);
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError);
+            throw new Error('Failed to refresh Spotify token');
+          }
         }
 
         return response;
       };
 
-      // Fetch all data with proper error handling
-      const requests = [
+      const [topTracksRes, topArtistsRes, recentlyPlayedRes, currentlyPlayingRes] = await Promise.allSettled([
         makeSpotifyRequest('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term'),
         makeSpotifyRequest('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term'),
         makeSpotifyRequest('https://api.spotify.com/v1/me/player/recently-played?limit=20'),
         makeSpotifyRequest('https://api.spotify.com/v1/me/player/currently-playing')
-      ];
+      ]);
 
-      const responses = await Promise.allSettled(requests);
-      console.log('📊 Spotify API responses received');
+      console.log('📊 All Spotify API requests completed');
 
-      // Process responses
-      const processResponse = async (response: any, index: number) => {
-        if (response.status === 'fulfilled' && response.value.ok) {
-          try {
-            return await response.value.json();
-          } catch (e) {
-            console.error(`❌ Error parsing response ${index}:`, e);
+      const processResponse = async (result: any, name: string) => {
+        if (result.status === 'fulfilled') {
+          const response = result.value;
+          if (response.ok) {
+            try {
+              return await response.json();
+            } catch (e) {
+              console.error(`❌ Error parsing ${name} response:`, e);
+              return null;
+            }
+          } else if (response.status === 204) {
+            console.log(`📭 No content for ${name}`);
+            return null;
+          } else {
+            const errorText = await response.text();
+            console.error(`❌ ${name} request failed:`, response.status, errorText);
             return null;
           }
-        } else if (response.status === 'fulfilled' && response.value.status === 204) {
-          // No content (e.g., nothing currently playing)
-          return null;
         } else {
-          console.error(`❌ Request ${index} failed:`, response);
+          console.error(`❌ ${name} request rejected:`, result.reason);
           return null;
         }
       };
 
-      const [topTracksData, topArtistsData, recentlyPlayedData, currentlyPlayingData] = await Promise.all(
-        responses.map(processResponse)
-      );
+      const [topTracksData, topArtistsData, recentlyPlayedData, currentlyPlayingData] = await Promise.all([
+        processResponse(topTracksRes, 'top tracks'),
+        processResponse(topArtistsRes, 'top artists'),
+        processResponse(recentlyPlayedRes, 'recently played'),
+        processResponse(currentlyPlayingRes, 'currently playing')
+      ]);
 
       const topTracks = topTracksData?.items || [];
       const topArtists = topArtistsData?.items || [];
@@ -160,12 +176,12 @@ const useSpotifyData = (): SpotifyData => {
         error: null
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching Spotify data:', error);
       setData(prev => ({ 
         ...prev, 
         loading: false, 
-        error: 'Failed to fetch Spotify data. Please try reconnecting your account.' 
+        error: `Failed to fetch Spotify data: ${error.message}. Please try reconnecting your account.` 
       }));
     }
   };
