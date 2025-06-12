@@ -3,37 +3,34 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-interface UserProfile {
+interface Profile {
   id: string;
   user_id: string;
   email: string;
   full_name?: string;
+  plan_tier?: string;
+  has_active_subscription?: boolean;
+  plan_id?: string;
+  spotify_connected?: boolean;
   spotify_user_id?: string;
   spotify_display_name?: string;
   spotify_avatar_url?: string;
   spotify_access_token?: string;
   spotify_refresh_token?: string;
-  spotify_connected: boolean;
-  plan_tier: string;
-  has_active_subscription: boolean;
-  plan_id: string;
-  plan_start_date?: string;
-  plan_end_date?: string;
-  used_promo_code?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  profile: UserProfile | null;
   session: Session | null;
+  profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error?: any }>;
+  signUp: (email: string, password: string) => Promise<{ error?: any }>;
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   connectSpotify: () => void;
-  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
-  isUnlocked: boolean;
+  updateProfile: (updates: Partial<Profile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,28 +45,42 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth event:', event, session);
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Defer profile fetching to avoid deadlock
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
+          // Fetch user profile
+          setTimeout(async () => {
+            try {
+              const { data: profileData, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
+              
+              if (error) {
+                console.error('Error fetching profile:', error);
+              } else {
+                setProfile(profileData);
+              }
+            } catch (err) {
+              console.error('Profile fetch error:', err);
+            }
+            setLoading(false);
           }, 0);
         } else {
           setProfile(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
@@ -77,51 +88,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
+      if (!session) {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-        return;
-      }
-      
-      if (data) {
-        setProfile(data);
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const signUp = async (email: string, password: string, fullName?: string) => {
+  const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName
-        }
+        emailRedirectTo: redirectUrl
       }
     });
-    
     return { error };
   };
 
@@ -130,74 +114,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password
     });
-    
     return { error };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setSession(null);
   };
 
   const connectSpotify = () => {
-    if (!user) return;
-    
+    if (!user) {
+      console.error('User must be logged in to connect Spotify');
+      return;
+    }
+
     const clientId = 'fe34af0e9c494464a7a8ba2012f382bb';
-    const redirectUri = `${window.location.origin}/spotify-callback`;
+    const redirectUri = 'https://vibe-flow-analytics.lovable.app/spotify-callback';
     const scopes = [
       'user-read-private',
       'user-read-email',
       'user-top-read',
       'user-read-recently-played',
-      'user-read-playback-state',
       'user-read-currently-playing',
       'playlist-read-private',
-      'playlist-read-collaborative',
-      'user-library-read'
+      'playlist-read-collaborative'
     ].join(' ');
 
-    const spotifyAuthUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${user.id}&show_dialog=true`;
-    
-    window.location.href = spotifyAuthUrl;
+    const authUrl = `https://accounts.spotify.com/authorize?` +
+      `client_id=${clientId}&` +
+      `response_type=code&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `scope=${encodeURIComponent(scopes)}&` +
+      `state=${user.id}`;
+
+    console.log('Redirecting to Spotify auth:', authUrl);
+    window.location.href = authUrl;
   };
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
+  const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return;
-    
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      // Update local profile state
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        throw error;
+      }
+
+      setProfile(data);
+      console.log('Profile updated successfully:', data);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Update profile error:', error);
+      throw error;
     }
   };
 
-  // Only unlock for admin email or users with active subscription
-  const isUnlocked = profile?.email === 'aadityabansal1112@gmail.com' || profile?.has_active_subscription || false;
+  const value = {
+    user,
+    session,
+    profile,
+    loading,
+    signUp,
+    signIn,
+    signOut,
+    connectSpotify,
+    updateProfile
+  };
 
-  return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      session,
-      loading,
-      signUp,
-      signIn,
-      signOut,
-      connectSpotify,
-      updateProfile,
-      isUnlocked
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

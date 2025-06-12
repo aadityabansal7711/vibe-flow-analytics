@@ -29,24 +29,27 @@ const AdminLogin = () => {
         return;
       }
 
-      // For now, use the fixed password, but in production you should hash passwords properly
+      // Check admin credentials in the database
+      const { data: adminUser, error: adminError } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (adminError || !adminUser) {
+        setError('Admin user not found in database.');
+        setIsLoading(false);
+        return;
+      }
+
+      // For now, use the fixed password (in production, you should use proper password hashing)
       if (password === 'Hyundai1$') {
-        // Check admin_users table
-        const { data: adminUser, error: adminError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('email', email)
-          .single();
-
-        if (adminError || !adminUser) {
-          setError('Admin user not found in database.');
-          setIsLoading(false);
-          return;
-        }
-
-        // Set admin session (you could also use a proper auth session here)
+        // Set admin session
         localStorage.setItem('admin_logged_in', 'true');
         localStorage.setItem('admin_email', email);
+        localStorage.setItem('admin_user_id', adminUser.id);
+        
+        console.log('Admin login successful');
         navigate('/admin');
       } else {
         setError('Invalid credentials. Please try again.');
@@ -65,7 +68,7 @@ const AdminLogin = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-3">
             <div className="relative">
-              <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10" />
+              <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10 object-contain" />
             </div>
             <span className="text-3xl font-bold text-gradient">MyVibeLytics</span>
           </Link>

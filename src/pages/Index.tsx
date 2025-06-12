@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,24 +34,6 @@ const Index = () => {
     }
   ];
 
-  const testimonials = [
-    {
-      name: "Sarah M.",
-      rating: 5,
-      comment: "MyVibeLytics helped me rediscover forgotten favorites and understand my music journey!"
-    },
-    {
-      name: "Alex K.",
-      rating: 5,
-      comment: "The insights are incredible. I never knew I listened to so much indie rock in 2023!"
-    },
-    {
-      name: "Jordan L.",
-      rating: 5,
-      comment: "Clean interface, beautiful charts, and actually useful analytics. Highly recommend!"
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-dark">
       {/* Navigation */}
@@ -58,7 +41,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8" />
+              <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8 object-contain" />
             </div>
             <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
           </div>
@@ -66,7 +49,6 @@ const Index = () => {
             <Link to="/about" className="text-muted-foreground hover:text-primary transition-colors">About</Link>
             <Link to="/buy" className="text-muted-foreground hover:text-primary transition-colors">Pricing</Link>
             <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</Link>
-            <Link to="/admin-login" className="text-muted-foreground hover:text-primary transition-colors text-sm">Admin</Link>
           </div>
           <div className="flex items-center space-x-4">
             <Link to="/auth">
@@ -117,20 +99,6 @@ const Index = () => {
                 </Button>
               </Link>
             </div>
-
-            {/* Social Proof */}
-            <div className="flex items-center justify-center space-x-8 text-muted-foreground">
-              <div className="flex items-center space-x-2">
-                <div className="flex">
-                  {[1,2,3,4,5].map((i) => (
-                    <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                  ))}
-                </div>
-                <span className="text-sm">5.0 rating</span>
-              </div>
-              <div className="text-sm">1,000+ active users</div>
-              <div className="text-sm">99.9% uptime</div>
-            </div>
           </div>
         </div>
       </div>
@@ -159,38 +127,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Testimonials */}
-      <div className="py-24 px-6 bg-muted/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gradient mb-6">What Users Say</h2>
-            <p className="text-xl text-muted-foreground">
-              Join thousands of music lovers discovering their listening patterns
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="glass-effect border-border/50">
-                <CardHeader>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex">
-                      {[1,2,3,4,5].map((i) => (
-                        <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">"{testimonial.comment}"</p>
-                  <p className="text-foreground font-medium">- {testimonial.name}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* CTA Section */}
       <div className="py-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
@@ -213,7 +149,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
-                <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8" />
+                <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8 object-contain" />
                 <span className="text-xl font-bold text-gradient">MyVibeLytics</span>
               </div>
               <p className="text-muted-foreground mb-4">

@@ -13,7 +13,10 @@ const SpotifyCallback = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
+      console.log('Starting Spotify callback handling...');
+      
       if (!user) {
+        console.error('No user found for Spotify callback');
         setStatus('Please sign in first');
         setIsError(true);
         setTimeout(() => navigate('/auth'), 3000);
@@ -25,7 +28,10 @@ const SpotifyCallback = () => {
       const error = urlParams.get('error');
       const state = urlParams.get('state');
 
+      console.log('Callback params:', { code: code?.substring(0, 10) + '...', error, state, userId: user.id });
+
       if (error) {
+        console.error('Spotify auth error:', error);
         setStatus('Spotify connection cancelled or failed');
         setIsError(true);
         setTimeout(() => navigate('/dashboard'), 3000);
@@ -33,6 +39,7 @@ const SpotifyCallback = () => {
       }
 
       if (!code || state !== user.id) {
+        console.error('Invalid callback parameters', { hasCode: !!code, stateMatch: state === user.id });
         setStatus('Invalid callback parameters');
         setIsError(true);
         setTimeout(() => navigate('/dashboard'), 3000);
@@ -41,6 +48,7 @@ const SpotifyCallback = () => {
 
       try {
         setStatus('Exchanging code for access token...');
+        console.log('Exchanging authorization code for tokens...');
         
         // Exchange code for access token
         const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
@@ -52,15 +60,18 @@ const SpotifyCallback = () => {
           body: new URLSearchParams({
             grant_type: 'authorization_code',
             code: code,
-            redirect_uri: `${window.location.origin}/spotify-callback`
+            redirect_uri: 'https://vibe-flow-analytics.lovable.app/spotify-callback'
           })
         });
 
         if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('Token exchange failed:', tokenResponse.status, errorText);
           throw new Error('Failed to get access token');
         }
 
         const tokenData = await tokenResponse.json();
+        console.log('Token exchange successful, access token received');
         
         setStatus('Getting your Spotify profile...');
         
@@ -72,10 +83,12 @@ const SpotifyCallback = () => {
         });
 
         if (!profileResponse.ok) {
+          console.error('Profile fetch failed:', profileResponse.status);
           throw new Error('Failed to get Spotify profile');
         }
 
         const profileData = await profileResponse.json();
+        console.log('Spotify profile retrieved:', profileData.display_name);
         
         // Update user profile in database
         await updateProfile({
@@ -87,6 +100,7 @@ const SpotifyCallback = () => {
           spotify_avatar_url: profileData.images?.[0]?.url
         });
         
+        console.log('Profile updated successfully with Spotify data');
         setStatus('Success! Spotify connected to your account!');
         setIsSuccess(true);
         
