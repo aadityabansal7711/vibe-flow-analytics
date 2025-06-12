@@ -65,28 +65,28 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
+    <div className="min-h-screen bg-gradient-dark p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center space-x-4">
           <Link to="/" className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-green-400" />
-            <span className="text-2xl font-bold text-white">MyVibeLytics</span>
+            <Music className="h-8 w-8 text-primary" />
+            <span className="text-2xl font-bold text-foreground">MyVibeLytics</span>
           </Link>
-          <div className="text-gray-300">
+          <div className="text-muted-foreground">
             Welcome, {user.name || user.email}!
           </div>
         </div>
         <div className="flex items-center space-x-4">
           {!isUnlocked && (
             <Link to="/buy">
-              <Button className="bg-gradient-to-r from-green-400 to-blue-400 hover:from-green-500 hover:to-blue-500 text-white">
+              <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
                 <Sparkles className="mr-2 h-4 w-4" />
                 Unlock Premium
               </Button>
             </Link>
           )}
-          <Button onClick={logout} variant="outline" className="border-white/20 text-white hover:bg-white/10">
+          <Button onClick={logout} variant="outline" className="border-border text-foreground hover:bg-muted">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>
@@ -100,7 +100,7 @@ const Dashboard = () => {
         <FeatureCard
           title="Top Tracks"
           description="Your most played songs"
-          icon={<Music className="h-5 w-5 text-green-400" />}
+          icon={<Music className="h-5 w-5 text-primary" />}
           isLocked={false}
         >
           <div className="space-y-3">
@@ -116,7 +116,7 @@ const Dashboard = () => {
         <FeatureCard
           title="Top Artists"
           description="Your favorite musicians"
-          icon={<User className="h-5 w-5 text-blue-400" />}
+          icon={<User className="h-5 w-5 text-accent" />}
           isLocked={false}
         >
           <div className="space-y-3">
@@ -132,7 +132,7 @@ const Dashboard = () => {
         <FeatureCard
           title="Top Albums"
           description="Most listened albums"
-          icon={<Album className="h-5 w-5 text-purple-400" />}
+          icon={<Album className="h-5 w-5 text-secondary" />}
           isLocked={false}
         >
           <div className="space-y-3">
