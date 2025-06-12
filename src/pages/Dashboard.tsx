@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
@@ -26,7 +25,7 @@ import {
   LogOut,
   Sparkles
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 
 const Dashboard = () => {
   const { user, logout, isUnlocked } = useAuth();
