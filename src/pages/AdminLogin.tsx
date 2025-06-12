@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock, Eye, EyeOff, Mail } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -50,8 +49,8 @@ const AdminLogin = () => {
         console.log('Admin login successful, redirecting to admin page');
         navigate('/admin');
       } else {
-        console.log('Invalid admin credentials');
-        setError('Invalid admin credentials');
+        console.log('Invalid admin credentials provided:', { email, passwordLength: password.length });
+        setError('Invalid admin credentials. Please check your email and password.');
       }
     } catch (error: any) {
       console.error('Admin login error:', error);
@@ -134,8 +133,11 @@ const AdminLogin = () => {
 
             <div className="text-center text-sm text-muted-foreground">
               <p>Access restricted to administrators only</p>
-              <p className="mt-2 text-xs">Email: aadityabansal1112@gmail.com</p>
-              <p className="text-xs">Password: Hyundai1$</p>
+              <div className="mt-3 p-3 bg-muted/20 rounded-lg">
+                <p className="text-xs font-medium text-primary">Test Credentials:</p>
+                <p className="text-xs">Email: aadityabansal1112@gmail.com</p>
+                <p className="text-xs">Password: Hyundai1$</p>
+              </div>
             </div>
           </CardContent>
         </Card>

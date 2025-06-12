@@ -183,7 +183,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const clientId = 'fe34af0e9c494464a7a8ba2012f382bb';
-    const redirectUri = 'https://id-preview--e765dce8-aeab-4d72-9ec0-dadf11a50e42.lovable.app/spotify-callback';
+    
+    // Dynamically determine the correct redirect URI based on current environment
+    const currentOrigin = window.location.origin;
+    const redirectUri = `${currentOrigin}/spotify-callback`;
+    
+    console.log('Using redirect URI:', redirectUri);
+    
     const scopes = [
       'user-read-private',
       'user-read-email',

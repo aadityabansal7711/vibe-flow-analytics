@@ -66,6 +66,12 @@ const SpotifyCallback: React.FC = () => {
         console.log('🔄 Exchanging code for access token...');
         setStatus('Exchanging code for access token...');
 
+        // Use dynamic redirect URI based on current origin
+        const currentOrigin = window.location.origin;
+        const redirectUri = `${currentOrigin}/spotify-callback`;
+        
+        console.log('Using redirect URI for token exchange:', redirectUri);
+
         const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
           headers: {
@@ -75,7 +81,7 @@ const SpotifyCallback: React.FC = () => {
           body: new URLSearchParams({
             grant_type: 'authorization_code',
             code,
-            redirect_uri: 'https://id-preview--e765dce8-aeab-4d72-9ec0-dadf11a50e42.lovable.app/spotify-callback',
+            redirect_uri: redirectUri,
           }),
         });
 
