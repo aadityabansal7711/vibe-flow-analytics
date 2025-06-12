@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,13 +6,13 @@ import { Music, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const SpotifyCallback: React.FC = () => {
   const navigate = useNavigate();
-  const { user, updateProfile, loading } = useAuth(); // 👈 loading must come from your context
+  const { user, updateProfile, loading } = useAuth();
   const [status, setStatus] = useState('Processing your Spotify connection...');
   const [isSuccess, setIsSuccess] = useState(false);
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
-    if (loading) return; // wait for user
+    if (loading) return;
 
     const handleCallback = async () => {
       console.log('🔁 Starting Spotify callback handling...');
@@ -78,6 +79,8 @@ const SpotifyCallback: React.FC = () => {
           expires_in: number;
         } = await tokenRes.json();
 
+        console.log('✅ Token exchange successful');
+
         setStatus('Getting your Spotify profile...');
         const profileRes = await fetch('https://api.spotify.com/v1/me', {
           headers: {
@@ -95,6 +98,9 @@ const SpotifyCallback: React.FC = () => {
           images: { url: string }[];
         } = await profileRes.json();
 
+        console.log('✅ Spotify profile retrieved:', profileData.display_name);
+
+        setStatus('Saving your connection...');
         await updateProfile({
           spotify_connected: true,
           spotify_access_token: tokenData.access_token,

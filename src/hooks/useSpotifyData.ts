@@ -32,7 +32,7 @@ interface SpotifyData {
 }
 
 const useSpotifyData = (): SpotifyData => {
-  const { profile } = useAuth();
+  const { profile, updateProfile } = useAuth();
   const [data, setData] = useState<SpotifyData>({
     topTracks: [],
     topArtists: [],
@@ -43,6 +43,7 @@ const useSpotifyData = (): SpotifyData => {
 
   const refreshTokenIfNeeded = async (accessToken: string, refreshToken: string) => {
     try {
+      console.log('🔄 Refreshing Spotify token...');
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
@@ -57,23 +58,32 @@ const useSpotifyData = (): SpotifyData => {
 
       if (response.ok) {
         const tokenData = await response.json();
-        console.log('Token refreshed successfully');
+        console.log('✅ Token refreshed successfully');
+        
+        // Update the profile with new token
+        await updateProfile({
+          spotify_access_token: tokenData.access_token
+        });
+        
         return tokenData.access_token;
+      } else {
+        console.error('❌ Token refresh failed:', response.status);
       }
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      console.error('❌ Token refresh error:', error);
     }
     return accessToken;
   };
 
   const fetchSpotifyData = async () => {
-    if (!profile?.spotify_access_token) {
-      setData(prev => ({ ...prev, loading: false, error: 'No Spotify access token' }));
+    if (!profile?.spotify_access_token || !profile?.spotify_connected) {
+      console.log('❌ No Spotify access token or not connected');
+      setData(prev => ({ ...prev, loading: false, error: 'Please connect your Spotify account' }));
       return;
     }
 
     setData(prev => ({ ...prev, loading: true, error: null }));
-    console.log('Fetching Spotify data...');
+    console.log('🎵 Fetching Spotify data...');
 
     try {
       let accessToken = profile.spotify_access_token;
@@ -86,7 +96,7 @@ const useSpotifyData = (): SpotifyData => {
 
         // If token expired, try to refresh
         if (response.status === 401 && profile.spotify_refresh_token) {
-          console.log('Token expired, refreshing...');
+          console.log('🔄 Token expired, refreshing...');
           accessToken = await refreshTokenIfNeeded(accessToken, profile.spotify_refresh_token);
           response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -105,7 +115,7 @@ const useSpotifyData = (): SpotifyData => {
       ];
 
       const responses = await Promise.allSettled(requests);
-      console.log('Spotify API responses received');
+      console.log('📊 Spotify API responses received');
 
       // Process responses
       const processResponse = async (response: any, index: number) => {
@@ -113,14 +123,14 @@ const useSpotifyData = (): SpotifyData => {
           try {
             return await response.value.json();
           } catch (e) {
-            console.error(`Error parsing response ${index}:`, e);
+            console.error(`❌ Error parsing response ${index}:`, e);
             return null;
           }
         } else if (response.status === 'fulfilled' && response.value.status === 204) {
           // No content (e.g., nothing currently playing)
           return null;
         } else {
-          console.error(`Request ${index} failed:`, response);
+          console.error(`❌ Request ${index} failed:`, response);
           return null;
         }
       };
@@ -134,7 +144,7 @@ const useSpotifyData = (): SpotifyData => {
       const recentlyPlayed = recentlyPlayedData?.items?.map((item: any) => item.track) || [];
       const currentlyPlaying = currentlyPlayingData?.item || null;
 
-      console.log('Spotify data processed:', {
+      console.log('✅ Spotify data processed:', {
         topTracks: topTracks.length,
         topArtists: topArtists.length,
         recentlyPlayed: recentlyPlayed.length,
@@ -151,7 +161,7 @@ const useSpotifyData = (): SpotifyData => {
       });
 
     } catch (error) {
-      console.error('Error fetching Spotify data:', error);
+      console.error('❌ Error fetching Spotify data:', error);
       setData(prev => ({ 
         ...prev, 
         loading: false, 
@@ -162,10 +172,11 @@ const useSpotifyData = (): SpotifyData => {
 
   useEffect(() => {
     if (profile?.spotify_connected && profile?.spotify_access_token) {
-      console.log('Profile has Spotify connection, fetching data...');
+      console.log('🎵 Profile has Spotify connection, fetching data...');
       fetchSpotifyData();
     } else {
-      console.log('No Spotify connection found in profile');
+      console.log('❌ No Spotify connection found in profile');
+      setData(prev => ({ ...prev, loading: false }));
     }
   }, [profile?.spotify_connected, profile?.spotify_access_token]);
 

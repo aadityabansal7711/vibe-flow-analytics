@@ -1,20 +1,26 @@
 
 import React, { useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link, useNavigate } from 'react-router-dom';
-import { Music, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Music, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
+
+  if (isLoggedIn) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,126 +28,121 @@ const AdminLogin = () => {
     setError('');
 
     try {
-      // Check if this is the admin email
-      if (email !== 'aadityabansal1112@gmail.com') {
-        setError('Access denied. Admin credentials required.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Check admin credentials in the database
-      const { data: adminUser, error: adminError } = await supabase
+      console.log('Attempting admin login for:', email);
+      
+      // Query the admin_users table directly
+      const { data: adminUser, error: queryError } = await supabase
         .from('admin_users')
         .select('*')
         .eq('email', email)
+        .eq('password_hash', password)
+        .eq('is_active', true)
         .single();
 
-      if (adminError || !adminUser) {
-        setError('Admin user not found in database.');
-        setIsLoading(false);
+      if (queryError) {
+        console.error('Query error:', queryError);
+        setError('Invalid credentials or inactive account');
         return;
       }
 
-      // For now, use the fixed password (in production, you should use proper password hashing)
-      if (password === 'Hyundai1$') {
-        // Set admin session
-        localStorage.setItem('admin_logged_in', 'true');
-        localStorage.setItem('admin_email', email);
-        localStorage.setItem('admin_user_id', adminUser.id);
-        
-        console.log('Admin login successful');
-        navigate('/admin');
-      } else {
-        setError('Invalid credentials. Please try again.');
+      if (!adminUser) {
+        setError('Invalid credentials or inactive account');
+        return;
       }
-    } catch (err) {
-      setError('Login failed. Please try again.');
-      console.error('Admin login error:', err);
+
+      console.log('Admin user found:', adminUser);
+      
+      // Store admin session in localStorage
+      localStorage.setItem('admin_session', JSON.stringify({
+        id: adminUser.id,
+        email: adminUser.email,
+        full_name: adminUser.full_name,
+        loginTime: new Date().toISOString()
+      }));
+
+      setIsLoggedIn(true);
+      navigate('/admin');
+    } catch (error: any) {
+      console.error('Admin login error:', error);
+      setError(error.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-      <div className="max-w-md w-full mx-auto px-6">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center space-x-3">
-            <div className="relative">
-              <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10 object-contain" />
+    <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <Card className="glass-effect border-border/50">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="h-12 w-12 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
+                <Lock className="h-6 w-6 text-white" />
+              </div>
             </div>
-            <span className="text-3xl font-bold text-gradient">MyVibeLytics</span>
-          </Link>
-        </div>
-
-        <Card className="glass-effect-strong border-border/50">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10">
-              <Lock className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl text-foreground">Admin Login</CardTitle>
-            <p className="text-muted-foreground">Access the admin dashboard</p>
+            <CardTitle className="text-2xl font-bold text-gradient">Admin Portal</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Sign in to access the admin dashboard
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
                 <Label htmlFor="email" className="text-foreground">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-background/50 border-border text-foreground"
-                  placeholder="Enter admin email"
-                  required
-                />
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="admin@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 bg-background/50 border-border text-foreground"
+                    required
+                  />
+                </div>
               </div>
               
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="password" className="text-foreground">Password</Label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-background/50 border-border text-foreground pr-10"
-                    placeholder="Enter admin password"
+                    className="pl-10 pr-10 bg-background/50 border-border text-foreground"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
-
-              {error && (
-                <div className="flex items-center space-x-2 text-red-400 text-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{error}</span>
-                </div>
-              )}
               
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90"
                 disabled={isLoading}
               >
-                {isLoading ? 'Signing in...' : 'Sign in to Admin'}
+                {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <Link 
-                to="/" 
-                className="text-muted-foreground hover:text-primary transition-colors text-sm"
-              >
-                ← Back to Home
-              </Link>
+            <div className="text-center text-sm text-muted-foreground">
+              <p>Access restricted to administrators only</p>
             </div>
           </CardContent>
         </Card>

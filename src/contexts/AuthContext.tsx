@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,7 +71,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.warn('Profile not found, trying to insert...');
               const { data: newProfile, error: insertError } = await supabase
                 .from('profiles')
-                .insert([{ user_id: session.user.id, email: session.user.email }])
+                .insert([{ 
+                  user_id: session.user.id, 
+                  email: session.user.email,
+                  plan_tier: 'free',
+                  has_active_subscription: false,
+                  spotify_connected: false
+                }])
                 .select()
                 .single();
 
