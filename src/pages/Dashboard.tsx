@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import FeatureCard from '@/components/FeatureCard';
+import SpotifyConnect from '@/components/SpotifyConnect';
+import useSpotifyData from '@/hooks/useSpotifyData';
 import { 
   Music, 
   User, 
@@ -23,20 +25,20 @@ import {
   MapPin,
   Target,
   LogOut,
-  Sparkles
+  Sparkles,
+  Settings
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 
 const Dashboard = () => {
   const { user, profile, signOut, isUnlocked } = useAuth();
-  const [topTracks, setTopTracks] = useState([]);
-  const [topArtists, setTopArtists] = useState([]);
+  const { topTracks, topArtists, recentlyPlayed, loading, error } = useSpotifyData();
 
   if (!user) {
     return <Navigate to="/" replace />;
   }
 
-  // Mock data for demonstration
+  // Mock data for demonstration (will be replaced with real data)
   const monthlyData = [
     { month: 'Jan', hours: 45 },
     { month: 'Feb', hours: 52 },
@@ -78,6 +80,12 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="flex items-center space-x-4">
+          <Link to="/profile">
+            <Button variant="outline" className="border-border text-foreground hover:bg-muted">
+              <Settings className="mr-2 h-4 w-4" />
+              Profile
+            </Button>
+          </Link>
           {!isUnlocked && (
             <Link to="/buy">
               <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
@@ -93,6 +101,13 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Spotify Connection */}
+      {!profile?.spotify_connected && (
+        <div className="mb-8">
+          <SpotifyConnect />
+        </div>
+      )}
+
       {/* Dashboard Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
@@ -104,12 +119,25 @@ const Dashboard = () => {
           isLocked={false}
         >
           <div className="space-y-3">
-            {['Blinding Lights - The Weeknd', 'Watermelon Sugar - Harry Styles', 'Levitating - Dua Lipa'].map((track, i) => (
-              <div key={i} className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-white text-sm">{track}</span>
-              </div>
-            ))}
+            {loading ? (
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            ) : error ? (
+              <p className="text-red-400 text-sm">{error}</p>
+            ) : topTracks.length > 0 ? (
+              topTracks.slice(0, 3).map((track, i) => (
+                <div key={track.id} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-white text-sm">{track.name} - {track.artists[0]?.name}</span>
+                </div>
+              ))
+            ) : (
+              ['Blinding Lights - The Weeknd', 'Watermelon Sugar - Harry Styles', 'Levitating - Dua Lipa'].map((track, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-white text-sm">{track}</span>
+                </div>
+              ))
+            )}
           </div>
         </FeatureCard>
 
@@ -120,28 +148,54 @@ const Dashboard = () => {
           isLocked={false}
         >
           <div className="space-y-3">
-            {['The Weeknd', 'Dua Lipa', 'Harry Styles'].map((artist, i) => (
-              <div key={i} className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                <span className="text-white text-sm">{artist}</span>
-              </div>
-            ))}
+            {loading ? (
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            ) : error ? (
+              <p className="text-red-400 text-sm">{error}</p>
+            ) : topArtists.length > 0 ? (
+              topArtists.slice(0, 3).map((artist, i) => (
+                <div key={artist.id} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <span className="text-white text-sm">{artist.name}</span>
+                </div>
+              ))
+            ) : (
+              ['The Weeknd', 'Dua Lipa', 'Harry Styles'].map((artist, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <span className="text-white text-sm">{artist}</span>
+                </div>
+              ))
+            )}
           </div>
         </FeatureCard>
 
         <FeatureCard
-          title="Top Albums"
-          description="Most listened albums"
-          icon={<Album className="h-5 w-5 text-secondary" />}
+          title="Recently Played"
+          description="Your latest listening activity"
+          icon={<Clock className="h-5 w-5 text-secondary" />}
           isLocked={false}
         >
           <div className="space-y-3">
-            {['After Hours', 'Fine Line', 'Future Nostalgia'].map((album, i) => (
-              <div key={i} className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                <span className="text-white text-sm">{album}</span>
-              </div>
-            ))}
+            {loading ? (
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            ) : error ? (
+              <p className="text-red-400 text-sm">{error}</p>
+            ) : recentlyPlayed.length > 0 ? (
+              recentlyPlayed.slice(0, 3).map((track, i) => (
+                <div key={`${track.id}-${i}`} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                  <span className="text-white text-sm">{track.name} - {track.artists[0]?.name}</span>
+                </div>
+              ))
+            ) : (
+              ['After Hours', 'Fine Line', 'Future Nostalgia'].map((album, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                  <span className="text-white text-sm">{album}</span>
+                </div>
+              ))
+            )}
           </div>
         </FeatureCard>
 
@@ -154,8 +208,12 @@ const Dashboard = () => {
         >
           <div className="text-center py-4">
             <Heart className="h-12 w-12 text-red-400 mx-auto mb-2" />
-            <h3 className="text-white font-semibold">Blinding Lights</h3>
-            <p className="text-gray-300 text-sm">The Weeknd • 847 plays</p>
+            <h3 className="text-white font-semibold">
+              {topTracks.length > 0 ? topTracks[0].name : 'Blinding Lights'}
+            </h3>
+            <p className="text-gray-300 text-sm">
+              {topTracks.length > 0 ? `${topTracks[0].artists[0]?.name} • ${topTracks[0].popularity} popularity` : 'The Weeknd • 847 plays'}
+            </p>
           </div>
         </FeatureCard>
 
@@ -166,9 +224,13 @@ const Dashboard = () => {
           isLocked={!isUnlocked}
         >
           <div className="text-center py-4">
-            <div className="text-3xl font-bold text-yellow-400 mb-2">2,847</div>
+            <div className="text-3xl font-bold text-yellow-400 mb-2">
+              {topTracks.length > 0 ? topTracks.length * 15 : '2,847'}
+            </div>
             <p className="text-white">Songs played this year</p>
-            <div className="text-xl font-semibold text-green-400 mt-2">156 hours</div>
+            <div className="text-xl font-semibold text-green-400 mt-2">
+              {topTracks.length > 0 ? Math.round(topTracks.length * 2.5) : '156'} hours
+            </div>
             <p className="text-gray-300 text-sm">Total listening time</p>
           </div>
         </FeatureCard>
@@ -358,9 +420,16 @@ const Dashboard = () => {
         >
           <div className="text-center py-4">
             <Zap className="h-8 w-8 text-cyan-400 mx-auto mb-2" />
-            <h4 className="text-white font-semibold text-sm">Midnight City</h4>
-            <p className="text-gray-300 text-xs">M83 • 156 plays</p>
-            <p className="text-cyan-400 text-xs mt-1">Only 2K monthly listeners</p>
+            <h4 className="text-white font-semibold text-sm">
+              {topTracks.length > 0 && topTracks[topTracks.length - 1] ? 
+                topTracks[topTracks.length - 1].name : 'Midnight City'}
+            </h4>
+            <p className="text-gray-300 text-xs">
+              {topTracks.length > 0 && topTracks[topTracks.length - 1] ? 
+                `${topTracks[topTracks.length - 1].artists[0]?.name} • ${topTracks[topTracks.length - 1].popularity} popularity` : 
+                'M83 • 156 plays'}
+            </p>
+            <p className="text-cyan-400 text-xs mt-1">Hidden gem discovered</p>
           </div>
         </FeatureCard>
 

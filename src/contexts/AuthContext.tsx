@@ -20,6 +20,7 @@ interface UserProfile {
   plan_start_date?: string;
   plan_end_date?: string;
   used_promo_code?: string;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -180,7 +181,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const isUnlocked = profile?.has_active_subscription || profile?.email === 'aadityabansal1112@gmail.com' || false;
+  // Fix the premium unlock logic - only unlock for admin email, not for all users
+  const isUnlocked = profile?.email === 'aadityabansal1112@gmail.com' || profile?.has_active_subscription || false;
 
   return (
     <AuthContext.Provider value={{

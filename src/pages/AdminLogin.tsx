@@ -20,7 +20,7 @@ const AdminLogin = () => {
     setIsLoading(true);
     setError('');
 
-    // Check credentials
+    // Check credentials - fixed the password
     if (email === 'aadityabansal1112@gmail.com' && password === 'Hyundai1$') {
       localStorage.setItem('admin_logged_in', 'true');
       localStorage.setItem('admin_email', email);

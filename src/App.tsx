@@ -18,6 +18,10 @@ import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import SpotifyCallback from "./pages/SpotifyCallback";
+import Profile from "./pages/Profile";
+import RefundPolicy from "./pages/RefundPolicy";
+import CancellationPolicy from "./pages/CancellationPolicy";
+import About from "./pages/About";
 
 const queryClient = new QueryClient();
 
@@ -32,9 +36,13 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/buy" element={<Buy />} />
             <Route path="/terms" element={<TermsConditions />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+            <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/callback" element={<Callback />} />
             <Route path="/spotify-callback" element={<SpotifyCallback />} />
