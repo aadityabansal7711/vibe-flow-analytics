@@ -30,6 +30,7 @@ interface User {
   plan_tier: string;
   spotify_connected: boolean;
   created_at: string;
+  user_id: string;
 }
 
 interface SystemConfig {
@@ -99,7 +100,7 @@ const Admin = () => {
           plan_tier: 'premium',
           plan_id: 'admin_granted_premium'
         })
-        .eq('user_id', userId);
+        .eq('id', userId);
 
       if (error) {
         console.error('Error granting premium:', error);
@@ -126,7 +127,7 @@ const Admin = () => {
           plan_tier: 'free',
           plan_id: 'free_tier'
         })
-        .eq('user_id', userId);
+        .eq('id', userId);
 
       if (error) {
         console.error('Error revoking premium:', error);
@@ -154,7 +155,7 @@ const Admin = () => {
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
-        .eq('user_id', userId);
+        .eq('id', userId);
 
       if (profileError) {
         console.error('Error deleting user profile:', profileError);
@@ -302,7 +303,7 @@ const Admin = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => revokePremium(user.user_id)}
+                          onClick={() => revokePremium(user.id)}
                           className="text-red-400 border-red-400 hover:bg-red-400/10"
                         >
                           <X className="h-3 w-3" />
@@ -311,7 +312,7 @@ const Admin = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => grantPremium(user.user_id)}
+                          onClick={() => grantPremium(user.id)}
                           className="text-green-400 border-green-400 hover:bg-green-400/10"
                         >
                           <Check className="h-3 w-3" />
@@ -320,7 +321,7 @@ const Admin = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deleteUser(user.user_id, user.email)}
+                        onClick={() => deleteUser(user.id, user.email)}
                         className="text-red-400 border-red-400 hover:bg-red-400/10"
                       >
                         <Trash2 className="h-3 w-3" />
