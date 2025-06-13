@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,6 +22,7 @@ import RefundPolicy from "./pages/RefundPolicy";
 import CancellationPolicy from "./pages/CancellationPolicy";
 import About from "./pages/About";
 import Demo from "./pages/Demo";
+import Error from "./pages/Error";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +51,7 @@ const App = () => (
             <Route path="/loading" element={<Loading />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/error" element={<Error />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

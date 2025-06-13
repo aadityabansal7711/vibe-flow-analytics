@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,9 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isUnlocked = profile?.has_active_subscription || false;
 
-  // Get the consistent redirect URI
+  // Get the consistent redirect URI for production
   const getSpotifyRedirectUri = () => {
-    return `${window.location.origin}/spotify-callback`;
+    return 'https://my-vibe-lytics.lovable.app/spotify-callback';
   };
 
   useEffect(() => {

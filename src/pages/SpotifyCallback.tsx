@@ -1,27 +1,21 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Music, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const SpotifyCallback: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateProfile, loading } = useAuth();
-  const [status, setStatus] = useState('Connecting your Spotify account...');
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     if (loading) return;
 
     const handleCallback = async () => {
-      console.log('🎵 Starting Spotify callback handling...');
+      console.log('🎵 Starting silent Spotify callback handling...');
 
       if (!user) {
         console.error('❌ No user found for Spotify callback');
-        setStatus('Please sign in first');
-        setIsError(true);
-        setTimeout(() => navigate('/auth'), 3000);
+        navigate('/error');
         return;
       }
 
@@ -40,38 +34,27 @@ const SpotifyCallback: React.FC = () => {
 
       if (error) {
         console.error('❌ Spotify auth error:', error);
-        if (error === 'access_denied') {
-          setStatus('Spotify access was denied. Please try connecting again.');
-        } else {
-          setStatus(`Spotify connection failed: ${error}`);
-        }
-        setIsError(true);
-        setTimeout(() => navigate('/dashboard'), 4000);
+        navigate('/error');
         return;
       }
 
       if (!code) {
         console.error('❌ No authorization code received');
-        setStatus('No authorization code received from Spotify');
-        setIsError(true);
-        setTimeout(() => navigate('/dashboard'), 3000);
+        navigate('/error');
         return;
       }
 
       if (state !== user.id) {
         console.error('❌ State mismatch - security check failed');
-        setStatus('Security validation failed - please try connecting again');
-        setIsError(true);
-        setTimeout(() => navigate('/dashboard'), 3000);
+        navigate('/error');
         return;
       }
 
       try {
         console.log('🔄 Exchanging code for access token...');
-        setStatus('Exchanging authorization code...');
 
-        // Use the EXACT same redirect URI as in the auth flow
-        const redirectUri = `${window.location.origin}/spotify-callback`;
+        // Use the correct redirect URI for production
+        const redirectUri = 'https://my-vibe-lytics.lovable.app/spotify-callback';
         
         console.log('🔗 Using redirect URI for token exchange:', redirectUri);
 
@@ -97,14 +80,8 @@ const SpotifyCallback: React.FC = () => {
             statusText: tokenResponse.statusText,
             error: errorData
           });
-          
-          if (errorData.error === 'invalid_grant') {
-            throw new Error('Authorization code has expired or been used. Please try connecting again.');
-          } else if (errorData.error === 'invalid_client') {
-            throw new Error('Invalid client credentials. Please contact support.');
-          } else {
-            throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`);
-          }
+          navigate('/error');
+          return;
         }
 
         const tokenData = await tokenResponse.json();
@@ -114,7 +91,6 @@ const SpotifyCallback: React.FC = () => {
           expiresIn: tokenData.expires_in
         });
 
-        setStatus('Fetching your Spotify profile...');
         console.log('🔄 Fetching Spotify profile...');
 
         const profileResponse = await fetch('https://api.spotify.com/v1/me', {
@@ -128,7 +104,8 @@ const SpotifyCallback: React.FC = () => {
         if (!profileResponse.ok) {
           const errorText = await profileResponse.text();
           console.error('❌ Profile fetch failed:', errorText);
-          throw new Error(`Profile fetch failed: ${profileResponse.status}`);
+          navigate('/error');
+          return;
         }
 
         const profileData = await profileResponse.json();
@@ -138,7 +115,6 @@ const SpotifyCallback: React.FC = () => {
           email: profileData.email
         });
 
-        setStatus('Saving your Spotify connection...');
         console.log('🔄 Updating user profile with Spotify data...');
 
         // Calculate token expiry time
@@ -158,75 +134,23 @@ const SpotifyCallback: React.FC = () => {
 
         await updateProfile(updateData);
 
-        console.log('✅ Spotify successfully connected with auto-refresh capability');
-        setStatus('Success! Spotify connected to your account.');
-        setIsSuccess(true);
+        console.log('✅ Spotify successfully connected - redirecting to dashboard');
         
-        // Clear the URL parameters
+        // Clear the URL parameters and redirect to dashboard
         window.history.replaceState({}, document.title, window.location.pathname);
-        
-        setTimeout(() => {
-          console.log('🔄 Redirecting to dashboard...');
-          navigate('/dashboard');
-        }, 2000);
+        navigate('/dashboard');
 
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
-        setStatus(`Failed to connect Spotify: ${err.message}`);
-        setIsError(true);
-        setTimeout(() => navigate('/dashboard'), 4000);
+        navigate('/error');
       }
     };
 
     handleCallback();
   }, [user, loading, navigate, updateProfile]);
 
-  return (
-    <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-      <div className="max-w-md w-full mx-auto text-center">
-        <div className="glass-effect-strong rounded-2xl p-8 border border-border/50">
-          <div className="flex items-center justify-center mb-8">
-            {isError ? (
-              <AlertCircle className="h-16 w-16 text-red-400" />
-            ) : isSuccess ? (
-              <CheckCircle className="h-16 w-16 text-primary animate-pulse-slow" />
-            ) : (
-              <div className="relative">
-                <Music className="h-16 w-16 text-primary animate-float" />
-                <div className="absolute inset-0 h-16 w-16 text-primary/20 animate-glow rounded-full"></div>
-              </div>
-            )}
-          </div>
-
-          <h1 className="text-3xl font-bold text-gradient mb-4">MyVibeLytics</h1>
-
-          <div className="flex items-center justify-center space-x-3 mb-6">
-            {!isError && !isSuccess && <Loader2 className="h-5 w-5 text-primary animate-spin" />}
-            <p className="text-foreground text-lg">{status}</p>
-          </div>
-
-          {!isError && !isSuccess && (
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-spotify rounded-full animate-pulse"></div>
-            </div>
-          )}
-
-          {isSuccess && (
-            <div className="mt-4">
-              <p className="text-muted-foreground">Redirecting to your dashboard...</p>
-            </div>
-          )}
-
-          {isError && (
-            <div className="mt-4">
-              <p className="text-muted-foreground">Redirecting to dashboard...</p>
-              <p className="text-sm text-red-400 mt-2">You can try connecting again from the dashboard</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  // Return empty div - no UI shown during processing
+  return <div></div>;
 };
 
 export default SpotifyCallback;
