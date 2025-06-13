@@ -8,56 +8,66 @@ const SpotifyCallback: React.FC = () => {
   const { user, updateProfile, loading } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
+    // Set a safety timeout to prevent infinite hanging
+    const safetyTimeout = setTimeout(() => {
+      console.error('🚨 Spotify callback timeout - redirecting to error');
+      navigate('/error');
+    }, 15000); // 15 second timeout
 
     const handleCallback = async () => {
-      console.log('🎵 Starting silent Spotify callback handling...');
-
-      if (!user) {
-        console.error('❌ No user found for Spotify callback');
-        navigate('/error');
-        return;
-      }
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const error = urlParams.get('error');
-      const state = urlParams.get('state');
-
-      console.log('📦 Callback params:', { 
-        hasCode: !!code, 
-        error, 
-        state, 
-        userId: user.id,
-        stateMatch: state === user.id 
-      });
-
-      if (error) {
-        console.error('❌ Spotify auth error:', error);
-        navigate('/error');
-        return;
-      }
-
-      if (!code) {
-        console.error('❌ No authorization code received');
-        navigate('/error');
-        return;
-      }
-
-      if (state !== user.id) {
-        console.error('❌ State mismatch - security check failed');
-        navigate('/error');
-        return;
-      }
+      console.log('🎵 Starting Spotify callback handling...');
 
       try {
+        // Wait for auth to be ready
+        if (loading) {
+          console.log('⏳ Waiting for auth to load...');
+          return;
+        }
+
+        if (!user) {
+          console.error('❌ No user found for Spotify callback');
+          clearTimeout(safetyTimeout);
+          navigate('/error');
+          return;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        const state = urlParams.get('state');
+
+        console.log('📦 Callback params:', { 
+          hasCode: !!code, 
+          error, 
+          state, 
+          userId: user.id 
+        });
+
+        if (error) {
+          console.error('❌ Spotify auth error:', error);
+          clearTimeout(safetyTimeout);
+          navigate('/error');
+          return;
+        }
+
+        if (!code) {
+          console.error('❌ No authorization code received');
+          clearTimeout(safetyTimeout);
+          navigate('/error');
+          return;
+        }
+
+        if (state !== user.id) {
+          console.error('❌ State mismatch - security check failed');
+          clearTimeout(safetyTimeout);
+          navigate('/error');
+          return;
+        }
+
         console.log('🔄 Exchanging code for access token...');
 
-        // Use the correct redirect URI for production
         const redirectUri = 'https://my-vibe-lytics.lovable.app/spotify-callback';
         
-        console.log('🔗 Using redirect URI for token exchange:', redirectUri);
-
         const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
           headers: {
@@ -74,22 +84,18 @@ const SpotifyCallback: React.FC = () => {
         console.log('📊 Token response status:', tokenResponse.status);
 
         if (!tokenResponse.ok) {
-          const errorData = await tokenResponse.json().catch(() => ({}));
+          const errorText = await tokenResponse.text().catch(() => 'Unknown error');
           console.error('❌ Token exchange failed:', {
             status: tokenResponse.status,
-            statusText: tokenResponse.statusText,
-            error: errorData
+            error: errorText
           });
+          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
 
         const tokenData = await tokenResponse.json();
-        console.log('✅ Token exchange successful:', {
-          hasAccessToken: !!tokenData.access_token,
-          hasRefreshToken: !!tokenData.refresh_token,
-          expiresIn: tokenData.expires_in
-        });
+        console.log('✅ Token exchange successful');
 
         console.log('🔄 Fetching Spotify profile...');
 
@@ -99,23 +105,15 @@ const SpotifyCallback: React.FC = () => {
           },
         });
 
-        console.log('📊 Profile response status:', profileResponse.status);
-
         if (!profileResponse.ok) {
-          const errorText = await profileResponse.text();
-          console.error('❌ Profile fetch failed:', errorText);
+          console.error('❌ Profile fetch failed:', profileResponse.status);
+          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
 
         const profileData = await profileResponse.json();
-        console.log('✅ Spotify profile retrieved:', {
-          id: profileData.id,
-          display_name: profileData.display_name,
-          email: profileData.email
-        });
-
-        console.log('🔄 Updating user profile with Spotify data...');
+        console.log('✅ Spotify profile retrieved:', profileData.display_name);
 
         // Calculate token expiry time
         const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
@@ -130,27 +128,47 @@ const SpotifyCallback: React.FC = () => {
           spotify_avatar_url: profileData.images?.[0]?.url || null,
         };
 
-        console.log('💾 Saving profile data with expiry:', expiresAt.toISOString());
-
         await updateProfile(updateData);
 
         console.log('✅ Spotify successfully connected - redirecting to dashboard');
         
-        // Clear the URL parameters and redirect to dashboard
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // Clear the timeout and redirect
+        clearTimeout(safetyTimeout);
+        
+        // Clear URL parameters and redirect
+        window.history.replaceState({}, document.title, '/spotify-callback');
         navigate('/dashboard');
 
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
+        clearTimeout(safetyTimeout);
         navigate('/error');
       }
     };
 
-    handleCallback();
+    // Only run if not loading
+    if (!loading) {
+      handleCallback();
+    }
+
+    // Cleanup timeout on unmount
+    return () => {
+      clearTimeout(safetyTimeout);
+    };
   }, [user, loading, navigate, updateProfile]);
 
-  // Return empty div - no UI shown during processing
-  return <div></div>;
+  // Return minimal UI - just a blank screen while processing
+  return (
+    <div style={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100%', 
+      height: '100%', 
+      backgroundColor: '#000', 
+      zIndex: 9999 
+    }} />
+  );
 };
 
 export default SpotifyCallback;

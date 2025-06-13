@@ -213,7 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       `state=${user.id}&` +
       `show_dialog=true`;
 
-    console.log('🔗 Redirecting to Spotify auth URL:', authUrl);
+    console.log('🔗 Redirecting to Spotify auth URL');
     window.location.href = authUrl;
   };
 
