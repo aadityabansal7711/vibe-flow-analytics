@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,10 +53,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isUnlocked = profile?.has_active_subscription || false;
 
-  // Use the consistent production redirect URI
-  const getSpotifyRedirectUri = () => {
-    return 'https://my-vibe-lytics.lovable.app/spotify-callback';
-  };
+  // Use your correct Spotify app credentials
+  const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
+  const SPOTIFY_CLIENT_SECRET = 'b3aea9ce9dde43dab089f67962bea287';
+  const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
 
   useEffect(() => {
     let mounted = true;
@@ -226,10 +225,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    const clientId = 'fe34af0e9c494464a7a8ba2012f382bb';
-    const redirectUri = getSpotifyRedirectUri();
-    
-    console.log('🎵 Initiating Spotify OAuth with redirect URI:', redirectUri);
+    console.log('🎵 Initiating Spotify OAuth with your app credentials...');
+    console.log('🔗 Client ID:', SPOTIFY_CLIENT_ID);
+    console.log('🔗 Redirect URI:', SPOTIFY_REDIRECT_URI);
     
     const scopes = [
       'user-read-private',
@@ -246,14 +244,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('spotify_refresh_token');
 
     const authUrl = `https://accounts.spotify.com/authorize?` +
-      `client_id=${clientId}&` +
+      `client_id=${SPOTIFY_CLIENT_ID}&` +
       `response_type=code&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `state=${user.id}&` +
       `show_dialog=true`;
 
-    console.log('🔗 Redirecting to Spotify auth URL');
+    console.log('🔗 Redirecting to Spotify auth URL:', authUrl);
     window.location.href = authUrl;
   };
 
@@ -285,12 +283,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      console.log('🔄 Refreshing Spotify token...');
+      console.log('🔄 Refreshing Spotify token with your credentials...');
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + btoa('fe34af0e9c494464a7a8ba2012f382bb:b3aea9ce9dde43dab089f67962bea287')
+          'Authorization': 'Basic ' + btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',

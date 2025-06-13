@@ -9,6 +9,11 @@ const Callback = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isError, setIsError] = useState(false);
 
+  // Use your correct Spotify credentials
+  const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
+  const SPOTIFY_CLIENT_SECRET = 'b3aea9ce9dde43dab089f67962bea287';
+  const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/callback';
+
   useEffect(() => {
     const handleCallback = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -32,19 +37,16 @@ const Callback = () => {
       try {
         setStatus('Exchanging code for access token...');
         
-        // Use consistent redirect URI
-        const redirectUri = 'https://my-vibe-lytics.lovable.app/callback';
-        
         const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic ' + btoa('fe34af0e9c494464a7a8ba2012f382bb:b3aea9ce9dde43dab089f67962bea287')
+            'Authorization': 'Basic ' + btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)
           },
           body: new URLSearchParams({
             grant_type: 'authorization_code',
             code: code,
-            redirect_uri: redirectUri
+            redirect_uri: SPOTIFY_REDIRECT_URI
           })
         });
 
