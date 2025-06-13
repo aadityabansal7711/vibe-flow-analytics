@@ -3,63 +3,85 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { 
-  Music, 
-  User, 
-  Edit3, 
-  Trash2, 
-  Save, 
-  ArrowLeft,
-  Mail,
-  Calendar,
-  Link2,
-  Crown,
-  Shield
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  User, 
+  Mail, 
+  Calendar, 
+  Music, 
+  Settings,
+  Crown,
+  Trash2,
+  Edit3,
+  ArrowLeft,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
 
-const Profile = () => {
-  const { user, profile, updateProfile, signOut, isUnlocked } = useAuth();
+const Profile: React.FC = () => {
+  const { user, profile, signOut, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const { toast } = useToast();
 
-  if (!user) {
+  if (!user || !profile) {
     return <Navigate to="/auth" replace />;
   }
 
-  const handleSave = async () => {
+  const handleUpdateName = async () => {
+    if (!fullName.trim()) {
+      setMessage('Name cannot be empty');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await updateProfile({ full_name: fullName });
+      setMessage('Name updated successfully!');
       setIsEditing(false);
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      console.error('Error updating name:', error);
+      setMessage('Failed to update name: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleDeleteAccount = async () => {
-    setIsDeleting(true);
+    const confirmDelete = confirm(
+      'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data including Spotify connections and analytics.'
+    );
+
+    if (!confirmDelete) return;
+
+    const finalConfirm = confirm(
+      'This is your final warning. Deleting your account will permanently remove:\n\n' +
+      '• All your Spotify listening data\n' +
+      '• Your premium subscription (if any)\n' +
+      '• All analytics and insights\n' +
+      '• Your profile and preferences\n\n' +
+      'Type "DELETE" to confirm deletion.'
+    );
+
+    if (!finalConfirm) return;
+
+    const userInput = prompt('Type "DELETE" to confirm account deletion:');
+    if (userInput !== 'DELETE') {
+      setMessage('Account deletion cancelled - confirmation text did not match.');
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      console.log('🗑️ Starting account deletion process...');
-      
-      // First, delete the user's profile data
+      console.log('Deleting user account:', user.id);
+
+      // First delete the profile
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -67,231 +89,259 @@ const Profile = () => {
 
       if (profileError) {
         console.error('Error deleting profile:', profileError);
-        throw new Error('Failed to delete profile data');
+        setMessage('Failed to delete profile: ' + profileError.message);
+        return;
       }
 
-      // Delete from other related tables if they exist
-      try {
-        await supabase.from('subscriptions').delete().eq('user_id', user.id);
-        await supabase.from('user_management').delete().eq('user_id', user.id);
-      } catch (error) {
-        console.log('Note: Some related tables may not exist:', error);
-      }
-
-      // Finally, delete the auth user
+      // Then delete the auth user (this will cascade delete other related data)
       const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
-
+      
       if (authError) {
         console.error('Error deleting auth user:', authError);
-        // Even if this fails, we'll still sign out the user
+        // Even if auth deletion fails, we've deleted the profile, so sign out
+        setMessage('Account data deleted. Signing out...');
+      } else {
+        setMessage('Account deleted successfully. Goodbye!');
       }
 
-      toast({
-        title: "Account Deleted",
-        description: "Your account has been permanently deleted.",
-      });
-
       // Sign out and redirect
-      await signOut();
-      
+      setTimeout(() => {
+        signOut();
+      }, 2000);
+
     } catch (error: any) {
-      console.error('Account deletion error:', error);
-      toast({
-        title: "Deletion Failed",
-        description: error.message || "Failed to delete account. Please contact support.",
-        variant: "destructive"
-      });
+      console.error('Error deleting account:', error);
+      setMessage('Failed to delete account: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
-    setIsDeleting(false);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-dark">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 glass-effect-strong border-b border-border/50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
-          <Link to="/dashboard" className="flex items-center space-x-3">
-            <ArrowLeft className="h-6 w-6 text-primary" />
-            <div className="flex items-center space-x-2">
-              <Music className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
-            </div>
-          </Link>
-          <Button onClick={signOut} variant="outline" className="border-border text-foreground hover:bg-muted">
-            Logout
-          </Button>
-        </div>
-      </nav>
-
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-hero"></div>
-        <div className="relative px-6 py-16">
-          <div className="max-w-4xl mx-auto space-y-8">
-            
-            {/* Profile Header */}
-            <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-6xl font-bold text-gradient mb-4">Your Profile</h1>
-              <p className="text-xl text-muted-foreground">Manage your account settings and preferences</p>
-            </div>
-
-            {/* Profile Information */}
-            <Card className="glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-foreground">
-                  <User className="h-5 w-5" />
-                  <span>Profile Information</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-foreground">Email</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-foreground">{user.email}</span>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-foreground">Full Name</Label>
-                      {isEditing ? (
-                        <Input
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          className="bg-background/50 border-border text-foreground"
-                          placeholder="Enter your full name"
-                        />
-                      ) : (
-                        <div className="flex items-center space-x-2 mt-1">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-foreground">{profile?.full_name || 'Not set'}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label className="text-foreground">Member Since</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-foreground">
-                          {new Date(profile?.created_at || user.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-foreground">Subscription Status</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        {isUnlocked ? (
-                          <>
-                            <Crown className="h-4 w-4 text-primary" />
-                            <span className="text-primary font-semibold">Premium Active</span>
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Free Plan</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-foreground">Spotify Connection</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Link2 className={`h-4 w-4 ${profile?.spotify_connected ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span className={profile?.spotify_connected ? 'text-primary' : 'text-muted-foreground'}>
-                          {profile?.spotify_connected ? 'Connected' : 'Not Connected'}
-                        </span>
-                      </div>
-                      {profile?.spotify_display_name && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Connected as: {profile.spotify_display_name}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex space-x-4 pt-4 border-t border-border/20">
-                  {isEditing ? (
-                    <>
-                      <Button onClick={handleSave} disabled={isLoading} className="bg-primary hover:bg-primary/90">
-                        <Save className="mr-2 h-4 w-4" />
-                        {isLoading ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                      <Button onClick={() => {
-                        setIsEditing(false);
-                        setFullName(profile?.full_name || '');
-                      }} variant="outline">
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button onClick={() => setIsEditing(true)} variant="outline">
-                      <Edit3 className="mr-2 h-4 w-4" />
-                      Edit Profile
-                    </Button>
-                  )}
-                  
-                  {!isUnlocked && (
-                    <Link to="/buy">
-                      <Button className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
-                        <Crown className="mr-2 h-4 w-4" />
-                        Upgrade to Premium
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Danger Zone */}
-            <Card className="glass-effect border-red-500/50">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-red-400">
-                  <Trash2 className="h-5 w-5" />
-                  <span>Danger Zone</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Once you delete your account, all your data will be permanently removed. This action cannot be undone.
-                </p>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="border-red-500 text-red-400 hover:bg-red-500/10" disabled={isDeleting}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {isDeleting ? 'Deleting...' : 'Delete Account'}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="bg-background border-border">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="text-foreground">Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription className="text-muted-foreground">
-                        This action cannot be undone. This will permanently delete your account and remove all your data from our servers, including:
-                        <ul className="list-disc list-inside mt-2 space-y-1">
-                          <li>Your profile information</li>
-                          <li>Your Spotify connection</li>
-                          <li>All your analytics data</li>
-                          <li>Your subscription (if any)</li>
-                        </ul>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="bg-background border-border text-foreground">Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-500 hover:bg-red-600" disabled={isDeleting}>
-                        {isDeleting ? 'Deleting...' : 'Delete Account'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-gradient-dark p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <Link to="/dashboard">
+              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </Link>
+            <h1 className="text-3xl font-bold text-gradient">Profile Settings</h1>
           </div>
+        </div>
+
+        {/* Message Alert */}
+        {message && (
+          <Alert className="mb-6">
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Profile Information */}
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <User className="mr-2 h-5 w-5" />
+                Profile Information
+              </CardTitle>
+              <CardDescription>
+                Manage your personal information and account details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Profile Picture & Basic Info */}
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+                  {profile.spotify_avatar_url ? (
+                    <img 
+                      src={profile.spotify_avatar_url} 
+                      alt="Profile" 
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-8 w-8 text-white" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {profile.full_name || 'No name set'}
+                  </h3>
+                  <p className="text-muted-foreground">{profile.email}</p>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Badge variant={profile.has_active_subscription ? "default" : "secondary"}>
+                      {profile.has_active_subscription ? 'Premium' : 'Free'}
+                    </Badge>
+                    {profile.spotify_connected && (
+                      <Badge variant="outline" className="text-green-400 border-green-400">
+                        <Music className="mr-1 h-3 w-3" />
+                        Spotify Connected
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Edit Name Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-foreground font-medium">Full Name</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="border-border text-foreground hover:bg-muted"
+                  >
+                    <Edit3 className="mr-2 h-3 w-3" />
+                    {isEditing ? 'Cancel' : 'Edit'}
+                  </Button>
+                </div>
+
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <Input
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="bg-background/50 border-border text-foreground"
+                    />
+                    <Button
+                      onClick={handleUpdateName}
+                      disabled={isLoading}
+                      className="w-full bg-primary hover:bg-primary/90"
+                    >
+                      {isLoading ? 'Updating...' : 'Update Name'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-background/30 rounded-lg border border-border">
+                    <p className="text-foreground">{profile.full_name || 'No name set'}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Account Details */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Plan Tier</Label>
+                    <p className="text-foreground font-medium capitalize">{profile.plan_tier || 'Free'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Member Since</Label>
+                    <p className="text-foreground font-medium">
+                      {profile.created_at ? formatDate(profile.created_at) : 'Unknown'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Account Actions */}
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <Settings className="mr-2 h-5 w-5" />
+                Account Actions
+              </CardTitle>
+              <CardDescription>
+                Manage your account settings and preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Spotify Connection */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-foreground font-medium">Spotify Connection</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {profile.spotify_connected 
+                        ? `Connected as ${profile.spotify_display_name || 'Unknown'}` 
+                        : 'Connect your Spotify account for personalized insights'
+                      }
+                    </p>
+                  </div>
+                  {profile.spotify_connected ? (
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-red-400" />
+                  )}
+                </div>
+                
+                {!profile.spotify_connected && (
+                  <Link to="/dashboard">
+                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
+                      <Music className="mr-2 h-4 w-4" />
+                      Connect Spotify
+                    </Button>
+                  </Link>
+                )}
+              </div>
+
+              {/* Premium Status */}
+              {!profile.has_active_subscription && (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Crown className="h-5 w-5 text-yellow-400" />
+                    <h4 className="text-foreground font-medium">Upgrade to Premium</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Unlock advanced analytics, AI insights, and unlimited features
+                  </p>
+                  <Link to="/buy">
+                    <Button className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
+                      <Crown className="mr-2 h-4 w-4" />
+                      Upgrade Now
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+              {/* Danger Zone */}
+              <div className="border-t border-red-500/20 pt-6">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-red-400 font-medium flex items-center">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Danger Zone
+                    </h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Permanently delete your account and all associated data
+                    </p>
+                  </div>
+
+                  <Alert className="border-red-500/20 bg-red-500/5">
+                    <AlertDescription className="text-sm">
+                      <strong>Warning:</strong> This action cannot be undone. This will permanently delete your account, 
+                      remove all your data including Spotify connections, analytics, and any premium subscriptions.
+                    </AlertDescription>
+                  </Alert>
+
+                  <Button
+                    onClick={handleDeleteAccount}
+                    disabled={isLoading}
+                    variant="outline"
+                    className="w-full border-red-500 text-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isLoading ? 'Deleting Account...' : 'Delete Account'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

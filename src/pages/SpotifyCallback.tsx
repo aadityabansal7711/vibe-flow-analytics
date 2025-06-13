@@ -8,12 +8,6 @@ const SpotifyCallback: React.FC = () => {
   const { user, updateProfile, loading } = useAuth();
 
   useEffect(() => {
-    // Set a safety timeout to prevent infinite hanging
-    const safetyTimeout = setTimeout(() => {
-      console.error('🚨 Spotify callback timeout - redirecting to error');
-      navigate('/error');
-    }, 15000); // 15 second timeout
-
     const handleCallback = async () => {
       console.log('🎵 Starting Spotify callback handling...');
 
@@ -26,7 +20,6 @@ const SpotifyCallback: React.FC = () => {
 
         if (!user) {
           console.error('❌ No user found for Spotify callback');
-          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
@@ -45,21 +38,18 @@ const SpotifyCallback: React.FC = () => {
 
         if (error) {
           console.error('❌ Spotify auth error:', error);
-          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
 
         if (!code) {
           console.error('❌ No authorization code received');
-          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
 
         if (state !== user.id) {
           console.error('❌ State mismatch - security check failed');
-          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
@@ -89,7 +79,6 @@ const SpotifyCallback: React.FC = () => {
             status: tokenResponse.status,
             error: errorText
           });
-          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
@@ -107,7 +96,6 @@ const SpotifyCallback: React.FC = () => {
 
         if (!profileResponse.ok) {
           console.error('❌ Profile fetch failed:', profileResponse.status);
-          clearTimeout(safetyTimeout);
           navigate('/error');
           return;
         }
@@ -132,16 +120,12 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('✅ Spotify successfully connected - redirecting to dashboard');
         
-        // Clear the timeout and redirect
-        clearTimeout(safetyTimeout);
-        
         // Clear URL parameters and redirect
         window.history.replaceState({}, document.title, '/spotify-callback');
         navigate('/dashboard');
 
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
-        clearTimeout(safetyTimeout);
         navigate('/error');
       }
     };
@@ -150,24 +134,13 @@ const SpotifyCallback: React.FC = () => {
     if (!loading) {
       handleCallback();
     }
-
-    // Cleanup timeout on unmount
-    return () => {
-      clearTimeout(safetyTimeout);
-    };
   }, [user, loading, navigate, updateProfile]);
 
-  // Return minimal UI - just a blank screen while processing
+  // Return minimal loading state
   return (
-    <div style={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width: '100%', 
-      height: '100%', 
-      backgroundColor: '#000', 
-      zIndex: 9999 
-    }} />
+    <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+      <div className="text-white">Processing Spotify connection...</div>
+    </div>
   );
 };
 

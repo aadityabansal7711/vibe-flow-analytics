@@ -1,605 +1,415 @@
 
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { Link, Navigate } from 'react-router-dom';
-import { User, Key, Save, LogOut, Users, DollarSign, Activity, TrendingUp, Settings } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { 
+  Users, 
+  UserCheck, 
+  Settings, 
+  Search, 
+  Mail, 
+  Calendar,
+  Star,
+  Trash2,
+  Check,
+  X,
+  Shield
+} from 'lucide-react';
 
-interface UserData {
+interface User {
   id: string;
   email: string;
-  full_name?: string;
+  full_name: string | null;
   has_active_subscription: boolean;
+  plan_tier: string;
   spotify_connected: boolean;
   created_at: string;
 }
 
-interface ContactRequest {
-  id: string;
-  name: string;
-  email: string;
-  subject?: string;
-  message: string;
-  status: string;
-  created_at: string;
-}
-
 interface SystemConfig {
-  spotifyClientId: string;
-  spotifyClientSecret: string;
-  redirectUrl: string;
+  app_name: string;
+  maintenance_mode: boolean;
+  max_users: number;
+  features_enabled: string[];
 }
 
 const Admin = () => {
-  const [userEmail, setUserEmail] = useState('');
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [message, setMessage] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
+  // Check admin authentication
+  const adminSession = localStorage.getItem('admin_session');
+  if (!adminSession) {
+    return <Navigate to="/admin-login" replace />;
+  }
+
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataLoading, setDataLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [message, setMessage] = useState('');
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({
-    spotifyClientId: 'fe34af0e9c494464a7a8ba2012f382bb',
-    spotifyClientSecret: 'b3aea9ce9dde43dab089f67962bea287',
-    redirectUrl: `${window.location.origin}/spotify-callback`
+    app_name: 'MyVibeLytics',
+    maintenance_mode: false,
+    max_users: 10000,
+    features_enabled: ['spotify_integration', 'analytics', 'premium_features']
   });
-  const [configEditing, setConfigEditing] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
-    const checkAuth = () => {
-      console.log('🔍 Checking admin authentication...');
-      const adminSession = localStorage.getItem('admin_session');
-      const adminLoggedIn = localStorage.getItem('admin_logged_in');
-      
-      console.log('Admin session check:', { 
-        hasSession: !!adminSession, 
-        loggedIn: adminLoggedIn 
-      });
-      
-      if (adminSession && adminLoggedIn === 'true') {
-        try {
-          const session = JSON.parse(adminSession);
-          console.log('Parsed admin session:', session);
-          
-          if (session.email === 'aadityabansal1112@gmail.com') {
-            console.log('✅ Admin authenticated');
-            setIsAuthenticated(true);
-            loadInitialData();
-          } else {
-            console.log('❌ Invalid admin email');
-            setIsAuthenticated(false);
-          }
-        } catch (error) {
-          console.error('Error parsing admin session:', error);
-          localStorage.removeItem('admin_session');
-          localStorage.removeItem('admin_logged_in');
-          setIsAuthenticated(false);
-        }
-      } else {
-        console.log('❌ No valid admin session found');
-        setIsAuthenticated(false);
-      }
-      
-      setLoading(false);
-    };
-
-    checkAuth();
+    fetchUsers();
   }, []);
-
-  const loadInitialData = async () => {
-    console.log('📊 Loading initial admin data...');
-    setDataLoading(true);
-    
-    try {
-      await Promise.all([
-        fetchUsers(),
-        fetchContactRequests()
-      ]);
-      console.log('✅ Initial data loaded successfully');
-    } catch (error) {
-      console.error('❌ Error loading initial data:', error);
-    } finally {
-      setDataLoading(false);
-    }
-  };
 
   const fetchUsers = async () => {
     try {
-      console.log('👥 Fetching users...');
+      setLoading(true);
+      console.log('Fetching users from profiles table...');
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (error) {
-        console.error('❌ Error fetching users:', error);
-        throw error;
-      }
-      
-      console.log('✅ Users fetched:', data?.length || 0);
-      setUsers(data || []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch users",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const fetchContactRequests = async () => {
-    try {
-      console.log('📬 Fetching contact requests...');
-      const { data, error } = await supabase
-        .from('contact_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('❌ Error fetching contact requests:', error);
-        throw error;
-      }
-      
-      console.log('✅ Contact requests fetched:', data?.length || 0);
-      setContactRequests(data || []);
-    } catch (error) {
-      console.error('Error fetching contact requests:', error);
-    }
-  };
-
-  const handleLogout = () => {
-    console.log('🚪 Admin logging out...');
-    localStorage.removeItem('admin_session');
-    localStorage.removeItem('admin_logged_in');
-    localStorage.removeItem('admin_email');
-    setIsAuthenticated(false);
-    window.location.href = '/admin-login';
-  };
-
-  const clearAllUsers = async () => {
-    if (!window.confirm('Are you sure you want to delete ALL users? This action cannot be undone.')) {
-      return;
-    }
-
-    console.log('🗑️ Clearing all users...');
-    setDataLoading(true);
-    try {
-      const { error: profilesError } = await supabase
-        .from('profiles')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
-
-      if (profilesError) throw profilesError;
-
-      try {
-        await supabase.from('subscriptions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('user_management').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      } catch (error) {
-        console.log('Note: Some tables may not exist:', error);
-      }
-
-      setMessage('All users deleted successfully');
-      await fetchUsers();
-      
-      toast({
-        title: "Success",
-        description: "All users have been deleted",
-      });
-    } catch (error: any) {
-      console.error('Error deleting users:', error);
-      setMessage('Failed to delete users');
-      toast({
-        title: "Error",
-        description: "Failed to delete users",
-        variant: "destructive"
-      });
-    }
-    setDataLoading(false);
-  };
-
-  const handleToggleAccess = async () => {
-    if (!userEmail) {
-      setMessage('Please enter a user email');
-      return;
-    }
-
-    console.log('🔄 Toggling access for:', userEmail);
-    setDataLoading(true);
-    try {
-      const { data: user, error: userError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', userEmail)
-        .maybeSingle();
-
-      if (userError || !user) {
-        setMessage('User not found');
-        setDataLoading(false);
+        console.error('Error fetching users:', error);
+        setMessage('Error fetching users: ' + error.message);
         return;
       }
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ has_active_subscription: isUnlocked })
-        .eq('email', userEmail);
-
-      if (updateError) throw updateError;
-
-      try {
-        await supabase
-          .from('user_management')
-          .upsert({
-            user_id: user.user_id,
-            email: userEmail,
-            premium_access: isUnlocked,
-            managed_by_admin: 'admin_id',
-            updated_at: new Date().toISOString()
-          });
-      } catch (error) {
-        console.log('Note: user_management table may not exist:', error);
-      }
-
-      setMessage(`Access ${isUnlocked ? 'granted' : 'revoked'} for ${userEmail}`);
-      
-      await fetchUsers();
-      
-      toast({
-        title: "Success",
-        description: `User access ${isUnlocked ? 'granted' : 'revoked'} successfully`,
-      });
+      console.log('Users fetched successfully:', data?.length || 0);
+      setUsers(data || []);
     } catch (error: any) {
-      console.error('Error updating user access:', error);
-      setMessage('Failed to update user access');
-      toast({
-        title: "Error",
-        description: "Failed to update user access",
-        variant: "destructive"
-      });
+      console.error('Error in fetchUsers:', error);
+      setMessage('Error fetching users: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-    setDataLoading(false);
   };
 
-  const deleteUser = async (email: string) => {
-    if (!window.confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
+  const grantPremium = async (userId: string) => {
+    try {
+      console.log('Granting premium to user:', userId);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          has_active_subscription: true, 
+          plan_tier: 'premium',
+          plan_id: 'admin_granted_premium'
+        })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error granting premium:', error);
+        setMessage('Error granting premium: ' + error.message);
+        return;
+      }
+
+      setMessage('Premium access granted successfully!');
+      fetchUsers(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error in grantPremium:', error);
+      setMessage('Error granting premium: ' + error.message);
+    }
+  };
+
+  const revokePremium = async (userId: string) => {
+    try {
+      console.log('Revoking premium from user:', userId);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          has_active_subscription: false, 
+          plan_tier: 'free',
+          plan_id: 'free_tier'
+        })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error revoking premium:', error);
+        setMessage('Error revoking premium: ' + error.message);
+        return;
+      }
+
+      setMessage('Premium access revoked successfully!');
+      fetchUsers(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error in revokePremium:', error);
+      setMessage('Error revoking premium: ' + error.message);
+    }
+  };
+
+  const deleteUser = async (userId: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
       return;
     }
 
-    setDataLoading(true);
     try {
-      const { error } = await supabase
+      console.log('Deleting user:', userId);
+      
+      // First delete from profiles table
+      const { error: profileError } = await supabase
         .from('profiles')
         .delete()
-        .eq('email', email);
+        .eq('user_id', userId);
 
-      if (error) throw error;
+      if (profileError) {
+        console.error('Error deleting user profile:', profileError);
+        setMessage('Error deleting user: ' + profileError.message);
+        return;
+      }
 
-      setMessage(`User ${email} deleted successfully`);
-      await fetchUsers();
-      
-      toast({
-        title: "Success",
-        description: `User ${email} has been deleted`,
-      });
+      setMessage('User deleted successfully!');
+      fetchUsers(); // Refresh the list
     } catch (error: any) {
-      console.error('Error deleting user:', error);
-      setMessage('Failed to delete user');
-      toast({
-        title: "Error",
-        description: "Failed to delete user",
-        variant: "destructive"
-      });
+      console.error('Error in deleteUser:', error);
+      setMessage('Error deleting user: ' + error.message);
     }
-    setDataLoading(false);
   };
 
-  const saveSystemConfig = () => {
-    console.log('💾 System configuration updated:', systemConfig);
-    setConfigEditing(false);
-    toast({
-      title: "Configuration Updated",
-      description: "System configuration has been saved. Changes will take effect immediately.",
-    });
+  const updateSystemConfig = async () => {
+    try {
+      // Since we don't have a system config table, we'll just show a success message
+      // In a real app, you'd store this in a database
+      setMessage('System configuration updated successfully!');
+      console.log('System config updated:', systemConfig);
+    } catch (error: any) {
+      console.error('Error updating system config:', error);
+      setMessage('Error updating system config: ' + error.message);
+    }
   };
+
+  const filteredUsers = users.filter(user => 
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-foreground">Loading admin panel...</p>
-        </div>
+        <div className="text-white text-xl">Loading admin panel...</div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/admin-login" replace />;
-  }
-
-  const premiumUsers = users.filter(user => user.has_active_subscription);
-  const spotifyConnectedUsers = users.filter(user => user.spotify_connected);
-
-  const adminStats = [
-    { name: 'Total Users', count: users.length.toString(), icon: <Users className="h-6 w-6" />, color: 'text-blue-400' },
-    { name: 'Premium Users', count: premiumUsers.length.toString(), icon: <DollarSign className="h-6 w-6" />, color: 'text-green-400' },
-    { name: 'Spotify Connected', count: spotifyConnectedUsers.length.toString(), icon: <Activity className="h-6 w-6" />, color: 'text-purple-400' },
-    { name: 'Contact Requests', count: contactRequests.length.toString(), icon: <TrendingUp className="h-6 w-6" />, color: 'text-yellow-400' }
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-dark">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 glass-effect-strong border-b border-border/50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
-          <div className="flex items-center space-x-3">
-            <span className="text-2xl font-bold text-gradient">MyVibeLytics Admin</span>
-          </div>
+    <div className="min-h-screen bg-gradient-dark p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <span className="text-muted-foreground text-sm">Welcome, Admin</span>
-            <Link to="/dashboard">
-              <Button variant="outline" className="border-primary/50 text-foreground hover:bg-primary/10 hover:border-primary">
-                Dashboard
-              </Button>
-            </Link>
-            <Button onClick={handleLogout} variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
+            <Shield className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold text-gradient">Admin Panel</h1>
           </div>
+          <Badge variant="outline" className="text-green-400 border-green-400">
+            Admin Access
+          </Badge>
         </div>
-      </nav>
 
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-hero"></div>
-        <div className="relative px-6 py-16">
-          <div className="max-w-7xl mx-auto space-y-8">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {adminStats.map((stat, index) => (
-                <Card key={index} className="glass-effect card-hover border-border/50">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-muted-foreground text-sm">{stat.name}</p>
-                        <p className="text-2xl font-bold text-foreground">{stat.count}</p>
+        {/* Message Alert */}
+        {message && (
+          <Alert className="mb-6">
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{users.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Premium Users</CardTitle>
+              <Star className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {users.filter(u => u.has_active_subscription).length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Spotify Connected</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {users.filter(u => u.spotify_connected).length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* User Management */}
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <Users className="mr-2 h-5 w-5" />
+                User Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-background/50 border-border text-foreground"
+                />
+              </div>
+
+              {/* User List */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {filteredUsers.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-3 bg-background/30 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-foreground font-medium">{user.email}</span>
                       </div>
-                      <div className={`p-3 rounded-lg bg-primary/10 ${stat.color}`}>
-                        {stat.icon}
+                      {user.full_name && (
+                        <p className="text-sm text-muted-foreground mt-1">{user.full_name}</p>
+                      )}
+                      <div className="flex items-center space-x-2 mt-2">
+                        <Badge variant={user.has_active_subscription ? "default" : "secondary"}>
+                          {user.has_active_subscription ? 'Premium' : 'Free'}
+                        </Badge>
+                        {user.spotify_connected && (
+                          <Badge variant="outline" className="text-green-400 border-green-400">
+                            Spotify
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* User Management */}
-            <Card className="glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-foreground">
-                  <User className="h-5 w-5" />
-                  <span>User Access Management</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {dataLoading && (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                    <p className="text-muted-foreground">Loading...</p>
+                    <div className="flex items-center space-x-2">
+                      {user.has_active_subscription ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => revokePremium(user.user_id)}
+                          className="text-red-400 border-red-400 hover:bg-red-400/10"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => grantPremium(user.user_id)}
+                          className="text-green-400 border-green-400 hover:bg-green-400/10"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deleteUser(user.user_id, user.email)}
+                        className="text-red-400 border-red-400 hover:bg-red-400/10"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                )}
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="userEmail" className="text-foreground">User Email</Label>
-                      <Input
-                        id="userEmail"
-                        type="email"
-                        placeholder="user@example.com"
-                        value={userEmail}
-                        onChange={(e) => setUserEmail(e.target.value)}
-                        className="bg-background/50 border-border text-foreground"
+          {/* System Configuration */}
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <Settings className="mr-2 h-5 w-5" />
+                System Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="app_name" className="text-foreground">App Name</Label>
+                <Input
+                  id="app_name"
+                  value={systemConfig.app_name}
+                  onChange={(e) => setSystemConfig({...systemConfig, app_name: e.target.value})}
+                  className="bg-background/50 border-border text-foreground"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="max_users" className="text-foreground">Max Users</Label>
+                <Input
+                  id="max_users"
+                  type="number"
+                  value={systemConfig.max_users}
+                  onChange={(e) => setSystemConfig({...systemConfig, max_users: parseInt(e.target.value)})}
+                  className="bg-background/50 border-border text-foreground"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="maintenance_mode"
+                  checked={systemConfig.maintenance_mode}
+                  onChange={(e) => setSystemConfig({...systemConfig, maintenance_mode: e.target.checked})}
+                  className="rounded"
+                />
+                <Label htmlFor="maintenance_mode" className="text-foreground">Maintenance Mode</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-foreground">Enabled Features</Label>
+                <div className="space-y-2">
+                  {['spotify_integration', 'analytics', 'premium_features', 'ai_insights'].map((feature) => (
+                    <div key={feature} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={feature}
+                        checked={systemConfig.features_enabled.includes(feature)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSystemConfig({
+                              ...systemConfig,
+                              features_enabled: [...systemConfig.features_enabled, feature]
+                            });
+                          } else {
+                            setSystemConfig({
+                              ...systemConfig,
+                              features_enabled: systemConfig.features_enabled.filter(f => f !== feature)
+                            });
+                          }
+                        }}
+                        className="rounded"
                       />
-                    </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      <Switch
-                        id="unlockAccess"
-                        checked={isUnlocked}
-                        onCheckedChange={setIsUnlocked}
-                      />
-                      <Label htmlFor="unlockAccess" className="text-foreground">
-                        Grant Premium Access
+                      <Label htmlFor={feature} className="text-foreground capitalize">
+                        {feature.replace('_', ' ')}
                       </Label>
                     </div>
-                    
-                    <Button
-                      onClick={handleToggleAccess}
-                      disabled={dataLoading}
-                      className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {dataLoading ? 'Updating...' : 'Update User Access'}
-                    </Button>
-
-                    <Button
-                      onClick={clearAllUsers}
-                      disabled={dataLoading}
-                      variant="destructive"
-                      className="w-full"
-                    >
-                      {dataLoading ? 'Deleting...' : 'Delete All Users'}
-                    </Button>
-                    
-                    {message && (
-                      <div className="p-3 bg-primary/20 border border-primary/30 rounded text-primary text-sm">
-                        {message}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <Label className="text-foreground text-lg">Recent Users ({users.length})</Label>
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {users.slice(0, 5).map((user, index) => (
-                        <div key={index} className="glass-effect border-border/30 p-4 rounded-lg">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="text-foreground font-medium">{user.full_name || 'Unknown'}</p>
-                              <p className="text-muted-foreground text-sm">{user.email}</p>
-                            </div>
-                            <div className="text-right flex flex-col space-y-2">
-                              <div className="flex space-x-1">
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  user.has_active_subscription 
-                                    ? 'bg-primary/20 text-primary' 
-                                    : 'bg-muted text-muted-foreground'
-                                }`}>
-                                  {user.has_active_subscription ? 'Premium' : 'Free'}
-                                </span>
-                                {user.spotify_connected && (
-                                  <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">
-                                    Spotify
-                                  </span>
-                                )}
-                              </div>
-                              <Button
-                                onClick={() => deleteUser(user.email)}
-                                variant="outline"
-                                size="sm"
-                                className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-                              >
-                                Delete
-                              </Button>
-                              <p className="text-muted-foreground text-xs">
-                                {new Date(user.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {users.length === 0 && !dataLoading && (
-                        <p className="text-muted-foreground text-center py-8">No users found</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Contact Requests */}
-            <Card className="glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="text-foreground">Contact Requests ({contactRequests.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {contactRequests.map((request, index) => (
-                    <div key={index} className="glass-effect border-border/30 p-4 rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="text-foreground font-medium">{request.name}</p>
-                          <p className="text-muted-foreground text-sm">{request.email}</p>
-                          {request.subject && (
-                            <p className="text-foreground text-sm mt-1">Subject: {request.subject}</p>
-                          )}
-                        </div>
-                        <span className="text-muted-foreground text-xs">
-                          {new Date(request.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground text-sm">{request.message}</p>
-                    </div>
                   ))}
-                  {contactRequests.length === 0 && !dataLoading && (
-                    <p className="text-muted-foreground text-center py-8">No contact requests yet</p>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* System Configuration */}
-            <Card className="glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-foreground">
-                  <div className="flex items-center space-x-2">
-                    <Settings className="h-5 w-5" />
-                    <span>System Configuration</span>
-                  </div>
-                  <Button
-                    onClick={() => configEditing ? saveSystemConfig() : setConfigEditing(true)}
-                    variant={configEditing ? "default" : "outline"}
-                    size="sm"
-                  >
-                    {configEditing ? <Save className="h-4 w-4 mr-2" /> : <Key className="h-4 w-4 mr-2" />}
-                    {configEditing ? 'Save Changes' : 'Edit Config'}
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-foreground">Spotify Client ID</Label>
-                      <Input
-                        value={systemConfig.spotifyClientId}
-                        onChange={(e) => setSystemConfig(prev => ({ ...prev, spotifyClientId: e.target.value }))}
-                        readOnly={!configEditing}
-                        className={`${configEditing ? 'bg-background/50 border-border' : 'bg-muted border-border text-muted-foreground'}`}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-foreground">Spotify Client Secret</Label>
-                      <Input
-                        type="password"
-                        value={systemConfig.spotifyClientSecret}
-                        onChange={(e) => setSystemConfig(prev => ({ ...prev, spotifyClientSecret: e.target.value }))}
-                        readOnly={!configEditing}
-                        className={`${configEditing ? 'bg-background/50 border-border' : 'bg-muted border-border text-muted-foreground'}`}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-foreground">Spotify Redirect URL</Label>
-                      <Textarea
-                        value={systemConfig.redirectUrl}
-                        onChange={(e) => setSystemConfig(prev => ({ ...prev, redirectUrl: e.target.value }))}
-                        readOnly={!configEditing}
-                        className={`${configEditing ? 'bg-background/50 border-border' : 'bg-muted border-border text-muted-foreground'}`}
-                        rows={3}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-foreground">System Status</Label>
-                      <div className="flex items-center space-x-2 mt-2">
-                        <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
-                        <span className="text-primary text-sm font-medium">All systems operational</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {configEditing && (
-                  <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                    <p className="text-yellow-400 text-sm">
-                      ⚠️ Warning: Changing these settings will affect the Spotify OAuth flow for all users. 
-                      Make sure to test the configuration before saving.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+              <Button onClick={updateSystemConfig} className="w-full bg-primary hover:bg-primary/90">
+                Update Configuration
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

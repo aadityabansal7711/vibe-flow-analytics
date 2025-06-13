@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -127,7 +128,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
       options: {
-        data: fullName ? { full_name: fullName } : undefined
+        data: fullName ? { full_name: fullName } : undefined,
+        emailRedirectTo: `${window.location.origin}/`
       }
     });
     
@@ -301,7 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) {
       console.error('No user found for profile update');
-      return;
+      throw new Error('No user found for profile update');
     }
 
     console.log('Updating profile for user:', user.id, updates);
