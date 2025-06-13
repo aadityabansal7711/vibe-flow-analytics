@@ -22,6 +22,7 @@ import Profile from "./pages/Profile";
 import RefundPolicy from "./pages/RefundPolicy";
 import CancellationPolicy from "./pages/CancellationPolicy";
 import About from "./pages/About";
+import Demo from "./pages/Demo";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/demo" element={<Demo />} />
             <Route path="/buy" element={<Buy />} />
             <Route path="/terms" element={<TermsConditions />} />
             <Route path="/privacy" element={<Privacy />} />

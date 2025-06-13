@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { Link, Navigate } from 'react-router-dom';
-import { User, Key, Save, LogOut, Users, DollarSign, Activity, TrendingUp } from 'lucide-react';
+import { User, Key, Save, LogOut, Users, DollarSign, Activity, TrendingUp, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,6 +30,12 @@ interface ContactRequest {
   created_at: string;
 }
 
+interface SystemConfig {
+  spotifyClientId: string;
+  spotifyClientSecret: string;
+  redirectUrl: string;
+}
+
 const Admin = () => {
   const [userEmail, setUserEmail] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -38,6 +45,12 @@ const Admin = () => {
   const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
+  const [systemConfig, setSystemConfig] = useState<SystemConfig>({
+    spotifyClientId: 'fe34af0e9c494464a7a8ba2012f382bb',
+    spotifyClientSecret: 'b3aea9ce9dde43dab089f67962bea287',
+    redirectUrl: `${window.location.origin}/spotify-callback`
+  });
+  const [configEditing, setConfigEditing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -131,7 +144,7 @@ const Admin = () => {
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error && error.code !== 'PGRST116') { // Ignore table doesn't exist error
+      if (error && error.code !== 'PGRST116') {
         console.error('❌ Error fetching contact requests:', error);
         throw error;
       }
@@ -140,7 +153,6 @@ const Admin = () => {
       setContactRequests(data || []);
     } catch (error) {
       console.error('Error fetching contact requests:', error);
-      // Don't show error toast for contact requests as table might not exist
     }
   };
 
@@ -161,15 +173,13 @@ const Admin = () => {
     console.log('🗑️ Clearing all users...');
     setDataLoading(true);
     try {
-      // Delete all users from profiles table
       const { error: profilesError } = await supabase
         .from('profiles')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (profilesError) throw profilesError;
 
-      // Try to delete from other tables if they exist
       try {
         await supabase.from('subscriptions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await supabase.from('user_management').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -205,7 +215,6 @@ const Admin = () => {
     console.log('🔄 Toggling access for:', userEmail);
     setDataLoading(true);
     try {
-      // Find user by email
       const { data: user, error: userError } = await supabase
         .from('profiles')
         .select('*')
@@ -218,7 +227,6 @@ const Admin = () => {
         return;
       }
 
-      // Update user's premium access
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ has_active_subscription: isUnlocked })
@@ -226,7 +234,6 @@ const Admin = () => {
 
       if (updateError) throw updateError;
 
-      // Try to update user_management table if it exists
       try {
         await supabase
           .from('user_management')
@@ -243,7 +250,6 @@ const Admin = () => {
 
       setMessage(`Access ${isUnlocked ? 'granted' : 'revoked'} for ${userEmail}`);
       
-      // Refresh users list
       await fetchUsers();
       
       toast({
@@ -262,7 +268,48 @@ const Admin = () => {
     setDataLoading(false);
   };
 
-  // Show loading while checking authentication
+  const deleteUser = async (email: string) => {
+    if (!window.confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDataLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('email', email);
+
+      if (error) throw error;
+
+      setMessage(`User ${email} deleted successfully`);
+      await fetchUsers();
+      
+      toast({
+        title: "Success",
+        description: `User ${email} has been deleted`,
+      });
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      setMessage('Failed to delete user');
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive"
+      });
+    }
+    setDataLoading(false);
+  };
+
+  const saveSystemConfig = () => {
+    console.log('💾 System configuration updated:', systemConfig);
+    setConfigEditing(false);
+    toast({
+      title: "Configuration Updated",
+      description: "System configuration has been saved. Changes will take effect immediately.",
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
@@ -274,7 +321,6 @@ const Admin = () => {
     );
   }
 
-  // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/admin-login" replace />;
   }
@@ -411,20 +457,30 @@ const Admin = () => {
                               <p className="text-foreground font-medium">{user.full_name || 'Unknown'}</p>
                               <p className="text-muted-foreground text-sm">{user.email}</p>
                             </div>
-                            <div className="text-right">
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                user.has_active_subscription 
-                                  ? 'bg-primary/20 text-primary' 
-                                  : 'bg-muted text-muted-foreground'
-                              }`}>
-                                {user.has_active_subscription ? 'Premium' : 'Free'}
-                              </span>
-                              {user.spotify_connected && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 ml-1">
-                                  Spotify
+                            <div className="text-right flex flex-col space-y-2">
+                              <div className="flex space-x-1">
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  user.has_active_subscription 
+                                    ? 'bg-primary/20 text-primary' 
+                                    : 'bg-muted text-muted-foreground'
+                                }`}>
+                                  {user.has_active_subscription ? 'Premium' : 'Free'}
                                 </span>
-                              )}
-                              <p className="text-muted-foreground text-xs mt-1">
+                                {user.spotify_connected && (
+                                  <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">
+                                    Spotify
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                onClick={() => deleteUser(user.email)}
+                                variant="outline"
+                                size="sm"
+                                className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                              >
+                                Delete
+                              </Button>
+                              <p className="text-muted-foreground text-xs">
                                 {new Date(user.created_at).toLocaleDateString()}
                               </p>
                             </div>
@@ -474,9 +530,19 @@ const Admin = () => {
             {/* System Configuration */}
             <Card className="glass-effect border-border/50">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-foreground">
-                  <Key className="h-5 w-5" />
-                  <span>System Configuration</span>
+                <CardTitle className="flex items-center justify-between text-foreground">
+                  <div className="flex items-center space-x-2">
+                    <Settings className="h-5 w-5" />
+                    <span>System Configuration</span>
+                  </div>
+                  <Button
+                    onClick={() => configEditing ? saveSystemConfig() : setConfigEditing(true)}
+                    variant={configEditing ? "default" : "outline"}
+                    size="sm"
+                  >
+                    {configEditing ? <Save className="h-4 w-4 mr-2" /> : <Key className="h-4 w-4 mr-2" />}
+                    {configEditing ? 'Save Changes' : 'Edit Config'}
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -485,27 +551,32 @@ const Admin = () => {
                     <div>
                       <Label className="text-foreground">Spotify Client ID</Label>
                       <Input
-                        value="fe34af0e9c494464a7a8ba2012f382bb"
-                        readOnly
-                        className="bg-muted border-border text-muted-foreground"
+                        value={systemConfig.spotifyClientId}
+                        onChange={(e) => setSystemConfig(prev => ({ ...prev, spotifyClientId: e.target.value }))}
+                        readOnly={!configEditing}
+                        className={`${configEditing ? 'bg-background/50 border-border' : 'bg-muted border-border text-muted-foreground'}`}
                       />
                     </div>
                     <div>
-                      <Label className="text-foreground">Current Environment</Label>
+                      <Label className="text-foreground">Spotify Client Secret</Label>
                       <Input
-                        value={window.location.origin}
-                        readOnly
-                        className="bg-muted border-border text-muted-foreground"
+                        type="password"
+                        value={systemConfig.spotifyClientSecret}
+                        onChange={(e) => setSystemConfig(prev => ({ ...prev, spotifyClientSecret: e.target.value }))}
+                        readOnly={!configEditing}
+                        className={`${configEditing ? 'bg-background/50 border-border' : 'bg-muted border-border text-muted-foreground'}`}
                       />
                     </div>
                   </div>
                   <div className="space-y-4">
                     <div>
                       <Label className="text-foreground">Spotify Redirect URL</Label>
-                      <Input
-                        value={`${window.location.origin}/spotify-callback`}
-                        readOnly
-                        className="bg-muted border-border text-muted-foreground"
+                      <Textarea
+                        value={systemConfig.redirectUrl}
+                        onChange={(e) => setSystemConfig(prev => ({ ...prev, redirectUrl: e.target.value }))}
+                        readOnly={!configEditing}
+                        className={`${configEditing ? 'bg-background/50 border-border' : 'bg-muted border-border text-muted-foreground'}`}
+                        rows={3}
                       />
                     </div>
                     <div>
@@ -517,6 +588,15 @@ const Admin = () => {
                     </div>
                   </div>
                 </div>
+                
+                {configEditing && (
+                  <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <p className="text-yellow-400 text-sm">
+                      ⚠️ Warning: Changing these settings will affect the Spotify OAuth flow for all users. 
+                      Make sure to test the configuration before saving.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

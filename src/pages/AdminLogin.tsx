@@ -146,11 +146,6 @@ const AdminLogin = () => {
 
             <div className="text-center text-sm text-muted-foreground">
               <p>Access restricted to administrators only</p>
-              <div className="mt-3 p-3 bg-muted/20 rounded-lg">
-                <p className="text-xs font-medium text-primary">Test Credentials:</p>
-                <p className="text-xs">Email: aadityabansal1112@gmail.com</p>
-                <p className="text-xs">Password: Hyundai1$</p>
-              </div>
             </div>
           </CardContent>
         </Card>

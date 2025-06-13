@@ -17,7 +17,15 @@ import {
   Globe,
   ArrowRight,
   Play,
-  Headphones
+  Headphones,
+  Calendar,
+  Mic,
+  Radio,
+  Shuffle,
+  Target,
+  Award,
+  PieChart,
+  Activity
 } from 'lucide-react';
 
 const Index = () => {
@@ -64,7 +72,7 @@ const Index = () => {
                   Start Your Journey
                 </Button>
               </Link>
-              <Link to="/auth">
+              <Link to="/demo">
                 <Button size="lg" variant="outline" className="border-border text-foreground hover:bg-muted px-8 py-6 text-lg">
                   <Music className="mr-2 h-5 w-5" />
                   View Demo
@@ -80,10 +88,10 @@ const Index = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gradient mb-6">
-              Powerful Analytics Features
+              Comprehensive Analytics Features
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Dive deep into your music preferences with our comprehensive analytics suite
+              Dive deep into your music preferences with our complete analytics suite
             </p>
           </div>
 
@@ -153,9 +161,117 @@ const Index = () => {
                 <div className="h-12 w-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                   <Star className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle className="text-foreground">2024 Wrapped</CardTitle>
+                <CardTitle className="text-foreground">2025 Wrapped</CardTitle>
                 <CardDescription className="text-muted-foreground">
                   Get your personalized year-end music summary with beautiful visualizations
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <PieChart className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Genre Distribution</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Visualize your music taste across different genres with interactive charts
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Mic className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Artist Discovery</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Find new artists based on your listening patterns and preferences
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Activity className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Listening Intensity</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Track your music listening intensity and engagement levels over time
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Radio className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Playlist Analysis</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Analyze your playlists and discover patterns in your music curation
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-amber-500 to-yellow-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Shuffle className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Skip Patterns</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Understand your skip behavior and what makes you engage with songs
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Target className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Music Recommendations</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Get personalized music recommendations based on your listening data
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Award className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Music Achievements</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Unlock achievements and milestones based on your listening habits
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-slate-500 to-gray-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Globe className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Global Comparisons</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  See how your music taste compares to global and regional trends
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300 group">
+              <CardHeader>
+                <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <Smartphone className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-foreground">Mobile Insights</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Access your music analytics on-the-go with mobile-optimized insights
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -247,9 +363,9 @@ const Index = () => {
             <div className="space-y-4">
               <h4 className="text-lg font-semibold text-foreground">Product</h4>
               <ul className="space-y-2">
-                <li><Link to="/auth" className="text-muted-foreground hover:text-primary transition-colors">Features</Link></li>
+                <li><Link to="/demo" className="text-muted-foreground hover:text-primary transition-colors">Demo</Link></li>
                 <li><Link to="/buy" className="text-muted-foreground hover:text-primary transition-colors">Pricing</Link></li>
-                <li><Link to="/auth" className="text-muted-foreground hover:text-primary transition-colors">Demo</Link></li>
+                <li><Link to="/auth" className="text-muted-foreground hover:text-primary transition-colors">Features</Link></li>
               </ul>
             </div>
 
@@ -273,7 +389,7 @@ const Index = () => {
 
           <div className="border-t border-border/50 mt-8 pt-8 text-center">
             <p className="text-muted-foreground">
-              © 2024 MyVibeLytics. All rights reserved.
+              © 2025 MyVibeLytics. All rights reserved.
             </p>
           </div>
         </div>

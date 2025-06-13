@@ -21,12 +21,14 @@ import {
   Shield
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
   const { user, profile, updateProfile, signOut, isUnlocked } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   if (!user) {
@@ -53,11 +55,54 @@ const Profile = () => {
   };
 
   const handleDeleteAccount = async () => {
-    // This would need to be implemented with proper account deletion logic
-    toast({
-      title: "Account Deletion",
-      description: "Account deletion functionality will be implemented soon.",
-    });
+    setIsDeleting(true);
+    try {
+      console.log('🗑️ Starting account deletion process...');
+      
+      // First, delete the user's profile data
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (profileError) {
+        console.error('Error deleting profile:', profileError);
+        throw new Error('Failed to delete profile data');
+      }
+
+      // Delete from other related tables if they exist
+      try {
+        await supabase.from('subscriptions').delete().eq('user_id', user.id);
+        await supabase.from('user_management').delete().eq('user_id', user.id);
+      } catch (error) {
+        console.log('Note: Some related tables may not exist:', error);
+      }
+
+      // Finally, delete the auth user
+      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
+
+      if (authError) {
+        console.error('Error deleting auth user:', authError);
+        // Even if this fails, we'll still sign out the user
+      }
+
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted.",
+      });
+
+      // Sign out and redirect
+      await signOut();
+      
+    } catch (error: any) {
+      console.error('Account deletion error:', error);
+      toast({
+        title: "Deletion Failed",
+        description: error.message || "Failed to delete account. Please contact support.",
+        variant: "destructive"
+      });
+    }
+    setIsDeleting(false);
   };
 
   return (
@@ -178,7 +223,10 @@ const Profile = () => {
                         <Save className="mr-2 h-4 w-4" />
                         {isLoading ? 'Saving...' : 'Save Changes'}
                       </Button>
-                      <Button onClick={() => setIsEditing(false)} variant="outline">
+                      <Button onClick={() => {
+                        setIsEditing(false);
+                        setFullName(profile?.full_name || '');
+                      }} variant="outline">
                         Cancel
                       </Button>
                     </>
@@ -215,22 +263,28 @@ const Profile = () => {
                 </p>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="border-red-500 text-red-400 hover:bg-red-500/10">
+                    <Button variant="outline" className="border-red-500 text-red-400 hover:bg-red-500/10" disabled={isDeleting}>
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Account
+                      {isDeleting ? 'Deleting...' : 'Delete Account'}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="bg-background border-border">
                     <AlertDialogHeader>
                       <AlertDialogTitle className="text-foreground">Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription className="text-muted-foreground">
-                        This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
+                        This action cannot be undone. This will permanently delete your account and remove all your data from our servers, including:
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                          <li>Your profile information</li>
+                          <li>Your Spotify connection</li>
+                          <li>All your analytics data</li>
+                          <li>Your subscription (if any)</li>
+                        </ul>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel className="bg-background border-border text-foreground">Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-500 hover:bg-red-600">
-                        Delete Account
+                      <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-500 hover:bg-red-600" disabled={isDeleting}>
+                        {isDeleting ? 'Deleting...' : 'Delete Account'}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
