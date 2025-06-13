@@ -32,7 +32,7 @@ interface SpotifyData {
 }
 
 const useSpotifyData = (): SpotifyData => {
-  const { profile, updateProfile } = useAuth();
+  const { profile, getValidSpotifyToken, updateProfile } = useAuth();
   const [data, setData] = useState<SpotifyData>({
     topTracks: [],
     topArtists: [],
@@ -41,75 +41,48 @@ const useSpotifyData = (): SpotifyData => {
     error: null
   });
 
-  const refreshTokenIfNeeded = async (accessToken: string, refreshToken: string) => {
-    try {
-      console.log('🔄 Refreshing Spotify token...');
-      const response = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + btoa('fe34af0e9c494464a7a8ba2012f382bb:b3aea9ce9dde43dab089f67962bea287')
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken
-        })
-      });
-
-      if (response.ok) {
-        const tokenData = await response.json();
-        console.log('✅ Token refreshed successfully');
-        
-        await updateProfile({
-          spotify_access_token: tokenData.access_token
-        });
-        
-        return tokenData.access_token;
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Token refresh failed:', response.status, errorText);
-        throw new Error(`Token refresh failed: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('❌ Token refresh error:', error);
-      throw error;
-    }
-  };
-
   const fetchSpotifyData = async () => {
-    if (!profile?.spotify_access_token || !profile?.spotify_connected) {
-      console.log('❌ No Spotify access token or not connected');
+    if (!profile?.spotify_connected) {
+      console.log('❌ Spotify not connected');
       setData(prev => ({ ...prev, loading: false, error: 'Please connect your Spotify account' }));
       return;
     }
 
     setData(prev => ({ ...prev, loading: true, error: null }));
-    console.log('🎵 Fetching Spotify data...');
+    console.log('🎵 Fetching Spotify data with auto-refresh...');
 
     try {
-      let accessToken = profile.spotify_access_token;
+      // Get a valid token (will auto-refresh if needed)
+      const accessToken = await getValidSpotifyToken();
+      
+      if (!accessToken) {
+        console.error('❌ Could not obtain valid access token');
+        setData(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: 'Failed to get valid access token. Please reconnect your Spotify account.' 
+        }));
+        return;
+      }
 
-      const makeSpotifyRequest = async (url: string, retryCount = 0): Promise<Response> => {
+      const makeSpotifyRequest = async (url: string): Promise<Response> => {
         console.log(`📡 Making request to: ${url.replace('https://api.spotify.com/v1/', '')}`);
         
-        let response = await fetch(url, {
+        const response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
         console.log(`📊 Response status: ${response.status}`);
 
-        if (response.status === 401 && profile.spotify_refresh_token && retryCount === 0) {
-          console.log('🔄 Token expired, refreshing...');
-          try {
-            accessToken = await refreshTokenIfNeeded(accessToken, profile.spotify_refresh_token);
-            response = await fetch(url, {
-              headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            console.log(`📊 Retry response status: ${response.status}`);
-          } catch (refreshError) {
-            console.error('❌ Token refresh failed:', refreshError);
-            throw new Error('Failed to refresh Spotify token. Please reconnect your account.');
-          }
+        if (response.status === 401) {
+          console.error('❌ Token invalid - clearing connection');
+          await updateProfile({
+            spotify_connected: false,
+            spotify_access_token: null,
+            spotify_refresh_token: null,
+            spotify_token_expires_at: null
+          });
+          throw new Error('Spotify session expired. Please reconnect your account.');
         }
 
         return response;
@@ -117,10 +90,12 @@ const useSpotifyData = (): SpotifyData => {
 
       console.log('📡 Starting API requests...');
 
-      // Fetch data sequentially to avoid rate limiting and better error handling
-      const topTracksRes = await makeSpotifyRequest('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term');
-      const topArtistsRes = await makeSpotifyRequest('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term');
-      const recentlyPlayedRes = await makeSpotifyRequest('https://api.spotify.com/v1/me/player/recently-played?limit=20');
+      // Fetch data with proper error handling
+      const [topTracksRes, topArtistsRes, recentlyPlayedRes] = await Promise.all([
+        makeSpotifyRequest('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term'),
+        makeSpotifyRequest('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term'),
+        makeSpotifyRequest('https://api.spotify.com/v1/me/player/recently-played?limit=20')
+      ]);
 
       console.log('📊 API requests completed');
 
@@ -196,7 +171,7 @@ const useSpotifyData = (): SpotifyData => {
   };
 
   useEffect(() => {
-    if (profile?.spotify_connected && profile?.spotify_access_token) {
+    if (profile?.spotify_connected) {
       console.log('🎵 Profile has Spotify connection, fetching data...');
       fetchSpotifyData();
     } else {

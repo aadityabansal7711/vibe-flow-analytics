@@ -70,9 +70,10 @@ const SpotifyCallback: React.FC = () => {
         console.log('🔄 Exchanging code for access token...');
         setStatus('Exchanging authorization code...');
 
+        // Use the EXACT same redirect URI as in the auth flow
         const redirectUri = `${window.location.origin}/spotify-callback`;
         
-        console.log('🔗 Using redirect URI:', redirectUri);
+        console.log('🔗 Using redirect URI for token exchange:', redirectUri);
 
         const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
@@ -90,13 +91,28 @@ const SpotifyCallback: React.FC = () => {
         console.log('📊 Token response status:', tokenResponse.status);
 
         if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text();
-          console.error('❌ Token exchange failed:', errorText);
-          throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
+          const errorData = await tokenResponse.json().catch(() => ({}));
+          console.error('❌ Token exchange failed:', {
+            status: tokenResponse.status,
+            statusText: tokenResponse.statusText,
+            error: errorData
+          });
+          
+          if (errorData.error === 'invalid_grant') {
+            throw new Error('Authorization code has expired or been used. Please try connecting again.');
+          } else if (errorData.error === 'invalid_client') {
+            throw new Error('Invalid client credentials. Please contact support.');
+          } else {
+            throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`);
+          }
         }
 
         const tokenData = await tokenResponse.json();
-        console.log('✅ Token exchange successful');
+        console.log('✅ Token exchange successful:', {
+          hasAccessToken: !!tokenData.access_token,
+          hasRefreshToken: !!tokenData.refresh_token,
+          expiresIn: tokenData.expires_in
+        });
 
         setStatus('Fetching your Spotify profile...');
         console.log('🔄 Fetching Spotify profile...');
@@ -125,20 +141,24 @@ const SpotifyCallback: React.FC = () => {
         setStatus('Saving your Spotify connection...');
         console.log('🔄 Updating user profile with Spotify data...');
 
+        // Calculate token expiry time
+        const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+
         const updateData = {
           spotify_connected: true,
           spotify_access_token: tokenData.access_token,
           spotify_refresh_token: tokenData.refresh_token,
+          spotify_token_expires_at: expiresAt.toISOString(),
           spotify_user_id: profileData.id,
           spotify_display_name: profileData.display_name,
           spotify_avatar_url: profileData.images?.[0]?.url || null,
         };
 
-        console.log('💾 Saving profile data...');
+        console.log('💾 Saving profile data with expiry:', expiresAt.toISOString());
 
         await updateProfile(updateData);
 
-        console.log('✅ Spotify successfully connected');
+        console.log('✅ Spotify successfully connected with auto-refresh capability');
         setStatus('Success! Spotify connected to your account.');
         setIsSuccess(true);
         

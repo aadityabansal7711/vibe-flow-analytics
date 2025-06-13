@@ -17,6 +17,7 @@ interface Profile {
   spotify_avatar_url?: string;
   spotify_access_token?: string;
   spotify_refresh_token?: string;
+  spotify_token_expires_at?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -32,6 +33,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   connectSpotify: () => void;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  getValidSpotifyToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,6 +54,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isUnlocked = profile?.has_active_subscription || false;
 
+  // Get the consistent redirect URI
+  const getSpotifyRedirectUri = () => {
+    return `${window.location.origin}/spotify-callback`;
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -61,7 +68,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user) {
           try {
-            // First try to get existing profile
             const { data: profileData, error } = await supabase
               .from('profiles')
               .select('*')
@@ -74,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (!profileData) {
               console.log('No profile found, creating new one...');
-              // Create new profile if it doesn't exist
               const { data: newProfile, error: insertError } = await supabase
                 .from('profiles')
                 .insert([{ 
@@ -183,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const clientId = 'fe34af0e9c494464a7a8ba2012f382bb';
-    const redirectUri = `${window.location.origin}/spotify-callback`;
+    const redirectUri = getSpotifyRedirectUri();
     
     console.log('🎵 Initiating Spotify OAuth with redirect URI:', redirectUri);
     
@@ -211,6 +216,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     console.log('🔗 Redirecting to Spotify auth URL:', authUrl);
     window.location.href = authUrl;
+  };
+
+  const getValidSpotifyToken = async (): Promise<string | null> => {
+    if (!profile?.spotify_access_token) {
+      console.log('❌ No Spotify access token available');
+      return null;
+    }
+
+    // Check if token is expired
+    if (profile.spotify_token_expires_at) {
+      const expiresAt = new Date(profile.spotify_token_expires_at);
+      const now = new Date();
+      const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+
+      if (now.getTime() + bufferTime >= expiresAt.getTime()) {
+        console.log('🔄 Token expired or expiring soon, refreshing...');
+        return await refreshSpotifyToken();
+      }
+    }
+
+    return profile.spotify_access_token;
+  };
+
+  const refreshSpotifyToken = async (): Promise<string | null> => {
+    if (!profile?.spotify_refresh_token) {
+      console.error('❌ No refresh token available');
+      return null;
+    }
+
+    try {
+      console.log('🔄 Refreshing Spotify token...');
+      const response = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + btoa('fe34af0e9c494464a7a8ba2012f382bb:b3aea9ce9dde43dab089f67962bea287')
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: profile.spotify_refresh_token
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Token refresh failed:', response.status, errorText);
+        
+        // If refresh fails, clear connection and redirect to re-auth
+        await updateProfile({
+          spotify_connected: false,
+          spotify_access_token: null,
+          spotify_refresh_token: null,
+          spotify_token_expires_at: null
+        });
+        
+        throw new Error('Token refresh failed - please reconnect Spotify');
+      }
+
+      const tokenData = await response.json();
+      console.log('✅ Token refreshed successfully');
+      
+      // Calculate expiry time
+      const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+      
+      const updates: Partial<Profile> = {
+        spotify_access_token: tokenData.access_token,
+        spotify_token_expires_at: expiresAt.toISOString()
+      };
+
+      // Update refresh token if provided
+      if (tokenData.refresh_token) {
+        updates.spotify_refresh_token = tokenData.refresh_token;
+      }
+
+      await updateProfile(updates);
+      
+      return tokenData.access_token;
+    } catch (error) {
+      console.error('❌ Token refresh error:', error);
+      return null;
+    }
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
@@ -255,7 +341,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     connectSpotify,
-    updateProfile
+    updateProfile,
+    getValidSpotifyToken
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
