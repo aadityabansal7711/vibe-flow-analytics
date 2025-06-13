@@ -20,7 +20,7 @@ const SpotifyCallback: React.FC = () => {
 
         if (!user) {
           console.error('❌ No user found for Spotify callback');
-          navigate('/error');
+          setTimeout(() => navigate('/error'), 1000);
           return;
         }
 
@@ -38,19 +38,19 @@ const SpotifyCallback: React.FC = () => {
 
         if (error) {
           console.error('❌ Spotify auth error:', error);
-          navigate('/error');
+          setTimeout(() => navigate('/error'), 1000);
           return;
         }
 
         if (!code) {
           console.error('❌ No authorization code received');
-          navigate('/error');
+          setTimeout(() => navigate('/error'), 1000);
           return;
         }
 
         if (state !== user.id) {
           console.error('❌ State mismatch - security check failed');
-          navigate('/error');
+          setTimeout(() => navigate('/error'), 1000);
           return;
         }
 
@@ -79,7 +79,7 @@ const SpotifyCallback: React.FC = () => {
             status: tokenResponse.status,
             error: errorText
           });
-          navigate('/error');
+          setTimeout(() => navigate('/error'), 1000);
           return;
         }
 
@@ -96,7 +96,7 @@ const SpotifyCallback: React.FC = () => {
 
         if (!profileResponse.ok) {
           console.error('❌ Profile fetch failed:', profileResponse.status);
-          navigate('/error');
+          setTimeout(() => navigate('/error'), 1000);
           return;
         }
 
@@ -120,26 +120,42 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('✅ Spotify successfully connected - redirecting to dashboard');
         
-        // Clear URL parameters and redirect
+        // Clear URL parameters and redirect with delay
         window.history.replaceState({}, document.title, '/spotify-callback');
-        navigate('/dashboard');
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 1000);
 
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
-        navigate('/error');
+        setTimeout(() => navigate('/error'), 1000);
       }
     };
 
-    // Only run if not loading
+    // Add safety timeout
+    const timeoutId = setTimeout(() => {
+      console.error('⏰ Callback handling timed out, redirecting to error');
+      navigate('/error');
+    }, 30000); // 30 second timeout
+
     if (!loading) {
-      handleCallback();
+      handleCallback().finally(() => {
+        clearTimeout(timeoutId);
+      });
     }
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [user, loading, navigate, updateProfile]);
 
-  // Return minimal loading state
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-      <div className="text-white">Processing Spotify connection...</div>
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <div className="text-white text-lg">Connecting your Spotify account...</div>
+        <div className="text-muted-foreground text-sm mt-2">Please wait while we complete the setup</div>
+      </div>
     </div>
   );
 };

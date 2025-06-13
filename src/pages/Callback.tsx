@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Music, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const Callback = () => {
@@ -33,7 +32,9 @@ const Callback = () => {
       try {
         setStatus('Exchanging code for access token...');
         
-        // Exchange code for access token
+        // Use consistent redirect URI
+        const redirectUri = 'https://my-vibe-lytics.lovable.app/callback';
+        
         const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
           headers: {
@@ -43,7 +44,7 @@ const Callback = () => {
           body: new URLSearchParams({
             grant_type: 'authorization_code',
             code: code,
-            redirect_uri: `${window.location.origin}/callback`
+            redirect_uri: redirectUri
           })
         });
 
@@ -100,8 +101,23 @@ const Callback = () => {
       }
     };
 
-    handleCallback();
-  }, [navigate]);
+    // Add safety timeout
+    const timeoutId = setTimeout(() => {
+      if (!isSuccess && !isError) {
+        setStatus('Connection timed out. Please try again.');
+        setIsError(true);
+        setTimeout(() => navigate('/'), 3000);
+      }
+    }, 30000);
+
+    handleCallback().finally(() => {
+      clearTimeout(timeoutId);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [navigate, isSuccess, isError]);
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center">

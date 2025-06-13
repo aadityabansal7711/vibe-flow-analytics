@@ -54,106 +54,133 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isUnlocked = profile?.has_active_subscription || false;
 
-  // Get the consistent redirect URI for production
+  // Use the consistent production redirect URI
   const getSpotifyRedirectUri = () => {
     return 'https://my-vibe-lytics.lovable.app/spotify-callback';
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        if (!mounted) return;
+
+        console.log('🔄 Auth state changed:', event, session?.user?.email);
+        
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user) {
-          try {
-            const { data: profileData, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
-
-            if (error) {
-              console.error('Error fetching profile:', error);
-            }
-
-            if (!profileData) {
-              console.log('No profile found, creating new one...');
-              const { data: newProfile, error: insertError } = await supabase
+        if (session?.user && mounted) {
+          // Use setTimeout to avoid potential deadlock
+          setTimeout(async () => {
+            if (!mounted) return;
+            
+            try {
+              const { data: profileData, error } = await supabase
                 .from('profiles')
-                .insert([{ 
-                  user_id: session.user.id, 
-                  email: session.user.email!,
-                  full_name: session.user.user_metadata?.full_name || null,
-                  plan_tier: 'free',
-                  has_active_subscription: false,
-                  spotify_connected: false
-                }])
-                .select()
-                .single();
+                .select('*')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
 
-              if (insertError) {
-                console.error('Failed to create profile:', insertError);
-              } else {
-                setProfile(newProfile);
+              if (!mounted) return;
+
+              if (error && error.code !== 'PGRST116') {
+                console.error('❌ Error fetching profile:', error);
+                setLoading(false);
+                return;
               }
-            } else {
-              setProfile(profileData);
+
+              if (!profileData) {
+                console.log('📝 Creating new profile...');
+                const { data: newProfile, error: insertError } = await supabase
+                  .from('profiles')
+                  .insert([{ 
+                    user_id: session.user.id, 
+                    email: session.user.email!,
+                    full_name: session.user.user_metadata?.full_name || null,
+                    plan_tier: 'free',
+                    has_active_subscription: false,
+                    spotify_connected: false
+                  }])
+                  .select()
+                  .single();
+
+                if (!mounted) return;
+
+                if (insertError) {
+                  console.error('❌ Failed to create profile:', insertError);
+                } else {
+                  setProfile(newProfile);
+                }
+              } else {
+                setProfile(profileData);
+              }
+            } catch (err) {
+              if (mounted) {
+                console.error('❌ Profile operation error:', err);
+              }
+            } finally {
+              if (mounted) {
+                setLoading(false);
+              }
             }
-          } catch (err) {
-            console.error('Profile operation error:', err);
-          }
+          }, 100);
         } else {
           setProfile(null);
+          setLoading(false);
         }
-
-        setLoading(false);
       }
     );
 
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (!session) setLoading(false);
+      if (mounted) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (!session) {
+          setLoading(false);
+        }
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    console.log('Attempting signup for:', email);
+    console.log('📝 Attempting signup for:', email);
     
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: fullName ? { full_name: fullName } : undefined,
-        emailRedirectTo: `${window.location.origin}/`
+        emailRedirectTo: 'https://my-vibe-lytics.lovable.app/'
       }
     });
     
-    console.log('Signup result:', { data, error });
+    console.log('📝 Signup result:', { data, error });
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    console.log('Attempting signin for:', email);
+    console.log('🔑 Attempting signin for:', email);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    console.log('Signin result:', { error });
+    console.log('🔑 Signin result:', { error });
     return { error };
   };
 
   const signOut = async () => {
     try {
-      console.log('Signing out user...');
+      console.log('👋 Signing out user...');
       
-      // Clear any admin session
+      // Clear localStorage
       localStorage.removeItem('admin_session');
       localStorage.removeItem('admin_logged_in');
       localStorage.removeItem('admin_email');
-      
-      // Clear Spotify tokens
       localStorage.removeItem('spotify_access_token');
       localStorage.removeItem('spotify_refresh_token');
       localStorage.removeItem('myvibelytics_user');
@@ -161,9 +188,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Error signing out:', error);
+        console.error('❌ Error signing out:', error);
       } else {
-        console.log('Supabase signout successful');
+        console.log('✅ Supabase signout successful');
       }
       
       // Clear state
@@ -171,20 +198,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setProfile(null);
       
-      console.log('Logout complete, redirecting to home');
-      
       // Force navigation to home
       window.location.href = '/';
     } catch (error) {
-      console.error('Logout error:', error);
-      // Force reload even if there's an error
+      console.error('❌ Logout error:', error);
       window.location.href = '/';
     }
   };
 
   const connectSpotify = () => {
     if (!user) {
-      console.error('User must be logged in to connect Spotify');
+      console.error('❌ User must be logged in to connect Spotify');
       return;
     }
 
@@ -264,7 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const errorText = await response.text();
         console.error('❌ Token refresh failed:', response.status, errorText);
         
-        // If refresh fails, clear connection and redirect to re-auth
+        // If refresh fails, clear connection
         await updateProfile({
           spotify_connected: false,
           spotify_access_token: null,
@@ -302,11 +326,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) {
-      console.error('No user found for profile update');
+      console.error('❌ No user found for profile update');
       throw new Error('No user found for profile update');
     }
 
-    console.log('Updating profile for user:', user.id, updates);
+    console.log('🔄 Updating profile for user:', user.id, updates);
 
     try {
       const { data, error } = await supabase
@@ -320,14 +344,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
-        console.error('Error updating profile:', error);
+        console.error('❌ Error updating profile:', error);
         throw error;
       }
 
       setProfile(data);
-      console.log('Profile updated successfully:', data);
+      console.log('✅ Profile updated successfully:', data);
     } catch (error) {
-      console.error('Update profile error:', error);
+      console.error('❌ Update profile error:', error);
       throw error;
     }
   };
