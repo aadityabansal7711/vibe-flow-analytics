@@ -93,6 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
               if (!profileData) {
                 console.log('📝 Creating new profile...');
+                
+                // Try to insert, but if it fails due to existing record, just fetch it
                 const { data: newProfile, error: insertError } = await supabase
                   .from('profiles')
                   .insert([{ 
@@ -104,13 +106,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     spotify_connected: false
                   }])
                   .select()
-                  .single();
+                  .maybeSingle();
 
                 if (!mounted) return;
 
                 if (insertError) {
-                  console.error('❌ Failed to create profile:', insertError);
-                } else {
+                  console.log('⚠️ Insert failed, trying to fetch existing profile...');
+                  // If insert failed, try to fetch existing profile
+                  const { data: existingProfile, error: fetchError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                  
+                  if (fetchError) {
+                    console.error('❌ Failed to fetch existing profile:', fetchError);
+                  } else if (existingProfile) {
+                    setProfile(existingProfile);
+                  }
+                } else if (newProfile) {
                   setProfile(newProfile);
                 }
               } else {
@@ -341,15 +355,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .eq('user_id', user.id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('❌ Error updating profile:', error);
         throw error;
       }
 
-      setProfile(data);
-      console.log('✅ Profile updated successfully:', data);
+      if (data) {
+        setProfile(data);
+        console.log('✅ Profile updated successfully:', data);
+      }
     } catch (error) {
       console.error('❌ Update profile error:', error);
       throw error;
