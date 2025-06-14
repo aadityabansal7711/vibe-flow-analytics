@@ -53,9 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isUnlocked = profile?.has_active_subscription || false;
 
-  // Use your correct Spotify app credentials
   const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
-  const SPOTIFY_CLIENT_SECRET = 'b3aea9ce9dde43dab089f67962bea287';
   const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
 
   useEffect(() => {
@@ -225,7 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    console.log('🎵 Initiating Spotify OAuth with your app credentials...');
+    console.log('🎵 Initiating Spotify OAuth...');
     console.log('🔗 Client ID:', SPOTIFY_CLIENT_ID);
     console.log('🔗 Redirect URI:', SPOTIFY_REDIRECT_URI);
     
@@ -283,22 +281,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      console.log('🔄 Refreshing Spotify token with your credentials...');
-      const response = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: profile.spotify_refresh_token
-        })
+      console.log('🔄 Refreshing Spotify token...');
+      
+      // Use Supabase Edge Function for token refresh to keep secret secure
+      const { data, error } = await supabase.functions.invoke('spotify-refresh', {
+        body: { refresh_token: profile.spotify_refresh_token }
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Token refresh failed:', response.status, errorText);
+      if (error) {
+        console.error('❌ Token refresh failed:', error);
         
         // If refresh fails, clear connection
         await updateProfile({
@@ -311,25 +302,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Token refresh failed - please reconnect Spotify');
       }
 
-      const tokenData = await response.json();
       console.log('✅ Token refreshed successfully');
       
       // Calculate expiry time
-      const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+      const expiresAt = new Date(Date.now() + (data.expires_in * 1000));
       
       const updates: Partial<Profile> = {
-        spotify_access_token: tokenData.access_token,
+        spotify_access_token: data.access_token,
         spotify_token_expires_at: expiresAt.toISOString()
       };
 
       // Update refresh token if provided
-      if (tokenData.refresh_token) {
-        updates.spotify_refresh_token = tokenData.refresh_token;
+      if (data.refresh_token) {
+        updates.spotify_refresh_token = data.refresh_token;
       }
 
       await updateProfile(updates);
       
-      return tokenData.access_token;
+      return data.access_token;
     } catch (error) {
       console.error('❌ Token refresh error:', error);
       return null;

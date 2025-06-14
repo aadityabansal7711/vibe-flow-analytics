@@ -1,20 +1,17 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const SpotifyCallback: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateProfile, loading } = useAuth();
 
-  // Use your correct Spotify credentials
-  const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
-  const SPOTIFY_CLIENT_SECRET = 'b3aea9ce9dde43dab089f67962bea287';
   const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log('🎵 Starting Spotify callback handling with your app credentials...');
+      console.log('🎵 Starting Spotify callback handling...');
 
       try {
         // Wait for auth to be ready
@@ -60,34 +57,22 @@ const SpotifyCallback: React.FC = () => {
           return;
         }
 
-        console.log('🔄 Exchanging code for access token using your app credentials...');
+        console.log('🔄 Exchanging code for access token using Edge Function...');
         
-        const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic ' + btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`),
-          },
-          body: new URLSearchParams({
-            grant_type: 'authorization_code',
+        // Use Supabase Edge Function to exchange code for token (keeps secret secure)
+        const { data: tokenData, error: tokenError } = await supabase.functions.invoke('spotify-exchange', {
+          body: { 
             code,
-            redirect_uri: SPOTIFY_REDIRECT_URI,
-          }),
+            redirect_uri: SPOTIFY_REDIRECT_URI
+          }
         });
 
-        console.log('📊 Token response status:', tokenResponse.status);
-
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text().catch(() => 'Unknown error');
-          console.error('❌ Token exchange failed:', {
-            status: tokenResponse.status,
-            error: errorText
-          });
+        if (tokenError) {
+          console.error('❌ Token exchange failed:', tokenError);
           setTimeout(() => navigate('/error'), 1000);
           return;
         }
 
-        const tokenData = await tokenResponse.json();
         console.log('✅ Token exchange successful');
 
         console.log('🔄 Fetching Spotify profile...');
