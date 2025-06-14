@@ -66,24 +66,25 @@ const Admin = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching users from profiles table...');
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching users:', error);
         setMessage('Error fetching users: ' + error.message);
+        setUsers([]);
         return;
       }
-
-      console.log('Users fetched successfully:', data?.length || 0);
-      setUsers(data || []);
+      if (!data || !Array.isArray(data)) {
+        setMessage('No user data found.');
+        setUsers([]);
+        return;
+      }
+      setUsers(data);
     } catch (error: any) {
-      console.error('Error in fetchUsers:', error);
       setMessage('Error fetching users: ' + error.message);
+      setUsers([]);
     } finally {
       setLoading(false);
     }

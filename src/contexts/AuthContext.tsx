@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isUnlocked = profile?.has_active_subscription || false;
 
   const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
-  const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
+  const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback'; // <-- ALWAYS USE THIS!
 
   useEffect(() => {
     let mounted = true;
@@ -65,23 +64,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!mounted) return;
 
         console.log('🔄 Auth state changed:', event, session?.user?.email);
-        
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user && mounted) {
-          // Use setTimeout to avoid potential deadlock
           setTimeout(async () => {
             if (!mounted) return;
-            
             try {
               const { data: profileData, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('user_id', session.user.id)
                 .maybeSingle();
-
-              if (!mounted) return;
 
               if (error && error.code !== 'PGRST116') {
                 console.error('❌ Error fetching profile:', error);
@@ -90,9 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
 
               if (!profileData) {
-                console.log('📝 Creating new profile...');
-                
-                // Try to insert, but if it fails due to existing record, just fetch it
+                console.log('📝 No profile, creating new profile...');
                 const { data: newProfile, error: insertError } = await supabase
                   .from('profiles')
                   .insert([{ 
@@ -106,11 +98,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   .select()
                   .maybeSingle();
 
-                if (!mounted) return;
-
                 if (insertError) {
+                  // If insert fails, try to fetch again
                   console.log('⚠️ Insert failed, trying to fetch existing profile...');
-                  // If insert failed, try to fetch existing profile
                   const { data: existingProfile, error: fetchError } = await supabase
                     .from('profiles')
                     .select('*')
@@ -133,9 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error('❌ Profile operation error:', err);
               }
             } finally {
-              if (mounted) {
-                setLoading(false);
-              }
+              if (mounted) setLoading(false);
             }
           }, 100);
         } else {
@@ -145,14 +133,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted) {
         setSession(session);
         setUser(session?.user ?? null);
-        if (!session) {
-          setLoading(false);
-        }
+        if (!session) setLoading(false);
       }
     });
 
@@ -245,13 +230,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Add timestamp to prevent caching issues
     const timestamp = Date.now();
     const authUrl = `https://accounts.spotify.com/authorize?` +
-      `client_id=${SPOTIFY_CLIENT_ID}&` +
+      `client_id=fe34af0e9c494464a7a8ba2012f382bb&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `state=${user.id}&` +
       `show_dialog=true&` +
-      `t=${timestamp}`;
+      `t=${Date.now()}`;
 
     console.log('🔗 Redirecting to Spotify auth URL:', authUrl);
     window.location.href = authUrl;
