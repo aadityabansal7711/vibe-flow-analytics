@@ -86,6 +86,7 @@ export type Database = {
           spotify_connected: boolean | null
           spotify_display_name: string | null
           spotify_refresh_token: string | null
+          spotify_token_expires_at: string | null
           spotify_user_id: string | null
           updated_at: string | null
           used_promo_code: string | null
@@ -107,6 +108,7 @@ export type Database = {
           spotify_connected?: boolean | null
           spotify_display_name?: string | null
           spotify_refresh_token?: string | null
+          spotify_token_expires_at?: string | null
           spotify_user_id?: string | null
           updated_at?: string | null
           used_promo_code?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           spotify_connected?: boolean | null
           spotify_display_name?: string | null
           spotify_refresh_token?: string | null
+          spotify_token_expires_at?: string | null
           spotify_user_id?: string | null
           updated_at?: string | null
           used_promo_code?: string | null
@@ -179,6 +182,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_insights: {
+        Row: {
+          created_at: string | null
+          id: string
+          insight_data: Json
+          insight_type: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          insight_data: Json
+          insight_type: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          insight_data?: Json
+          insight_type?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_insights_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       user_management: {
         Row: {

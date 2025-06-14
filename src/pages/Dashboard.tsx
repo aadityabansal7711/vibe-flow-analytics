@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
@@ -8,37 +9,48 @@ import useSpotifyData from '@/hooks/useSpotifyData';
 import { 
   Music, 
   User, 
-  Album, 
   TrendingUp, 
   Calendar, 
   Clock, 
   HeadphonesIcon,
   Heart,
-  BarChart3,
   PieChart,
   Activity,
   Zap,
   Star,
-  Volume2,
-  Shuffle,
   RotateCcw,
-  MapPin,
-  Target,
   LogOut,
   Sparkles,
-  Settings
+  Settings,
+  Shuffle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 
 const Dashboard = () => {
-  const { user, profile, signOut, isUnlocked } = useAuth();
-  const { topTracks, topArtists, recentlyPlayed, loading, error } = useSpotifyData();
+  const { user, profile, signOut, isUnlocked, loading: authLoading } = useAuth();
+  const { topTracks, topArtists, recentlyPlayed, loading: spotifyLoading, error } = useSpotifyData();
 
-  if (!user) {
-    return <Navigate to="/" replace />;
+  console.log('🏠 Dashboard render - User:', !!user, 'Profile:', !!profile, 'AuthLoading:', authLoading);
+
+  // Show loading while authentication is being resolved
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-white text-lg">Loading...</div>
+        </div>
+      </div>
+    );
   }
 
-  // Mock data for demonstration (will be replaced with real data)
+  // Redirect to auth if no user
+  if (!user) {
+    console.log('🚫 No user found, redirecting to auth');
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Mock data for demonstration
   const monthlyData = [
     { month: 'Jan', hours: 45 },
     { month: 'Feb', hours: 52 },
@@ -119,7 +131,7 @@ const Dashboard = () => {
           isLocked={false}
         >
           <div className="space-y-3">
-            {loading ? (
+            {spotifyLoading ? (
               <p className="text-muted-foreground text-sm">Loading...</p>
             ) : error ? (
               <p className="text-red-400 text-sm">{error}</p>
@@ -148,7 +160,7 @@ const Dashboard = () => {
           isLocked={false}
         >
           <div className="space-y-3">
-            {loading ? (
+            {spotifyLoading ? (
               <p className="text-muted-foreground text-sm">Loading...</p>
             ) : error ? (
               <p className="text-red-400 text-sm">{error}</p>
@@ -177,7 +189,7 @@ const Dashboard = () => {
           isLocked={false}
         >
           <div className="space-y-3">
-            {loading ? (
+            {spotifyLoading ? (
               <p className="text-muted-foreground text-sm">Loading...</p>
             ) : error ? (
               <p className="text-red-400 text-sm">{error}</p>

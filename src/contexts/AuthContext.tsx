@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isUnlocked = profile?.has_active_subscription || false;
 
   const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
-  const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback'; // <-- ALWAYS USE THIS!
+  const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
 
   useEffect(() => {
     let mounted = true;
@@ -68,64 +69,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user && mounted) {
+          // Add a small delay to ensure the auth user is fully created
           setTimeout(async () => {
             if (!mounted) return;
             try {
-              const { data: profileData, error } = await supabase
+              // First try to fetch existing profile
+              const { data: existingProfile, error: fetchError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('user_id', session.user.id)
                 .maybeSingle();
 
-              if (error && error.code !== 'PGRST116') {
-                console.error('❌ Error fetching profile:', error);
+              if (fetchError) {
+                console.error('❌ Error fetching profile:', fetchError);
                 setLoading(false);
                 return;
               }
 
-              if (!profileData) {
-                console.log('📝 No profile, creating new profile...');
-                const { data: newProfile, error: insertError } = await supabase
+              if (existingProfile) {
+                console.log('✅ Found existing profile:', existingProfile);
+                setProfile(existingProfile);
+              } else {
+                // Create new profile using upsert to handle conflicts
+                console.log('📝 Creating new profile...');
+                const { data: newProfile, error: upsertError } = await supabase
                   .from('profiles')
-                  .insert([{ 
-                    user_id: session.user.id, 
+                  .upsert({
+                    user_id: session.user.id,
                     email: session.user.email!,
                     full_name: session.user.user_metadata?.full_name || null,
                     plan_tier: 'free',
                     has_active_subscription: false,
-                    spotify_connected: false
-                  }])
+                    spotify_connected: false,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }, {
+                    onConflict: 'user_id'
+                  })
                   .select()
                   .maybeSingle();
 
-                if (insertError) {
-                  // If insert fails, try to fetch again
-                  console.log('⚠️ Insert failed, trying to fetch existing profile...');
-                  const { data: existingProfile, error: fetchError } = await supabase
+                if (upsertError) {
+                  console.error('❌ Error creating profile:', upsertError);
+                  // Try to fetch again in case it was created by trigger
+                  const { data: retryProfile } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('user_id', session.user.id)
                     .maybeSingle();
                   
-                  if (fetchError) {
-                    console.error('❌ Failed to fetch existing profile:', fetchError);
-                  } else if (existingProfile) {
-                    setProfile(existingProfile);
+                  if (retryProfile) {
+                    setProfile(retryProfile);
                   }
                 } else if (newProfile) {
+                  console.log('✅ Created new profile:', newProfile);
                   setProfile(newProfile);
                 }
-              } else {
-                setProfile(profileData);
               }
             } catch (err) {
-              if (mounted) {
-                console.error('❌ Profile operation error:', err);
-              }
+              console.error('❌ Profile operation error:', err);
             } finally {
               if (mounted) setLoading(false);
             }
-          }, 100);
+          }, 500); // Increased delay to ensure auth user is fully processed
         } else {
           setProfile(null);
           setLoading(false);
@@ -133,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted) {
         setSession(session);
@@ -210,8 +217,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     console.log('🎵 Initiating Spotify OAuth...');
-    console.log('🔗 Client ID:', SPOTIFY_CLIENT_ID);
-    console.log('🔗 Redirect URI:', SPOTIFY_REDIRECT_URI);
     
     const scopes = [
       'user-read-private',
@@ -227,10 +232,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_refresh_token');
 
-    // Add timestamp to prevent caching issues
-    const timestamp = Date.now();
     const authUrl = `https://accounts.spotify.com/authorize?` +
-      `client_id=fe34af0e9c494464a7a8ba2012f382bb&` +
+      `client_id=${SPOTIFY_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&` +
       `scope=${encodeURIComponent(scopes)}&` +
@@ -238,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       `show_dialog=true&` +
       `t=${Date.now()}`;
 
-    console.log('🔗 Redirecting to Spotify auth URL:', authUrl);
+    console.log('🔗 Redirecting to Spotify auth URL');
     window.location.href = authUrl;
   };
 
@@ -272,7 +275,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('🔄 Refreshing Spotify token...');
       
-      // Use Supabase Edge Function for token refresh to keep secret secure
       const { data, error } = await supabase.functions.invoke('spotify-refresh', {
         body: { refresh_token: profile.spotify_refresh_token }
       });
@@ -293,7 +295,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ Token refreshed successfully');
       
-      // Calculate expiry time
       const expiresAt = new Date(Date.now() + (data.expires_in * 1000));
       
       const updates: Partial<Profile> = {
@@ -301,7 +302,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         spotify_token_expires_at: expiresAt.toISOString()
       };
 
-      // Update refresh token if provided
       if (data.refresh_token) {
         updates.spotify_refresh_token = data.refresh_token;
       }
