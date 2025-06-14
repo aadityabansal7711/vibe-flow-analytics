@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
@@ -38,7 +37,7 @@ const Dashboard = () => {
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-lg">Loading...</div>
+          <div className="text-white text-lg">Loading dashboard...</div>
         </div>
       </div>
     );
@@ -48,6 +47,18 @@ const Dashboard = () => {
   if (!user) {
     console.log('🚫 No user found, redirecting to auth');
     return <Navigate to="/auth" replace />;
+  }
+
+  // Show loading if we have user but no profile yet
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-white text-lg">Setting up your profile...</div>
+        </div>
+      </div>
+    );
   }
 
   // Mock data for demonstration

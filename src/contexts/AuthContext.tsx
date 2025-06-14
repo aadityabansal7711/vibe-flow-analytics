@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,7 +70,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user && mounted) {
           try {
-            // First try to fetch existing profile
+            console.log('👤 Fetching profile for user:', session.user.id);
+            
+            // Try to fetch existing profile first
             const { data: existingProfile, error: fetchError } = await supabase
               .from('profiles')
               .select('*')
@@ -78,34 +81,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (fetchError) {
               console.error('❌ Error fetching profile:', fetchError);
-              setLoading(false);
-              return;
             }
 
             if (existingProfile) {
               console.log('✅ Found existing profile:', existingProfile);
               setProfile(existingProfile);
             } else {
-              // Create new profile using insert (not upsert)
-              console.log('📝 Creating new profile...');
+              // Create new profile if none exists
+              console.log('📝 Creating new profile for user:', session.user.id);
+              const newProfileData = {
+                user_id: session.user.id,
+                email: session.user.email!,
+                full_name: session.user.user_metadata?.full_name || null,
+                plan_tier: 'free',
+                has_active_subscription: false,
+                plan_id: 'free_tier',
+                spotify_connected: false
+              };
+
               const { data: newProfile, error: insertError } = await supabase
                 .from('profiles')
-                .insert({
-                  user_id: session.user.id,
-                  email: session.user.email!,
-                  full_name: session.user.user_metadata?.full_name || null,
-                  plan_tier: 'free',
-                  has_active_subscription: false,
-                  spotify_connected: false,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                })
+                .insert(newProfileData)
                 .select()
                 .single();
 
               if (insertError) {
                 console.error('❌ Error creating profile:', insertError);
-                // If insert fails, try to fetch again (maybe created by trigger)
+                // Try to fetch again in case it was created by trigger
                 const { data: retryProfile } = await supabase
                   .from('profiles')
                   .select('*')
@@ -113,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   .maybeSingle();
                 
                 if (retryProfile) {
+                  console.log('✅ Found profile after retry:', retryProfile);
                   setProfile(retryProfile);
                 }
               } else if (newProfile) {
@@ -122,24 +125,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (err) {
             console.error('❌ Profile operation error:', err);
-          } finally {
-            if (mounted) setLoading(false);
           }
         } else {
           setProfile(null);
-          setLoading(false);
         }
+
+        if (mounted) setLoading(false);
       }
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (!session) setLoading(false);
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          if (!session) setLoading(false);
+        }
+      } catch (error) {
+        console.error('❌ Error getting initial session:', error);
+        if (mounted) setLoading(false);
       }
-    });
+    };
+
+    getInitialSession();
 
     return () => {
       mounted = false;
