@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -241,13 +242,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_refresh_token');
 
+    // Add timestamp to prevent caching issues
+    const timestamp = Date.now();
     const authUrl = `https://accounts.spotify.com/authorize?` +
       `client_id=${SPOTIFY_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `state=${user.id}&` +
-      `show_dialog=true`;
+      `show_dialog=true&` +
+      `t=${timestamp}`;
 
     console.log('🔗 Redirecting to Spotify auth URL:', authUrl);
     window.location.href = authUrl;

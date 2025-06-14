@@ -1,10 +1,38 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertCircle, Home, Music, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Error: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const reason = searchParams.get('reason');
+  const details = searchParams.get('details');
+  const status = searchParams.get('status');
+
+  const getErrorMessage = () => {
+    switch (reason) {
+      case 'spotify_auth_error':
+        return `Spotify authorization failed: ${details || 'Unknown error'}`;
+      case 'no_auth_code':
+        return 'No authorization code received from Spotify';
+      case 'state_mismatch':
+        return 'Security check failed - please try connecting again';
+      case 'token_exchange_failed':
+        return `Token exchange failed: ${details || 'Unknown error'}`;
+      case 'no_access_token':
+        return 'No access token received from Spotify';
+      case 'profile_fetch_failed':
+        return `Failed to fetch Spotify profile (Status: ${status || 'Unknown'})`;
+      case 'timeout':
+        return 'Connection timed out - please try again';
+      case 'unexpected_error':
+        return `Unexpected error: ${details || 'Unknown error'}`;
+      default:
+        return 'There was an issue connecting your Spotify account';
+    }
+  };
+
   const handleRetry = () => {
     window.location.href = '/dashboard';
   };
@@ -20,15 +48,19 @@ const Error: React.FC = () => {
           <h1 className="text-3xl font-bold text-gradient mb-4">Connection Failed</h1>
           
           <p className="text-muted-foreground mb-6">
-            There was an issue connecting your Spotify account. This could be due to:
+            {getErrorMessage()}
           </p>
 
-          <ul className="text-sm text-muted-foreground text-left mb-6 space-y-2">
-            <li>• Network connectivity issues</li>
-            <li>• Spotify authorization was cancelled</li>
-            <li>• Temporary server error</li>
-            <li>• Invalid or expired authorization code</li>
-          </ul>
+          <div className="text-sm text-muted-foreground text-left mb-6 space-y-2">
+            <p>This could be due to:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Network connectivity issues</li>
+              <li>Spotify authorization was cancelled</li>
+              <li>Temporary server error</li>
+              <li>Invalid or expired authorization code</li>
+              <li>Incorrect redirect URI configuration</li>
+            </ul>
+          </div>
 
           <div className="space-y-3">
             <Button 
@@ -54,9 +86,20 @@ const Error: React.FC = () => {
             </Link>
           </div>
 
-          <p className="text-xs text-muted-foreground mt-6">
-            If the problem persists, please try clearing your browser cache or contact support.
-          </p>
+          <div className="text-xs text-muted-foreground mt-6 space-y-2">
+            <p>If the problem persists:</p>
+            <ul className="text-left list-disc list-inside space-y-1">
+              <li>Clear your browser cache</li>
+              <li>Check if Spotify is down</li>
+              <li>Try using an incognito/private window</li>
+              <li>Contact support if needed</li>
+            </ul>
+            {reason && (
+              <p className="text-xs opacity-75 mt-4">
+                Error Code: {reason}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

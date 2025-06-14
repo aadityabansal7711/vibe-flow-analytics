@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,7 +23,7 @@ const SpotifyCallback: React.FC = () => {
 
         if (!user) {
           console.error('❌ No user found for Spotify callback');
-          setTimeout(() => navigate('/error'), 1000);
+          navigate('/auth?error=no_user');
           return;
         }
 
@@ -36,24 +37,25 @@ const SpotifyCallback: React.FC = () => {
           error, 
           state, 
           userId: user.id,
-          redirectUri: SPOTIFY_REDIRECT_URI
+          redirectUri: SPOTIFY_REDIRECT_URI,
+          fullUrl: window.location.href
         });
 
         if (error) {
           console.error('❌ Spotify auth error:', error);
-          setTimeout(() => navigate('/error'), 1000);
+          navigate('/error?reason=spotify_auth_error&details=' + encodeURIComponent(error));
           return;
         }
 
         if (!code) {
           console.error('❌ No authorization code received');
-          setTimeout(() => navigate('/error'), 1000);
+          navigate('/error?reason=no_auth_code');
           return;
         }
 
         if (state !== user.id) {
-          console.error('❌ State mismatch - security check failed');
-          setTimeout(() => navigate('/error'), 1000);
+          console.error('❌ State mismatch - security check failed', { expected: user.id, received: state });
+          navigate('/error?reason=state_mismatch');
           return;
         }
 
@@ -69,7 +71,13 @@ const SpotifyCallback: React.FC = () => {
 
         if (tokenError) {
           console.error('❌ Token exchange failed:', tokenError);
-          setTimeout(() => navigate('/error'), 1000);
+          navigate('/error?reason=token_exchange_failed&details=' + encodeURIComponent(tokenError.message));
+          return;
+        }
+
+        if (!tokenData || !tokenData.access_token) {
+          console.error('❌ No access token received from exchange');
+          navigate('/error?reason=no_access_token');
           return;
         }
 
@@ -84,8 +92,9 @@ const SpotifyCallback: React.FC = () => {
         });
 
         if (!profileResponse.ok) {
-          console.error('❌ Profile fetch failed:', profileResponse.status);
-          setTimeout(() => navigate('/error'), 1000);
+          const errorText = await profileResponse.text();
+          console.error('❌ Profile fetch failed:', profileResponse.status, errorText);
+          navigate('/error?reason=profile_fetch_failed&status=' + profileResponse.status);
           return;
         }
 
@@ -117,14 +126,14 @@ const SpotifyCallback: React.FC = () => {
 
       } catch (err: any) {
         console.error('❌ Spotify callback error:', err);
-        setTimeout(() => navigate('/error'), 1000);
+        navigate('/error?reason=unexpected_error&details=' + encodeURIComponent(err.message));
       }
     };
 
     // Add safety timeout
     const timeoutId = setTimeout(() => {
       console.error('⏰ Callback handling timed out, redirecting to error');
-      navigate('/error');
+      navigate('/error?reason=timeout');
     }, 30000); // 30 second timeout
 
     if (!loading) {
