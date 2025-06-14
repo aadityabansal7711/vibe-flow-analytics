@@ -24,11 +24,23 @@ import {
 } from 'lucide-react';
 
 const Profile: React.FC = () => {
-  const { user, profile, signOut, updateProfile } = useAuth();
+  const { user, profile, signOut, updateProfile, connectSpotify, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Show loading while authentication is being resolved
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-white text-lg">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || !profile) {
     return <Navigate to="/auth" replace />;
@@ -281,12 +293,13 @@ const Profile: React.FC = () => {
                 </div>
                 
                 {!profile.spotify_connected && (
-                  <Link to="/dashboard">
-                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
-                      <Music className="mr-2 h-4 w-4" />
-                      Connect Spotify
-                    </Button>
-                  </Link>
+                  <Button 
+                    onClick={connectSpotify}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    <Music className="mr-2 h-4 w-4" />
+                    Connect Spotify
+                  </Button>
                 )}
               </div>
 

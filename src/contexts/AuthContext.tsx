@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,69 +68,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user && mounted) {
-          // Add a small delay to ensure the auth user is fully created
-          setTimeout(async () => {
-            if (!mounted) return;
-            try {
-              // First try to fetch existing profile
-              const { data: existingProfile, error: fetchError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
+          try {
+            // First try to fetch existing profile
+            const { data: existingProfile, error: fetchError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
 
-              if (fetchError) {
-                console.error('❌ Error fetching profile:', fetchError);
-                setLoading(false);
-                return;
-              }
-
-              if (existingProfile) {
-                console.log('✅ Found existing profile:', existingProfile);
-                setProfile(existingProfile);
-              } else {
-                // Create new profile using upsert to handle conflicts
-                console.log('📝 Creating new profile...');
-                const { data: newProfile, error: upsertError } = await supabase
-                  .from('profiles')
-                  .upsert({
-                    user_id: session.user.id,
-                    email: session.user.email!,
-                    full_name: session.user.user_metadata?.full_name || null,
-                    plan_tier: 'free',
-                    has_active_subscription: false,
-                    spotify_connected: false,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  }, {
-                    onConflict: 'user_id'
-                  })
-                  .select()
-                  .maybeSingle();
-
-                if (upsertError) {
-                  console.error('❌ Error creating profile:', upsertError);
-                  // Try to fetch again in case it was created by trigger
-                  const { data: retryProfile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .maybeSingle();
-                  
-                  if (retryProfile) {
-                    setProfile(retryProfile);
-                  }
-                } else if (newProfile) {
-                  console.log('✅ Created new profile:', newProfile);
-                  setProfile(newProfile);
-                }
-              }
-            } catch (err) {
-              console.error('❌ Profile operation error:', err);
-            } finally {
-              if (mounted) setLoading(false);
+            if (fetchError) {
+              console.error('❌ Error fetching profile:', fetchError);
+              setLoading(false);
+              return;
             }
-          }, 500); // Increased delay to ensure auth user is fully processed
+
+            if (existingProfile) {
+              console.log('✅ Found existing profile:', existingProfile);
+              setProfile(existingProfile);
+            } else {
+              // Create new profile using insert (not upsert)
+              console.log('📝 Creating new profile...');
+              const { data: newProfile, error: insertError } = await supabase
+                .from('profiles')
+                .insert({
+                  user_id: session.user.id,
+                  email: session.user.email!,
+                  full_name: session.user.user_metadata?.full_name || null,
+                  plan_tier: 'free',
+                  has_active_subscription: false,
+                  spotify_connected: false,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+              if (insertError) {
+                console.error('❌ Error creating profile:', insertError);
+                // If insert fails, try to fetch again (maybe created by trigger)
+                const { data: retryProfile } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('user_id', session.user.id)
+                  .maybeSingle();
+                
+                if (retryProfile) {
+                  setProfile(retryProfile);
+                }
+              } else if (newProfile) {
+                console.log('✅ Created new profile:', newProfile);
+                setProfile(newProfile);
+              }
+            }
+          } catch (err) {
+            console.error('❌ Profile operation error:', err);
+          } finally {
+            if (mounted) setLoading(false);
+          }
         } else {
           setProfile(null);
           setLoading(false);
