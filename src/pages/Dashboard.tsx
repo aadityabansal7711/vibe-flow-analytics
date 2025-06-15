@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import useSpotifyData from '@/hooks/useSpotifyData';
@@ -39,6 +40,21 @@ const Dashboard = () => {
     );
   }
 
+  // If Spotify is not connected, show the connect card and a clear info message
+  if (profile && !profile.spotify_connected) {
+    return (
+      <div className="min-h-screen bg-gradient-dark p-6">
+        <DashboardHeader profile={profile} user={user} isUnlocked={isUnlocked} signOut={signOut} />
+        <div className="max-w-lg mx-auto">
+          <SpotifyConnect />
+          <div className="mt-6 text-center text-red-400 font-semibold">
+            Connect your Spotify account above to see your personalized stats!
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Mock data for demonstration
   const monthlyData = [
     { month: 'Jan', hours: 45 },
@@ -70,12 +86,6 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
       <DashboardHeader profile={profile} user={user} isUnlocked={isUnlocked} signOut={signOut} />
-      {profile && !profile.spotify_connected && (
-        // Show SpotifyConnect - passes through unmodified
-        <div className="mb-8">
-          <SpotifyConnect />
-        </div>
-      )}
       <DashboardFeatureGrid
         profile={profile}
         user={user}
@@ -94,3 +104,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
