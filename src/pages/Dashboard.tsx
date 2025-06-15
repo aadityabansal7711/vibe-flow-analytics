@@ -30,46 +30,37 @@ const Dashboard = () => {
   const { topTracks, topArtists, recentlyPlayed, loading: spotifyLoading, error } = useSpotifyData();
   const [retry, setRetry] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [profileLoadTimeout, setProfileLoadTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // On mount, auto refresh profile once (in case local state is stale)
   useEffect(() => {
-    if (user && profile && !profile.spotify_connected) {
-      // If the current profile says not connected, try a hard refresh in the background
-      fetchProfile?.();
+    if (user && fetchProfile && (!profile || !profile.spotify_connected)) {
+      fetchProfile();
     }
-    // Optionally: Only if "spotify_connected" is false. Omit dependency array on profile for one-time run.
+    return () => {
+      if (profileLoadTimeout) clearTimeout(profileLoadTimeout);
+    };
     // eslint-disable-next-line
   }, []);
 
-  // Retry fetching profile if user clicks Retry
-  useEffect(() => {
-    // This does nothing right now – but could trigger a reload of Auth context/profile if needed
-  }, [retry]);
+  // Always ensure authLoading ends if user is authenticated
+  const isLoading = authLoading || (user && !profile);
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-lg">Loading dashboard...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
+  // If not logged in, redirect
+  if (!authLoading && !user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // If profile is missing, show error with actions.
-  if (!profile) {
+  // Handle the situation where user is logged in, but profile is missing
+  if (!isLoading && user && !profile) {
     return (
       <div className="min-h-screen bg-gradient-dark flex flex-col items-center justify-center">
         <div className="max-w-md glass-effect border border-border/50 p-8 rounded-lg text-center">
           <Music className="h-10 w-10 mx-auto text-primary mb-4" />
           <h2 className="text-2xl font-bold mb-2 text-foreground">Profile Not Loaded</h2>
           <p className="text-muted-foreground mb-4">
-            Sorry, we couldn't load your account profile. This can happen if your profile is missing or something went wrong.
+            Sorry, we couldn't load your account profile. This can happen if your profile is missing or something went wrong.<br /><br />
+            If you have deleted all users by mistake, please sign out and sign up again.
           </p>
           <div className="flex flex-col gap-2">
             <Button
@@ -88,8 +79,20 @@ const Dashboard = () => {
             </Button>
           </div>
           <div className="mt-6 text-muted-foreground text-xs">
-            If the problem persists, try logging out and back in, or contact support.
+            If the problem persists, sign out and sign in again to recreate your profile.
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show initial loading spinner
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-white text-lg">Loading dashboard...</div>
         </div>
       </div>
     );
