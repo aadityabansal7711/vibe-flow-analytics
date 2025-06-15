@@ -141,16 +141,16 @@ const Dashboard = () => {
           icon={<Music className="h-5 w-5 text-primary" />}
           isLocked={false}
         >
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
             {spotifyLoading ? (
               <p className="text-muted-foreground text-sm">Loading...</p>
             ) : error ? (
               <p className="text-red-400 text-sm">{error}</p>
             ) : topTracks.length > 0 ? (
-              topTracks.slice(0, 3).map((track, i) => (
+              topTracks.slice(0, 25).map((track, i) => (
                 <div key={track.id} className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  <span className="text-white text-sm">{track.name} - {track.artists[0]?.name}</span>
+                  <span className="text-white text-sm break-all">{i + 1}. {track.name} - {track.artists[0]?.name}</span>
                 </div>
               ))
             ) : (
@@ -170,16 +170,16 @@ const Dashboard = () => {
           icon={<User className="h-5 w-5 text-accent" />}
           isLocked={false}
         >
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
             {spotifyLoading ? (
               <p className="text-muted-foreground text-sm">Loading...</p>
             ) : error ? (
               <p className="text-red-400 text-sm">{error}</p>
             ) : topArtists.length > 0 ? (
-              topArtists.slice(0, 3).map((artist, i) => (
+              topArtists.slice(0, 25).map((artist, i) => (
                 <div key={artist.id} className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <span className="text-white text-sm">{artist.name}</span>
+                  <span className="text-white text-sm break-all">{i + 1}. {artist.name}</span>
                 </div>
               ))
             ) : (
@@ -199,16 +199,16 @@ const Dashboard = () => {
           icon={<Clock className="h-5 w-5 text-secondary" />}
           isLocked={false}
         >
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
             {spotifyLoading ? (
               <p className="text-muted-foreground text-sm">Loading...</p>
             ) : error ? (
               <p className="text-red-400 text-sm">{error}</p>
             ) : recentlyPlayed.length > 0 ? (
-              recentlyPlayed.slice(0, 3).map((track, i) => (
+              recentlyPlayed.slice(0, 25).map((track, i) => (
                 <div key={`${track.id}-${i}`} className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                  <span className="text-white text-sm">{track.name} - {track.artists[0]?.name}</span>
+                  <span className="text-white text-sm break-all">{i + 1}. {track.name} - {track.artists[0]?.name}</span>
                 </div>
               ))
             ) : (
