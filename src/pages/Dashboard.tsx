@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import useSpotifyData from '@/hooks/useSpotifyData';
 import DashboardHeader from './dashboard/components/DashboardHeader';
 import DashboardFeatureGrid from './dashboard/components/DashboardFeatureGrid';
+import SpotifyConnect from '@/components/SpotifyConnect';
 
 const Dashboard = () => {
   const { user, profile, signOut, isUnlocked, loading: authLoading } = useAuth();

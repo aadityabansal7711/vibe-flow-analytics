@@ -1,7 +1,7 @@
 import React from "react";
 import FeatureCard from "@/components/FeatureCard";
 import SpotifyConnect from "@/components/SpotifyConnect";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from "recharts";
+import { Button } from "@/components/ui/button";
 import { 
   Music,
   User,
@@ -18,6 +18,7 @@ import {
   Shuffle,
   Sparkles
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from "recharts";
 
 type Props = {
   profile: any;
