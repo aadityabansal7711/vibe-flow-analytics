@@ -84,6 +84,34 @@ const Dashboard = () => {
     );
   }
 
+  // Restore required mock data to fix missing variable errors and enable chart rendering
+  const monthlyData = [
+    { month: 'Jan', hours: 45 },
+    { month: 'Feb', hours: 52 },
+    { month: 'Mar', hours: 38 },
+    { month: 'Apr', hours: 61 },
+    { month: 'May', hours: 55 },
+    { month: 'Jun', hours: 67 },
+  ];
+
+  const genreData = [
+    { name: 'Pop', value: 35, color: '#FF6B6B' },
+    { name: 'Rock', value: 25, color: '#4ECDC4' },
+    { name: 'Hip Hop', value: 20, color: '#45B7D1' },
+    { name: 'Electronic', value: 12, color: '#96CEB4' },
+    { name: 'Jazz', value: 8, color: '#FFEAA7' },
+  ];
+
+  const timeData = [
+    { hour: '6AM', plays: 5 },
+    { hour: '9AM', plays: 15 },
+    { hour: '12PM', plays: 25 },
+    { hour: '3PM', plays: 20 },
+    { hour: '6PM', plays: 35 },
+    { hour: '9PM', plays: 45 },
+    { hour: '12AM', plays: 30 },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
       {/* Header */}
