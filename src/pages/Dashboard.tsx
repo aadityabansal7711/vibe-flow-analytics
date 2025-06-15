@@ -241,7 +241,7 @@ const Dashboard = () => {
         </FeatureCard>
 
         <FeatureCard
-          title="2024 Music Wrapped"
+          title="Your Year in Music"
           description="Your year in music"
           icon={<Sparkles className="h-5 w-5 text-yellow-400" />}
           isLocked={!isUnlocked}
@@ -315,7 +315,7 @@ const Dashboard = () => {
             <LineChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="month" tick={{ fill: '#9CA3AF' }} />
-              <YAxis tick={{ fill: '#9CA3AF' }} />
+              <YAxis dataKey="hours" tick={{ fill: '#9CA3AF' }} />
               <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }} />
               <Line type="monotone" dataKey="hours" stroke="#3B82F6" strokeWidth={3} />
             </LineChart>

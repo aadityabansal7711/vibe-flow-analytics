@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +36,7 @@ const Buy = () => {
     { name: 'Top Tracks & Artists', included: true, icon: <Music className="h-4 w-4" /> },
     { name: 'Top Albums', included: true, icon: <Music className="h-4 w-4" /> },
     { name: 'Most Played Song of All Time', included: false, icon: <Heart className="h-4 w-4" /> },
-    { name: '2024 Music Wrapped', included: false, icon: <Sparkles className="h-4 w-4" /> },
+    { name: 'Your Year in Music', included: false, icon: <Sparkles className="h-4 w-4" /> },
     { name: 'AI Playlist Generation', included: false, icon: <Zap className="h-4 w-4" /> },
     { name: 'Time Preference Analysis', included: false, icon: <Clock className="h-4 w-4" /> },
     { name: 'Monthly Listening Trends', included: false, icon: <TrendingUp className="h-4 w-4" /> },
