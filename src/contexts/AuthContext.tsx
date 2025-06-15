@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +33,7 @@ interface AuthContextType {
   connectSpotify: () => void;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   getValidSpotifyToken: () => Promise<string | null>;
+  fetchProfile: () => Promise<Profile | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -352,6 +352,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Adds a re-usable fetchProfile function for manual refresh.
+  const fetchProfile = async () => {
+    if (!user) return null;
+    try {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) {
+        console.error('❌ Error fetching profile:', error);
+        return null;
+      }
+      if (profileData) setProfile(profileData);
+      return profileData;
+    } catch (e) {
+      console.error('❌ fetchProfile unexpected error:', e);
+      return null;
+    }
+  };
+
   const value = {
     user,
     session,
@@ -363,7 +384,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     connectSpotify,
     updateProfile,
-    getValidSpotifyToken
+    getValidSpotifyToken,
+    fetchProfile, // <--- Expose here
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

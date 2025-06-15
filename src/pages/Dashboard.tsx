@@ -26,9 +26,20 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 
 const Dashboard = () => {
-  const { user, profile, signOut, isUnlocked, loading: authLoading } = useAuth();
+  const { user, profile, signOut, isUnlocked, loading: authLoading, fetchProfile } = useAuth();
   const { topTracks, topArtists, recentlyPlayed, loading: spotifyLoading, error } = useSpotifyData();
   const [retry, setRetry] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+
+  // On mount, auto refresh profile once (in case local state is stale)
+  useEffect(() => {
+    if (user && profile && !profile.spotify_connected) {
+      // If the current profile says not connected, try a hard refresh in the background
+      fetchProfile?.();
+    }
+    // Optionally: Only if "spotify_connected" is false. Omit dependency array on profile for one-time run.
+    // eslint-disable-next-line
+  }, []);
 
   // Retry fetching profile if user clicks Retry
   useEffect(() => {
@@ -149,8 +160,24 @@ const Dashboard = () => {
 
       {/* Spotify Connection */}
       {!profile?.spotify_connected && (
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col items-center gap-3">
           <SpotifyConnect />
+          {/* Option to manually sync profile if the state is wrong */}
+          <Button
+            disabled={syncing}
+            className="mt-2 bg-blue-500 hover:bg-blue-600 text-white"
+            onClick={async () => {
+              setSyncing(true);
+              await fetchProfile?.();
+              setSyncing(false);
+            }}
+          >
+            {syncing ? 'Syncing...' : 'Sync Profile from Supabase'}
+          </Button>
+          <span className="text-xs text-gray-400 text-center max-w-xs leading-snug mt-1">
+            If you just connected Spotify and still see this prompt,<br />
+            click 'Sync Profile' to force refresh your account status from Supabase.
+          </span>
         </div>
       )}
 
