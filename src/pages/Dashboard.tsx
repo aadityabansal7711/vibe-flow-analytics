@@ -28,10 +28,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const Dashboard = () => {
   const { user, profile, signOut, isUnlocked, loading: authLoading } = useAuth();
   const { topTracks, topArtists, recentlyPlayed, loading: spotifyLoading, error } = useSpotifyData();
+  const [retry, setRetry] = useState(0);
 
-  console.log('🏠 Dashboard render - User:', !!user, 'Profile:', !!profile, 'AuthLoading:', authLoading);
+  // Retry fetching profile if user clicks Retry
+  useEffect(() => {
+    // This does nothing right now – but could trigger a reload of Auth context/profile if needed
+  }, [retry]);
 
-  // Show loading while authentication is being resolved
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
@@ -43,51 +46,43 @@ const Dashboard = () => {
     );
   }
 
-  // Redirect to auth if no user
   if (!user) {
-    console.log('🚫 No user found, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
-  // Show loading if we have user but no profile yet
+  // If profile is missing, show error with actions.
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-lg">Setting up your profile...</div>
+      <div className="min-h-screen bg-gradient-dark flex flex-col items-center justify-center">
+        <div className="max-w-md glass-effect border border-border/50 p-8 rounded-lg text-center">
+          <Music className="h-10 w-10 mx-auto text-primary mb-4" />
+          <h2 className="text-2xl font-bold mb-2 text-foreground">Profile Not Loaded</h2>
+          <p className="text-muted-foreground mb-4">
+            Sorry, we couldn't load your account profile. This can happen if your profile is missing or something went wrong.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button
+              className="w-full bg-primary text-primary-foreground"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+            <Button
+              onClick={signOut}
+              className="w-full"
+              variant="outline"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
+          <div className="mt-6 text-muted-foreground text-xs">
+            If the problem persists, try logging out and back in, or contact support.
+          </div>
         </div>
       </div>
     );
   }
-
-  // Mock data for demonstration
-  const monthlyData = [
-    { month: 'Jan', hours: 45 },
-    { month: 'Feb', hours: 52 },
-    { month: 'Mar', hours: 38 },
-    { month: 'Apr', hours: 61 },
-    { month: 'May', hours: 55 },
-    { month: 'Jun', hours: 67 }
-  ];
-
-  const genreData = [
-    { name: 'Pop', value: 35, color: '#FF6B6B' },
-    { name: 'Rock', value: 25, color: '#4ECDC4' },
-    { name: 'Hip Hop', value: 20, color: '#45B7D1' },
-    { name: 'Electronic', value: 12, color: '#96CEB4' },
-    { name: 'Jazz', value: 8, color: '#FFEAA7' }
-  ];
-
-  const timeData = [
-    { hour: '6AM', plays: 5 },
-    { hour: '9AM', plays: 15 },
-    { hour: '12PM', plays: 25 },
-    { hour: '3PM', plays: 20 },
-    { hour: '6PM', plays: 35 },
-    { hour: '9PM', plays: 45 },
-    { hour: '12AM', plays: 30 }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
