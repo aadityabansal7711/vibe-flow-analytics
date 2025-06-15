@@ -30,7 +30,7 @@ const Contact = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.email || !formData.message) {
       toast({
         title: "Error",
@@ -43,7 +43,9 @@ const Contact = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
+      // Log the data we're sending
+      console.log("Submitting contact form data:", formData);
+      const { error, data } = await supabase
         .from('contact_requests')
         .insert([
           {
@@ -55,7 +57,19 @@ const Contact = () => {
           }
         ]);
 
-      if (error) throw error;
+      // Log the response from supabase
+      console.log("Supabase insert data:", data);
+      console.log("Supabase error:", error);
+
+      if (error) {
+        // Show a more verbose error message
+        toast({
+          title: "Error",
+          description: error.message || "Failed to send message. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
 
       toast({
         title: "Message sent!",
@@ -69,11 +83,11 @@ const Contact = () => {
         subject: '',
         message: ''
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting contact form:', error);
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: error.message || "Failed to send message. Please try again.",
         variant: "destructive"
       });
     } finally {
