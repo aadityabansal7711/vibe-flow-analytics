@@ -200,12 +200,6 @@ const Auth = () => {
                 >
                   {isResetting ? "Sending reset email..." : "Forgot Password (Email)?"}
                 </button>
-                <Link
-                  to="/forgot-password"
-                  className="text-primary underline hover:text-accent transition-colors text-sm"
-                >
-                  Reset with code / link
-                </Link>
               </div>
             )}
 
