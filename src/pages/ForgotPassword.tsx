@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Music, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const ForgotPassword: React.FC = () => {
@@ -46,12 +46,23 @@ const ForgotPassword: React.FC = () => {
 
     try {
       // Dynamically import supabase client to avoid SSR issues
-      const { supabase } = await import('@/integrations/supabase/client');
+      const { createClient } = await import('@supabase/supabase-js');
+      // Create a new supabase client for just this operation
+      const supabaseUrl = "https://wxwbfduhveewbuluetpb.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4d2JmZHVodmVld2J1bHVldHBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzODkxNzYsImV4cCI6MjA2NDk2NTE3Nn0.xZYb93_kej1HPbQEKbSrBh_T0Zm27y8WoZ5oxuo7FeA";
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Set session with the one-time access token
+      await supabase.auth.setSession({
+        access_token: accessToken!,
+        refresh_token: '',
+      });
+
       // Use access token to update the user's password
-      const { error: updateError } = await supabase.auth.updateUser(
-        { password },
-        { accessToken }
-      );
+      const { error: updateError } = await supabase.auth.updateUser({
+        password
+      });
+
       if (updateError) {
         setError(updateError.message || "Failed to reset password.");
       } else {
@@ -146,4 +157,3 @@ const ForgotPassword: React.FC = () => {
 };
 
 export default ForgotPassword;
-
