@@ -10,18 +10,20 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  User, 
-  Mail, 
-  Calendar, 
-  Music, 
   Settings,
   Crown,
-  Trash2,
   Edit3,
   ArrowLeft,
   CheckCircle,
-  XCircle
+  XCircle,
+  Music,
+  Trash2,
+  User
 } from 'lucide-react';
+
+import ProfileInfo from "./profile/ProfileInfo";
+import EditName from "./profile/EditName";
+import DangerZone from "./profile/DangerZone";
 
 const Profile: React.FC = () => {
   const { user, profile, signOut, updateProfile, connectSpotify, loading } = useAuth();
@@ -65,23 +67,13 @@ const Profile: React.FC = () => {
     }
   };
 
+  // NEW: Use Edge Function for Account Deletion
   const handleDeleteAccount = async () => {
     const confirmDelete = confirm(
       'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data including Spotify connections and analytics.'
     );
 
     if (!confirmDelete) return;
-
-    const finalConfirm = confirm(
-      'This is your final warning. Deleting your account will permanently remove:\n\n' +
-      '• All your Spotify listening data\n' +
-      '• Your premium subscription (if any)\n' +
-      '• All analytics and insights\n' +
-      '• Your profile and preferences\n\n' +
-      'Type "DELETE" to confirm deletion.'
-    );
-
-    if (!finalConfirm) return;
 
     const userInput = prompt('Type "DELETE" to confirm account deletion:');
     if (userInput !== 'DELETE') {
@@ -91,39 +83,30 @@ const Profile: React.FC = () => {
 
     setIsLoading(true);
     try {
-      console.log('Deleting user account:', user.id);
+      // Call the edge function to delete user
+      const fnUrl = '/functions/v1/delete-user';
+      const res = await fetch(fnUrl, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+      const data = await res.json();
 
-      // First delete the profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (profileError) {
-        console.error('Error deleting profile:', profileError);
-        setMessage('Failed to delete profile: ' + profileError.message);
+      if (!res.ok) {
+        setMessage('Failed to delete account: ' + (data.error || 'Unknown error'));
+        setIsLoading(false);
         return;
       }
 
-      // Then delete the auth user (this will cascade delete other related data)
-      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
-      
-      if (authError) {
-        console.error('Error deleting auth user:', authError);
-        // Even if auth deletion fails, we've deleted the profile, so sign out
-        setMessage('Account data deleted. Signing out...');
-      } else {
-        setMessage('Account deleted successfully. Goodbye!');
-      }
+      setMessage('Account deleted successfully. Goodbye!');
 
-      // Sign out and redirect
+      // Sign out locally and redirect
       setTimeout(() => {
         signOut();
       }, 2000);
 
     } catch (error: any) {
-      console.error('Error deleting account:', error);
-      setMessage('Failed to delete account: ' + error.message);
+      setMessage('Failed to delete account: ' + (error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
     }
@@ -152,12 +135,9 @@ const Profile: React.FC = () => {
             <h1 className="text-3xl font-bold text-gradient">Profile Settings</h1>
           </div>
         </div>
-
         {/* Message Alert */}
         {message && (
-          <Alert className="mb-6">
-            <AlertDescription>{message}</AlertDescription>
-          </Alert>
+          <Alert className="mb-6"><AlertDescription>{message}</AlertDescription></Alert>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -173,77 +153,16 @@ const Profile: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Profile Picture & Basic Info */}
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                  {profile.spotify_avatar_url ? (
-                    <img 
-                      src={profile.spotify_avatar_url} 
-                      alt="Profile" 
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <User className="h-8 w-8 text-white" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {profile.full_name || 'No name set'}
-                  </h3>
-                  <p className="text-muted-foreground">{profile.email}</p>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <Badge variant={profile.has_active_subscription ? "default" : "secondary"}>
-                      {profile.has_active_subscription ? 'Premium' : 'Free'}
-                    </Badge>
-                    {profile.spotify_connected && (
-                      <Badge variant="outline" className="text-green-400 border-green-400">
-                        <Music className="mr-1 h-3 w-3" />
-                        Spotify Connected
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Edit Name Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-foreground font-medium">Full Name</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditing(!isEditing)}
-                    className="border-border text-foreground hover:bg-muted"
-                  >
-                    <Edit3 className="mr-2 h-3 w-3" />
-                    {isEditing ? 'Cancel' : 'Edit'}
-                  </Button>
-                </div>
-
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <Input
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
-                      className="bg-background/50 border-border text-foreground"
-                    />
-                    <Button
-                      onClick={handleUpdateName}
-                      disabled={isLoading}
-                      className="w-full bg-primary hover:bg-primary/90"
-                    >
-                      {isLoading ? 'Updating...' : 'Update Name'}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-background/30 rounded-lg border border-border">
-                    <p className="text-foreground">{profile.full_name || 'No name set'}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Account Details */}
+              <ProfileInfo profile={profile} />
+              <EditName
+                isEditing={isEditing}
+                setIsEditing={setIsEditing}
+                fullName={fullName}
+                setFullName={setFullName}
+                isLoading={isLoading}
+                handleUpdateName={handleUpdateName}
+                profile={profile}
+              />
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -302,8 +221,6 @@ const Profile: React.FC = () => {
                   </Button>
                 )}
               </div>
-
-              {/* Premium Status */}
               {!profile.has_active_subscription && (
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -321,38 +238,7 @@ const Profile: React.FC = () => {
                   </Link>
                 </div>
               )}
-
-              {/* Danger Zone */}
-              <div className="border-t border-red-500/20 pt-6">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-red-400 font-medium flex items-center">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Danger Zone
-                    </h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Permanently delete your account and all associated data
-                    </p>
-                  </div>
-
-                  <Alert className="border-red-500/20 bg-red-500/5">
-                    <AlertDescription className="text-sm">
-                      <strong>Warning:</strong> This action cannot be undone. This will permanently delete your account, 
-                      remove all your data including Spotify connections, analytics, and any premium subscriptions.
-                    </AlertDescription>
-                  </Alert>
-
-                  <Button
-                    onClick={handleDeleteAccount}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="w-full border-red-500 text-red-400 hover:bg-red-500/10"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {isLoading ? 'Deleting Account...' : 'Delete Account'}
-                  </Button>
-                </div>
-              </div>
+              <DangerZone isLoading={isLoading} handleDeleteAccount={handleDeleteAccount} />
             </CardContent>
           </Card>
         </div>
