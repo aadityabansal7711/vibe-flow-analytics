@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useNavigate } from 'react-router-dom';
-import { Music, Lock, AlertCircle, Eye, EyeOff, Mail, User } from 'lucide-react';
+import { Music, Lock, AlertCircle, Eye, EyeOff, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,6 +17,8 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
   const { signUp, signIn, user } = useAuth();
   const { toast } = useToast();
@@ -39,7 +41,7 @@ const Auth = () => {
         if (!result.error) {
           toast({
             title: "Account created!",
-            description: "You can now log in.",
+            description: "Check your email for a confirmation link before logging in.",
           });
         }
       } else {
@@ -55,8 +57,37 @@ const Auth = () => {
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');
     }
-    
     setIsLoading(false);
+  };
+
+  // Handle forgot password
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email above to reset password.");
+      return;
+    }
+    setIsResetting(true);
+    setError('');
+    setResetSent(false);
+    try {
+      // Send password reset request to Supabase
+      // @ts-ignore - resetPasswordForEmail is part of supabase.auth
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/auth' });
+      if (error) {
+        setError(error.message || "Failed to send reset email");
+      } else {
+        setResetSent(true);
+        toast({
+          title: "Check your email",
+          description: "Password reset instructions have been sent.",
+        });
+      }
+    } catch (err: any) {
+      setError("Failed to send reset email, try again later.");
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (
@@ -99,7 +130,7 @@ const Auth = () => {
                   />
                 </div>
               )}
-              
+
               <div>
                 <Label htmlFor="email" className="text-foreground">Email</Label>
                 <Input
@@ -109,10 +140,11 @@ const Auth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-background/50 border-border text-foreground"
                   placeholder="Enter your email"
+                  autoComplete="email"
                   required
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="password" className="text-foreground">Password</Label>
                 <div className="relative">
@@ -123,6 +155,7 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="bg-background/50 border-border text-foreground pr-10"
                     placeholder="Enter your password"
+                    autoComplete="current-password"
                     required
                     minLength={6}
                   />
@@ -142,7 +175,13 @@ const Auth = () => {
                   <span>{error}</span>
                 </div>
               )}
-              
+
+              {resetSent && (
+                <div className="text-green-500 text-sm font-medium flex items-center gap-2">
+                  <span>Password reset email sent. Please check your inbox!</span>
+                </div>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
@@ -151,6 +190,20 @@ const Auth = () => {
                 {isLoading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Create Account' : 'Sign In')}
               </Button>
             </form>
+
+            {/* Forgot password button */}
+            {!isSignUp && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={handleForgotPassword}
+                  className="text-primary underline hover:text-accent disabled:opacity-60 transition-colors text-sm"
+                  disabled={isResetting}
+                  type="button"
+                >
+                  {isResetting ? "Sending reset email..." : "Forgot Password?"}
+                </button>
+              </div>
+            )}
 
             <div className="mt-6 text-center">
               <button
@@ -177,3 +230,4 @@ const Auth = () => {
 };
 
 export default Auth;
+
