@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const SpotifyCallback: React.FC = () => {
   const navigate = useNavigate();
-  const { user, updateProfile, loading } = useAuth();
+  const { user, updateProfile, loading, fetchProfile } = useAuth();
   const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
 
   useEffect(() => {
@@ -76,7 +76,11 @@ const SpotifyCallback: React.FC = () => {
           spotify_avatar_url: profileData.images?.[0]?.url || null,
         };
 
+        // Update the profile and wait for it to finish before navigating
         await updateProfile(updateData);
+
+        // Always refresh the profile right after update for reliability
+        await fetchProfile?.();
 
         window.history.replaceState({}, document.title, '/spotify-callback');
         setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
@@ -94,7 +98,7 @@ const SpotifyCallback: React.FC = () => {
       handleCallback().finally(() => clearTimeout(timeoutId));
     }
     return () => clearTimeout(timeoutId);
-  }, [user, loading, navigate, updateProfile]);
+  }, [user, loading, navigate, updateProfile, fetchProfile]);
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center">

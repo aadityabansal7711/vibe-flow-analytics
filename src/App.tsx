@@ -23,7 +23,7 @@ import CancellationPolicy from "./pages/CancellationPolicy";
 import About from "./pages/About";
 import Demo from "./pages/Demo";
 import Error from "./pages/Error";
-
+import ForgotPassword from "./pages/ForgotPassword";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -53,6 +53,7 @@ const App = () => (
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/error" element={<Error />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

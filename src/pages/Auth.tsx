@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -191,17 +190,22 @@ const Auth = () => {
               </Button>
             </form>
 
-            {/* Forgot password button */}
             {!isSignUp && (
-              <div className="mt-4 text-center">
+              <div className="mt-4 text-center space-y-2">
                 <button
                   onClick={handleForgotPassword}
-                  className="text-primary underline hover:text-accent disabled:opacity-60 transition-colors text-sm"
+                  className="text-primary underline hover:text-accent disabled:opacity-60 transition-colors text-sm block mb-1"
                   disabled={isResetting}
                   type="button"
                 >
-                  {isResetting ? "Sending reset email..." : "Forgot Password?"}
+                  {isResetting ? "Sending reset email..." : "Forgot Password (Email)?"}
                 </button>
+                <Link
+                  to="/forgot-password"
+                  className="text-primary underline hover:text-accent transition-colors text-sm"
+                >
+                  Reset with code / link
+                </Link>
               </div>
             )}
 
@@ -230,4 +234,3 @@ const Auth = () => {
 };
 
 export default Auth;
-
