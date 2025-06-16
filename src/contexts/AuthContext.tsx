@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -72,7 +71,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user && mounted) {
           // Fetch profile when user is authenticated
-          setTimeout(() => fetchUserProfile(session.user.id), 0);
+          setTimeout(() => {
+            if (mounted) {
+              fetchUserProfile(session.user.id);
+            }
+          }, 0);
         } else {
           setProfile(null);
         }
@@ -239,13 +242,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = authUrl;
   };
 
-  const updateProfile = async (updates: Partial<Profile>) => {
+  const updateProfile = async (updates: Partial<Profile>): Promise<Profile> => {
     if (!user) {
       console.error('❌ No user found for profile update');
       throw new Error('No user found for profile update');
     }
 
-    console.log('🔄 Updating profile for user:', user.id);
+    console.log('🔄 Updating profile for user:', user.id, 'with updates:', Object.keys(updates));
 
     try {
       const { data: updatedProfile, error: updateError } = await supabase
@@ -261,6 +264,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (updateError) {
         console.error('❌ Profile update failed:', updateError);
         throw updateError;
+      }
+
+      if (!updatedProfile) {
+        console.error('❌ No profile returned from update');
+        throw new Error('No profile returned from update');
       }
 
       console.log('✅ Profile updated successfully');

@@ -7,17 +7,39 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    console.log('🎵 Spotify token exchange request received')
+    
     const { code, redirect_uri } = await req.json()
 
-    const SPOTIFY_CLIENT_ID = Deno.env.get('SPOTIFY_CLIENT_ID')!
-    const SPOTIFY_CLIENT_SECRET = Deno.env.get('SPOTIFY_CLIENT_SECRET')!
+    if (!code) {
+      console.error('❌ No authorization code provided')
+      throw new Error('Authorization code is required')
+    }
 
-    console.log('🔄 Exchanging code for tokens...')
+    if (!redirect_uri) {
+      console.error('❌ No redirect URI provided')
+      throw new Error('Redirect URI is required')
+    }
+
+    const SPOTIFY_CLIENT_ID = Deno.env.get('SPOTIFY_CLIENT_ID')
+    const SPOTIFY_CLIENT_SECRET = Deno.env.get('SPOTIFY_CLIENT_SECRET')
+
+    if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+      console.error('❌ Missing Spotify credentials')
+      throw new Error('Spotify credentials not configured')
+    }
+
+    console.log('🔄 Exchanging code for tokens...', {
+      clientId: SPOTIFY_CLIENT_ID,
+      redirectUri: redirect_uri,
+      hasCode: !!code
+    })
 
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
@@ -32,14 +54,25 @@ serve(async (req) => {
       }),
     })
 
+    console.log('📊 Token response status:', tokenResponse.status)
+
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text()
-      console.error('❌ Token exchange failed:', tokenResponse.status, errorText)
-      throw new Error(`Token exchange failed: ${errorText}`)
+      console.error('❌ Token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error: errorText
+      })
+      throw new Error(`Token exchange failed: ${tokenResponse.status} ${errorText}`)
     }
 
     const tokenData = await tokenResponse.json()
-    console.log('✅ Token exchange successful')
+    
+    console.log('✅ Token exchange successful', {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresIn: tokenData.expires_in
+    })
 
     return new Response(
       JSON.stringify(tokenData),
@@ -54,7 +87,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Error in spotify-exchange:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: 'Check function logs for more information'
+      }),
       { 
         status: 500,
         headers: { 
