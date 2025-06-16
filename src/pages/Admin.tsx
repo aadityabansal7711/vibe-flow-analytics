@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,9 @@ import {
   Activity,
   Database,
   RefreshCw,
-  Music
+  Music,
+  Gift,
+  Plus
 } from 'lucide-react';
 
 interface User {
@@ -37,6 +38,17 @@ interface User {
   user_id: string;
 }
 
+interface Giveaway {
+  id: string;
+  gift_name: string;
+  gift_image_url: string | null;
+  gift_price: number;
+  withdrawal_date: string;
+  is_active: boolean;
+  winner_user_id: string | null;
+  created_at: string;
+}
+
 const Admin = () => {
   // Check admin authentication
   const adminSession = localStorage.getItem('admin_session');
@@ -45,10 +57,18 @@ const Admin = () => {
   }
 
   const [users, setUsers] = useState<User[]>([]);
+  const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [message, setMessage] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showGiveawayForm, setShowGiveawayForm] = useState(false);
+  const [giveawayForm, setGiveawayForm] = useState({
+    gift_name: '',
+    gift_image_url: '',
+    gift_price: '',
+    withdrawal_date: ''
+  });
   const [stats, setStats] = useState({
     totalUsers: 0,
     premiumUsers: 0,
@@ -59,6 +79,7 @@ const Admin = () => {
   useEffect(() => {
     fetchUsers();
     fetchStats();
+    fetchGiveaways();
   }, []);
 
   const fetchUsers = async () => {
@@ -88,6 +109,24 @@ const Admin = () => {
       setUsers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGiveaways = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('giveaways')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching giveaways:', error);
+        return;
+      }
+      
+      setGiveaways(data || []);
+    } catch (error) {
+      console.error('Error fetching giveaways:', error);
     }
   };
 
@@ -125,7 +164,7 @@ const Admin = () => {
           plan_tier: 'premium',
           plan_id: 'admin_granted_premium'
         })
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error granting premium:', error);
@@ -156,7 +195,7 @@ const Admin = () => {
           plan_tier: 'free',
           plan_id: 'free_tier'
         })
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error revoking premium:', error);
@@ -184,15 +223,14 @@ const Admin = () => {
       setActionLoading(userId);
       console.log('Deleting user:', userId);
       
-      // Delete from profiles table (this will cascade to auth via trigger if implemented)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
+      // Call the delete-user edge function
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: userId }
+      });
 
-      if (profileError) {
-        console.error('Error deleting user profile:', profileError);
-        setMessage('Error deleting user: ' + profileError.message);
+      if (error) {
+        console.error('Error deleting user:', error);
+        setMessage('Error deleting user: ' + error.message);
         return;
       }
 
@@ -204,6 +242,67 @@ const Admin = () => {
       setMessage('Error deleting user: ' + error.message);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const createGiveaway = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('giveaways')
+        .insert({
+          gift_name: giveawayForm.gift_name,
+          gift_image_url: giveawayForm.gift_image_url || null,
+          gift_price: parseFloat(giveawayForm.gift_price),
+          withdrawal_date: giveawayForm.withdrawal_date,
+          is_active: true
+        });
+
+      if (error) {
+        setMessage('Error creating giveaway: ' + error.message);
+        return;
+      }
+
+      setMessage('Giveaway created successfully!');
+      setShowGiveawayForm(false);
+      setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' });
+      await fetchGiveaways();
+    } catch (error: any) {
+      setMessage('Error creating giveaway: ' + error.message);
+    }
+  };
+
+  const selectRandomWinner = async (giveawayId: string) => {
+    try {
+      const premiumUsers = users.filter(u => u.has_active_subscription);
+      const eligibleUsers = premiumUsers.filter(user => {
+        return !giveaways.some(g => g.winner_user_id === user.user_id);
+      });
+
+      if (eligibleUsers.length === 0) {
+        setMessage('No eligible users for this giveaway');
+        return;
+      }
+
+      const randomWinner = eligibleUsers[Math.floor(Math.random() * eligibleUsers.length)];
+
+      const { error } = await supabase
+        .from('giveaways')
+        .update({ 
+          winner_user_id: randomWinner.user_id,
+          is_active: false 
+        })
+        .eq('id', giveawayId);
+
+      if (error) {
+        setMessage('Error selecting winner: ' + error.message);
+        return;
+      }
+
+      setMessage(`Winner selected: ${randomWinner.email}`);
+      await fetchGiveaways();
+    } catch (error: any) {
+      setMessage('Error selecting winner: ' + error.message);
     }
   };
 
@@ -239,7 +338,7 @@ const Admin = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <img src="/lovable-uploads/eeb01895-fadf-4b3f-9d3f-d61bb48673b0.png" alt="MyVibeLytics" className="h-8 w-8" />
+            <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
             <h1 className="text-3xl font-bold text-gradient">Admin Panel</h1>
           </div>
           <div className="flex items-center gap-4">
@@ -312,6 +411,101 @@ const Admin = () => {
           </Card>
         </div>
 
+        {/* Giveaway Management */}
+        <Card className="glass-effect border-border/50 mb-8">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center justify-between">
+              <div className="flex items-center">
+                <Gift className="mr-2 h-5 w-5" />
+                Weekly Giveaways
+              </div>
+              <Button onClick={() => setShowGiveawayForm(!showGiveawayForm)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Giveaway
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {showGiveawayForm && (
+              <form onSubmit={createGiveaway} className="mb-6 p-4 bg-background/30 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="gift_name">Gift Name</Label>
+                    <Input
+                      id="gift_name"
+                      value={giveawayForm.gift_name}
+                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_name: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="gift_price">Gift Price ($)</Label>
+                    <Input
+                      id="gift_price"
+                      type="number"
+                      step="0.01"
+                      value={giveawayForm.gift_price}
+                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_price: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="gift_image_url">Gift Image URL</Label>
+                    <Input
+                      id="gift_image_url"
+                      value={giveawayForm.gift_image_url}
+                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_image_url: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="withdrawal_date">Withdrawal Date</Label>
+                    <Input
+                      id="withdrawal_date"
+                      type="datetime-local"
+                      value={giveawayForm.withdrawal_date}
+                      onChange={(e) => setGiveawayForm({...giveawayForm, withdrawal_date: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button type="submit">Create Giveaway</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowGiveawayForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            <div className="space-y-3">
+              {giveaways.map((giveaway) => (
+                <div key={giveaway.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
+                  <div className="flex-1">
+                    <h3 className="text-foreground font-medium">{giveaway.gift_name}</h3>
+                    <p className="text-muted-foreground text-sm">${giveaway.gift_price}</p>
+                    <p className="text-muted-foreground text-xs">
+                      Withdrawal: {formatDate(giveaway.withdrawal_date)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={giveaway.is_active ? "default" : "secondary"}>
+                      {giveaway.is_active ? 'Active' : 'Completed'}
+                    </Badge>
+                    {giveaway.is_active && (
+                      <Button
+                        size="sm"
+                        onClick={() => selectRandomWinner(giveaway.id)}
+                      >
+                        Select Winner
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* User Management */}
         <Card className="glass-effect border-border/50">
           <CardHeader>
@@ -372,7 +566,7 @@ const Admin = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => revokePremium(user.id)}
+                          onClick={() => revokePremium(user.user_id)}
                           disabled={actionLoading === user.id}
                           className="text-red-400 border-red-400 hover:bg-red-400/10"
                         >
@@ -386,7 +580,7 @@ const Admin = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => grantPremium(user.id)}
+                          onClick={() => grantPremium(user.user_id)}
                           disabled={actionLoading === user.id}
                           className="text-green-400 border-green-400 hover:bg-green-400/10"
                         >
@@ -400,7 +594,7 @@ const Admin = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deleteUser(user.id, user.email)}
+                        onClick={() => deleteUser(user.user_id, user.email)}
                         disabled={actionLoading === user.id}
                         className="text-red-400 border-red-400 hover:bg-red-400/10"
                       >

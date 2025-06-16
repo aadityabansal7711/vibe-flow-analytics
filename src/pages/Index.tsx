@@ -16,7 +16,15 @@ import {
   Crown,
   Shield,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  Gift,
+  Calendar,
+  Activity,
+  Zap,
+  RotateCcw,
+  Shuffle,
+  PieChart,
+  HeadphonesIcon
 } from "lucide-react";
 import { Instagram } from "lucide-react";
 
@@ -51,6 +59,36 @@ export default function Index() {
       icon: <Star className="h-8 w-8 text-yellow-400" />,
       title: "Hidden Gems",
       description: "Discover underrated tracks you love and new music recommendations"
+    },
+    {
+      icon: <Shuffle className="h-8 w-8 text-green-500" />,
+      title: "AI Playlist Generator",
+      description: "Generate custom playlists based on your listening patterns and preferences"
+    },
+    {
+      icon: <Activity className="h-8 w-8 text-red-500" />,
+      title: "Listening Streaks",
+      description: "Track your consecutive days of music listening and beat your records"
+    },
+    {
+      icon: <Calendar className="h-8 w-8 text-indigo-400" />,
+      title: "Weekday vs Weekend Analysis",
+      description: "Compare your music preferences between work days and weekends"
+    },
+    {
+      icon: <PieChart className="h-8 w-8 text-purple-500" />,
+      title: "Genre Deep Dive",
+      description: "Detailed breakdown of your favorite music genres with visual charts"
+    },
+    {
+      icon: <Zap className="h-8 w-8 text-cyan-400" />,
+      title: "Music Discovery Score",
+      description: "See how adventurous you are with discovering new artists and songs"
+    },
+    {
+      icon: <RotateCcw className="h-8 w-8 text-orange-400" />,
+      title: "Skip Rate & Replay Analysis",
+      description: "Understand your listening behavior with skip rates and replay statistics"
     }
   ];
 
@@ -71,13 +109,19 @@ export default function Index() {
       <nav className="sticky top-0 z-50 glass-effect-strong border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
           <div className="flex items-center space-x-3">
-            <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-10 w-10" />
+            <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-10 w-10" />
             <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
           </div>
           <div className="flex items-center space-x-4">
             <Link to="/demo">
               <Button variant="outline" className="border-border text-foreground hover:bg-muted">
                 View Demo
+              </Button>
+            </Link>
+            <Link to="/weekly-giveaway">
+              <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400/10">
+                <Gift className="mr-2 h-4 w-4" />
+                Weekly Giveaway
               </Button>
             </Link>
             <Link to="/auth">
@@ -149,6 +193,36 @@ export default function Index() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Weekly Giveaway Section */}
+      <section className="px-6 py-16 bg-gradient-to-r from-yellow-500/10 to-orange-500/10">
+        <div className="max-w-4xl mx-auto text-center">
+          <Badge className="mb-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
+            <Gift className="mr-1 h-4 w-4" />
+            Weekly Giveaway
+          </Badge>
+          <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">
+            Win Amazing Prizes Every Week!
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Premium users are automatically entered into our weekly giveaways. From headphones to concert tickets, we give away awesome music-related prizes!
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/weekly-giveaway">
+              <Button size="lg" className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white">
+                <Gift className="mr-2 h-6 w-6" />
+                View Current Giveaway
+              </Button>
+            </Link>
+            <Link to="/buy">
+              <Button size="lg" variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400/10">
+                Upgrade to Enter
+                <ArrowRight className="ml-2 h-6 w-6" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -257,7 +331,7 @@ export default function Index() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-8 w-8" />
+                <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
                 <span className="text-xl font-bold text-gradient">MyVibeLytics</span>
               </div>
               <p className="text-muted-foreground text-sm">
@@ -269,6 +343,7 @@ export default function Index() {
               <div className="space-y-2 text-sm">
                 <Link to="/demo" className="block text-muted-foreground hover:text-foreground">Demo</Link>
                 <Link to="/buy" className="block text-muted-foreground hover:text-foreground">Pricing</Link>
+                <Link to="/weekly-giveaway" className="block text-muted-foreground hover:text-foreground">Weekly Giveaway</Link>
               </div>
             </div>
             <div className="space-y-4">
