@@ -61,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
@@ -71,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user && mounted) {
           // Fetch profile when user is authenticated
-          await fetchUserProfile(session.user.id);
+          setTimeout(() => fetchUserProfile(session.user.id), 0);
         } else {
           setProfile(null);
         }
@@ -124,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (existingProfile) {
-        console.log('✅ Found existing profile:', existingProfile);
+        console.log('✅ Found existing profile');
         setProfile(existingProfile);
       } else {
         // Create new profile if none exists
@@ -148,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (insertError) {
           console.error('❌ Error creating profile:', insertError);
         } else if (newProfile) {
-          console.log('✅ Created new profile:', newProfile);
+          console.log('✅ Created new profile');
           setProfile(newProfile);
         }
       }
@@ -185,12 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('👋 Signing out user...');
       
       // Clear localStorage
-      localStorage.removeItem('admin_session');
-      localStorage.removeItem('admin_logged_in');
-      localStorage.removeItem('admin_email');
-      localStorage.removeItem('spotify_access_token');
-      localStorage.removeItem('spotify_refresh_token');
-      localStorage.removeItem('myvibelytics_user');
+      localStorage.clear();
       
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
@@ -231,21 +227,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       'playlist-read-collaborative'
     ].join(' ');
 
-    // Clear any existing Spotify data
-    localStorage.removeItem('spotify_access_token');
-    localStorage.removeItem('spotify_refresh_token');
-
     const authUrl = `https://accounts.spotify.com/authorize?` +
       `client_id=${SPOTIFY_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `state=${user.id}&` +
-      `show_dialog=true&` +
-      `t=${Date.now()}`;
+      `show_dialog=true`;
 
     console.log('🔗 Redirecting to Spotify auth URL');
     window.location.href = authUrl;
+  };
+
+  const updateProfile = async (updates: Partial<Profile>) => {
+    if (!user) {
+      console.error('❌ No user found for profile update');
+      throw new Error('No user found for profile update');
+    }
+
+    console.log('🔄 Updating profile for user:', user.id);
+
+    try {
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ Profile update failed:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Profile updated successfully');
+      setProfile(updatedProfile);
+      return updatedProfile;
+    } catch (error) {
+      console.error('❌ Update profile error:', error);
+      throw error;
+    }
   };
 
   const getValidSpotifyToken = async (): Promise<string | null> => {
@@ -315,38 +339,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('❌ Token refresh error:', error);
       return null;
-    }
-  };
-
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) {
-      console.error('❌ No user found for profile update');
-      throw new Error('No user found for profile update');
-    }
-
-    console.log('🔄 Updating profile for user:', user.id, updates);
-
-    try {
-      const { data: updatedProfile, error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('❌ Profile update failed:', updateError);
-        throw updateError;
-      }
-
-      console.log('✅ Profile updated successfully:', updatedProfile);
-      setProfile(updatedProfile);
-    } catch (error) {
-      console.error('❌ Update profile error:', error);
-      throw error;
     }
   };
 
