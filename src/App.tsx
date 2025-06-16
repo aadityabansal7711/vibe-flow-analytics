@@ -25,10 +25,7 @@ import About from "./pages/About";
 import Demo from "./pages/Demo";
 import Error from "./pages/Error";
 import ForgotPassword from "./pages/ForgotPassword";
-import WeeklyGiveaway from '@/pages/weeklygiveaway'; // adjust path as needed
-
-<Route path="/weekly-giveaway" element={<WeeklyGiveaway />} />
-
+import WeeklyGiveaway from "./pages/WeeklyGiveaway";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +63,7 @@ const App = () => (
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/error" element={<Error />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/weekly-giveaway" element={<WeeklyGiveaway />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
