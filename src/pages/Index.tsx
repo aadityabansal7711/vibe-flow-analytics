@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,32 +22,38 @@ const Index = () => {
     {
       icon: <BarChart3 className="h-8 w-8 text-green-400" />,
       title: "Advanced Analytics",
-      description: "Deep insights into your listening habits, top genres, and music discovery patterns."
+      description: "Deep insights into your listening habits, top genres, and music discovery patterns.",
+      isLocked: false
     },
     {
       icon: <TrendingUp className="h-8 w-8 text-blue-400" />,
       title: "Trend Analysis", 
-      description: "Track how your music taste evolves over time with detailed trend reports."
+      description: "Track how your music taste evolves over time with detailed trend reports.",
+      isLocked: false
     },
     {
       icon: <Sparkles className="h-8 w-8 text-purple-400" />,
       title: "AI-Powered Insights",
-      description: "Get personalized recommendations and insights powered by advanced AI algorithms."
+      description: "Get personalized recommendations and insights powered by advanced AI algorithms.",
+      isLocked: false
     },
     {
       icon: <Users className="h-8 w-8 text-yellow-400" />,
       title: "Social Features",
-      description: "Share your music stats and discover what your friends are listening to."
+      description: "Share your music stats and discover what your friends are listening to.",
+      isLocked: false
     },
     {
       icon: <Heart className="h-8 w-8 text-red-400" />,
       title: "Mood Tracking",
-      description: "Understand the emotional patterns in your music and how they reflect your mood."
+      description: "Understand the emotional patterns in your music and how they reflect your mood.",
+      isLocked: false
     },
     {
       icon: <Star className="h-8 w-8 text-orange-400" />,
       title: "Artist Discovery",
-      description: "Find new artists based on your listening patterns and music DNA."
+      description: "Find new artists based on your listening patterns and music DNA.",
+      isLocked: false
     }
   ];
 
