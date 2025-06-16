@@ -52,7 +52,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fetchingProfile, setFetchingProfile] = useState(false);
 
   const isUnlocked = profile?.has_active_subscription || false;
 
@@ -70,15 +69,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user && mounted && !fetchingProfile) {
+        if (session?.user && mounted) {
           try {
             console.log('👤 Fetching profile for user:', session.user.id);
-            setFetchingProfile(true);
             await fetchProfileForUser(session.user.id);
           } catch (err) {
             console.error('❌ Profile operation error:', err);
-          } finally {
-            setFetchingProfile(false);
           }
         } else if (!session?.user) {
           setProfile(null);
@@ -109,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchingProfile]);
+  }, []);
 
   const fetchProfileForUser = async (userId: string) => {
     try {
@@ -119,9 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
+      if (fetchError) {
         console.error('❌ Error fetching profile:', fetchError);
         throw fetchError;
       }
@@ -145,15 +141,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('profiles')
           .insert(newProfileData)
           .select()
-          .single();
+          .maybeSingle();
 
         if (insertError) {
           console.error('❌ Error creating profile:', insertError);
+          // Try to fetch again in case of race condition
           const { data: retryProfile } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
           
           if (retryProfile) {
             console.log('✅ Found profile after retry:', retryProfile);
@@ -275,15 +272,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .eq('user_id', user.id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (updateError) {
         console.error('❌ Profile update failed:', updateError);
         throw updateError;
       }
 
-      console.log('✅ Profile updated successfully:', updatedProfile);
-      setProfile(updatedProfile);
+      if (updatedProfile) {
+        console.log('✅ Profile updated successfully:', updatedProfile);
+        setProfile(updatedProfile);
+      }
     } catch (error) {
       console.error('❌ Update profile error:', error);
       throw error;
@@ -298,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('❌ Error fetching profile:', error);

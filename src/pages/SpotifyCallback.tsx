@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const SpotifyCallback: React.FC = () => {
   const navigate = useNavigate();
-  const { user, updateProfile, loading, fetchProfile } = useAuth();
+  const { user, updateProfile, loading } = useAuth();
   const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
 
   useEffect(() => {
@@ -28,17 +28,17 @@ const SpotifyCallback: React.FC = () => {
 
         if (error) {
           console.error('❌ Spotify auth error:', error);
-          navigate('/error?reason=spotify_auth_error&details=' + encodeURIComponent(error));
+          navigate('/dashboard');
           return;
         }
         if (!code) {
           console.error('❌ No authorization code received');
-          navigate('/error?reason=no_auth_code');
+          navigate('/dashboard');
           return;
         }
         if (state !== user.id) {
           console.error('❌ State mismatch:', { expected: user.id, received: state });
-          navigate('/error?reason=state_mismatch');
+          navigate('/dashboard');
           return;
         }
 
@@ -53,12 +53,12 @@ const SpotifyCallback: React.FC = () => {
 
         if (tokenError) {
           console.error('❌ Token exchange failed:', tokenError);
-          navigate('/error?reason=token_exchange_failed&details=' + encodeURIComponent(tokenError.message));
+          navigate('/dashboard');
           return;
         }
         if (!tokenData || !tokenData.access_token) {
           console.error('❌ No access token received');
-          navigate('/error?reason=no_access_token');
+          navigate('/dashboard');
           return;
         }
 
@@ -71,7 +71,7 @@ const SpotifyCallback: React.FC = () => {
 
         if (!profileResponse.ok) {
           console.error('❌ Profile fetch failed:', profileResponse.status);
-          navigate('/error?reason=profile_fetch_failed&status=' + profileResponse.status);
+          navigate('/dashboard');
           return;
         }
         const profileData = await profileResponse.json();
@@ -96,31 +96,23 @@ const SpotifyCallback: React.FC = () => {
           console.log('✅ Profile updated successfully');
         } catch (updateError) {
           console.error('❌ Profile update failed:', updateError);
-          navigate('/error?reason=profile_update_failed&details=' + encodeURIComponent(updateError.message));
-          return;
         }
 
         console.log('🎉 Spotify connection completed successfully');
         
         window.history.replaceState({}, document.title, '/spotify-callback');
-        setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
+        navigate('/dashboard', { replace: true });
 
       } catch (err: any) {
         console.error('❌ Unexpected error in Spotify callback:', err);
-        navigate('/error?reason=unexpected_error&details=' + encodeURIComponent(err.message));
+        navigate('/dashboard');
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      console.error('❌ Spotify callback timeout');
-      navigate('/error?reason=timeout');
-    }, 30000);
-
-    if (!loading) {
-      handleCallback().finally(() => clearTimeout(timeoutId));
+    if (!loading && user) {
+      handleCallback();
     }
-    return () => clearTimeout(timeoutId);
-  }, [user, loading, navigate, updateProfile, fetchProfile]);
+  }, [user, loading, navigate, updateProfile]);
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
