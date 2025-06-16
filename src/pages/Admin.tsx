@@ -22,7 +22,8 @@ import {
   Shield,
   Activity,
   Database,
-  RefreshCw
+  RefreshCw,
+  Music
 } from 'lucide-react';
 
 interface User {
