@@ -3,8 +3,6 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +10,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Settings,
   Crown,
-  Edit3,
   ArrowLeft,
   CheckCircle,
   XCircle,
   Music,
-  Trash2,
   User
 } from 'lucide-react';
 
@@ -67,7 +63,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  // NEW: Use Edge Function for Account Deletion
   const handleDeleteAccount = async () => {
     const confirmDelete = confirm(
       'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data including Spotify connections and analytics.'
@@ -83,29 +78,37 @@ const Profile: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Call the edge function to delete user
-      const fnUrl = '/functions/v1/delete-user';
-      const res = await fetch(fnUrl, {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMessage('Failed to delete account: ' + (data.error || 'Unknown error'));
-        setIsLoading(false);
-        return;
+      console.log('Initiating account deletion for user:', user.id);
+      
+      // Get the current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session found');
       }
 
+      // Call the edge function to delete user
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: user.id },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      console.log('Delete response:', data);
       setMessage('Account deleted successfully. Goodbye!');
 
-      // Sign out locally and redirect
+      // Sign out and redirect after a short delay
       setTimeout(() => {
         signOut();
       }, 2000);
 
     } catch (error: any) {
+      console.error('Account deletion error:', error);
       setMessage('Failed to delete account: ' + (error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
@@ -119,6 +122,8 @@ const Profile: React.FC = () => {
       day: 'numeric'
     });
   };
+
+  const isPremium = profile?.has_active_subscription || false;
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
@@ -135,6 +140,7 @@ const Profile: React.FC = () => {
             <h1 className="text-3xl font-bold text-gradient">Profile Settings</h1>
           </div>
         </div>
+        
         {/* Message Alert */}
         {message && (
           <Alert className="mb-6"><AlertDescription>{message}</AlertDescription></Alert>
@@ -166,11 +172,14 @@ const Profile: React.FC = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-muted-foreground">Plan Tier</Label>
-                    <p className="text-foreground font-medium capitalize">{profile.plan_tier || 'Free'}</p>
+                    <div className="text-muted-foreground text-sm">Plan Tier</div>
+                    <p className="text-foreground font-medium capitalize flex items-center gap-2">
+                      {profile.plan_tier || 'Free'}
+                      {isPremium && <Crown className="h-4 w-4 text-yellow-400" />}
+                    </p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Member Since</Label>
+                    <div className="text-muted-foreground text-sm">Member Since</div>
                     <p className="text-foreground font-medium">
                       {profile.created_at ? formatDate(profile.created_at) : 'Unknown'}
                     </p>
@@ -203,6 +212,11 @@ const Profile: React.FC = () => {
                         : 'Connect your Spotify account for personalized insights'
                       }
                     </p>
+                    {profile.spotify_connected && isPremium && (
+                      <p className="text-xs text-yellow-400 mt-1">
+                        Premium users cannot disconnect Spotify accounts for data integrity
+                      </p>
+                    )}
                   </div>
                   {profile.spotify_connected ? (
                     <CheckCircle className="h-5 w-5 text-green-400" />
@@ -221,7 +235,9 @@ const Profile: React.FC = () => {
                   </Button>
                 )}
               </div>
-              {!profile.has_active_subscription && (
+
+              {/* Premium Management */}
+              {!isPremium ? (
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Crown className="h-5 w-5 text-yellow-400" />
@@ -237,7 +253,25 @@ const Profile: React.FC = () => {
                     </Button>
                   </Link>
                 </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Crown className="h-5 w-5 text-yellow-400" />
+                    <h4 className="text-foreground font-medium">Premium Subscription</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    You have access to all premium features
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400/10"
+                    onClick={() => window.open('https://billing.stripe.com/p/login/test_bIY1479wT5LLesU8ww', '_blank')}
+                  >
+                    Manage Subscription
+                  </Button>
+                </div>
               )}
+              
               <DangerZone isLoading={isLoading} handleDeleteAccount={handleDeleteAccount} />
             </CardContent>
           </Card>

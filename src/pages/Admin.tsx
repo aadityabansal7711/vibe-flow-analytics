@@ -19,7 +19,10 @@ import {
   Trash2,
   Check,
   X,
-  Shield
+  Shield,
+  Activity,
+  Database,
+  RefreshCw
 } from 'lucide-react';
 
 interface User {
@@ -33,13 +36,6 @@ interface User {
   user_id: string;
 }
 
-interface SystemConfig {
-  app_name: string;
-  maintenance_mode: boolean;
-  max_users: number;
-  features_enabled: string[];
-}
-
 const Admin = () => {
   // Check admin authentication
   const adminSession = localStorage.getItem('admin_session');
@@ -50,17 +46,18 @@ const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [message, setMessage] = useState('');
-  const [systemConfig, setSystemConfig] = useState<SystemConfig>({
-    app_name: 'MyVibeLytics',
-    maintenance_mode: false,
-    max_users: 10000,
-    features_enabled: ['spotify_integration', 'analytics', 'premium_features']
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    premiumUsers: 0,
+    spotifyConnected: 0,
+    newUsersToday: 0
   });
 
   useEffect(() => {
     fetchUsers();
+    fetchStats();
   }, []);
 
   const fetchUsers = async () => {
@@ -76,12 +73,15 @@ const Admin = () => {
         setUsers([]);
         return;
       }
+      
       if (!data || !Array.isArray(data)) {
         setMessage('No user data found.');
         setUsers([]);
         return;
       }
+      
       setUsers(data);
+      setMessage('');
     } catch (error: any) {
       setMessage('Error fetching users: ' + error.message);
       setUsers([]);
@@ -90,8 +90,31 @@ const Admin = () => {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('has_active_subscription, spotify_connected, created_at');
+
+      if (data) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        setStats({
+          totalUsers: data.length,
+          premiumUsers: data.filter(u => u.has_active_subscription).length,
+          spotifyConnected: data.filter(u => u.spotify_connected).length,
+          newUsersToday: data.filter(u => new Date(u.created_at) >= today).length
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
   const grantPremium = async (userId: string) => {
     try {
+      setActionLoading(userId);
       console.log('Granting premium to user:', userId);
       
       const { error } = await supabase
@@ -110,15 +133,19 @@ const Admin = () => {
       }
 
       setMessage('Premium access granted successfully!');
-      fetchUsers(); // Refresh the list
+      await fetchUsers();
+      await fetchStats();
     } catch (error: any) {
       console.error('Error in grantPremium:', error);
       setMessage('Error granting premium: ' + error.message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const revokePremium = async (userId: string) => {
     try {
+      setActionLoading(userId);
       console.log('Revoking premium from user:', userId);
       
       const { error } = await supabase
@@ -137,10 +164,13 @@ const Admin = () => {
       }
 
       setMessage('Premium access revoked successfully!');
-      fetchUsers(); // Refresh the list
+      await fetchUsers();
+      await fetchStats();
     } catch (error: any) {
       console.error('Error in revokePremium:', error);
       setMessage('Error revoking premium: ' + error.message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -150,9 +180,10 @@ const Admin = () => {
     }
 
     try {
+      setActionLoading(userId);
       console.log('Deleting user:', userId);
       
-      // First delete from profiles table
+      // Delete from profiles table (this will cascade to auth via trigger if implemented)
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -165,22 +196,13 @@ const Admin = () => {
       }
 
       setMessage('User deleted successfully!');
-      fetchUsers(); // Refresh the list
+      await fetchUsers();
+      await fetchStats();
     } catch (error: any) {
       console.error('Error in deleteUser:', error);
       setMessage('Error deleting user: ' + error.message);
-    }
-  };
-
-  const updateSystemConfig = async () => {
-    try {
-      // Since we don't have a system config table, we'll just show a success message
-      // In a real app, you'd store this in a database
-      setMessage('System configuration updated successfully!');
-      console.log('System config updated:', systemConfig);
-    } catch (error: any) {
-      console.error('Error updating system config:', error);
-      setMessage('Error updating system config: ' + error.message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -189,10 +211,23 @@ const Admin = () => {
     (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <div className="text-white text-xl">Loading admin panel...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-white text-xl">Loading admin panel...</div>
+        </div>
       </div>
     );
   }
@@ -203,12 +238,19 @@ const Admin = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Shield className="h-8 w-8 text-primary" />
+            <img src="/lovable-uploads/eeb01895-fadf-4b3f-9d3f-d61bb48673b0.png" alt="MyVibeLytics" className="h-8 w-8" />
             <h1 className="text-3xl font-bold text-gradient">Admin Panel</h1>
           </div>
-          <Badge variant="outline" className="text-green-400 border-green-400">
-            Admin Access
-          </Badge>
+          <div className="flex items-center gap-4">
+            <Button onClick={fetchUsers} variant="outline" disabled={loading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Badge variant="outline" className="text-green-400 border-green-400">
+              <Shield className="mr-1 h-3 w-3" />
+              Admin Access
+            </Badge>
+          </div>
         </div>
 
         {/* Message Alert */}
@@ -219,14 +261,15 @@ const Admin = () => {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="glass-effect border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{users.length}</div>
+              <div className="text-2xl font-bold text-foreground">{stats.totalUsers}</div>
+              <p className="text-xs text-muted-foreground">All registered users</p>
             </CardContent>
           </Card>
 
@@ -236,9 +279,10 @@ const Admin = () => {
               <Star className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {users.filter(u => u.has_active_subscription).length}
-              </div>
+              <div className="text-2xl font-bold text-foreground">{stats.premiumUsers}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalUsers > 0 ? Math.round((stats.premiumUsers / stats.totalUsers) * 100) : 0}% conversion rate
+              </p>
             </CardContent>
           </Card>
 
@@ -248,52 +292,75 @@ const Admin = () => {
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {users.filter(u => u.spotify_connected).length}
-              </div>
+              <div className="text-2xl font-bold text-foreground">{stats.spotifyConnected}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalUsers > 0 ? Math.round((stats.spotifyConnected / stats.totalUsers) * 100) : 0}% connection rate
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">New Today</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.newUsersToday}</div>
+              <p className="text-xs text-muted-foreground">Users registered today</p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* User Management */}
-          <Card className="glass-effect border-border/50">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center">
-                <Users className="mr-2 h-5 w-5" />
-                User Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-background/50 border-border text-foreground"
-                />
-              </div>
+        {/* User Management */}
+        <Card className="glass-effect border-border/50">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center">
+              <Database className="mr-2 h-5 w-5" />
+              User Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search users by email or name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-background/50 border-border text-foreground"
+              />
+            </div>
 
-              {/* User List */}
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-3 bg-background/30 rounded-lg">
+            {/* User List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  {searchTerm ? 'No users found matching your search.' : 'No users found.'}
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 mb-2">
                         <Mail className="h-4 w-4 text-muted-foreground" />
                         <span className="text-foreground font-medium">{user.email}</span>
                       </div>
                       {user.full_name && (
-                        <p className="text-sm text-muted-foreground mt-1">{user.full_name}</p>
+                        <p className="text-sm text-muted-foreground mb-2">{user.full_name}</p>
                       )}
-                      <div className="flex items-center space-x-2 mt-2">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          Joined {formatDate(user.created_at)}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
                         <Badge variant={user.has_active_subscription ? "default" : "secondary"}>
                           {user.has_active_subscription ? 'Premium' : 'Free'}
                         </Badge>
                         {user.spotify_connected && (
                           <Badge variant="outline" className="text-green-400 border-green-400">
+                            <Music className="mr-1 h-3 w-3" />
                             Spotify
                           </Badge>
                         )}
@@ -305,114 +372,50 @@ const Admin = () => {
                           size="sm"
                           variant="outline"
                           onClick={() => revokePremium(user.id)}
+                          disabled={actionLoading === user.id}
                           className="text-red-400 border-red-400 hover:bg-red-400/10"
                         >
-                          <X className="h-3 w-3" />
+                          {actionLoading === user.id ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <X className="h-3 w-3" />
+                          )}
                         </Button>
                       ) : (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => grantPremium(user.id)}
+                          disabled={actionLoading === user.id}
                           className="text-green-400 border-green-400 hover:bg-green-400/10"
                         >
-                          <Check className="h-3 w-3" />
+                          {actionLoading === user.id ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )}
                         </Button>
                       )}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => deleteUser(user.id, user.email)}
+                        disabled={actionLoading === user.id}
                         className="text-red-400 border-red-400 hover:bg-red-400/10"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        {actionLoading === user.id ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
                       </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* System Configuration */}
-          <Card className="glass-effect border-border/50">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center">
-                <Settings className="mr-2 h-5 w-5" />
-                System Configuration
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="app_name" className="text-foreground">App Name</Label>
-                <Input
-                  id="app_name"
-                  value={systemConfig.app_name}
-                  onChange={(e) => setSystemConfig({...systemConfig, app_name: e.target.value})}
-                  className="bg-background/50 border-border text-foreground"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="max_users" className="text-foreground">Max Users</Label>
-                <Input
-                  id="max_users"
-                  type="number"
-                  value={systemConfig.max_users}
-                  onChange={(e) => setSystemConfig({...systemConfig, max_users: parseInt(e.target.value)})}
-                  className="bg-background/50 border-border text-foreground"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="maintenance_mode"
-                  checked={systemConfig.maintenance_mode}
-                  onChange={(e) => setSystemConfig({...systemConfig, maintenance_mode: e.target.checked})}
-                  className="rounded"
-                />
-                <Label htmlFor="maintenance_mode" className="text-foreground">Maintenance Mode</Label>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-foreground">Enabled Features</Label>
-                <div className="space-y-2">
-                  {['spotify_integration', 'analytics', 'premium_features', 'ai_insights'].map((feature) => (
-                    <div key={feature} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={feature}
-                        checked={systemConfig.features_enabled.includes(feature)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSystemConfig({
-                              ...systemConfig,
-                              features_enabled: [...systemConfig.features_enabled, feature]
-                            });
-                          } else {
-                            setSystemConfig({
-                              ...systemConfig,
-                              features_enabled: systemConfig.features_enabled.filter(f => f !== feature)
-                            });
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <Label htmlFor={feature} className="text-foreground capitalize">
-                        {feature.replace('_', ' ')}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Button onClick={updateSystemConfig} className="w-full bg-primary hover:bg-primary/90">
-                Update Configuration
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
