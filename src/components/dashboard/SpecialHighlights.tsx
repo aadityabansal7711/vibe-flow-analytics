@@ -2,7 +2,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Music, Zap, Moon, Award, Calendar } from 'lucide-react';
+import { Sparkles, Music, Zap, Moon, Award, Calendar, TrendingUp } from 'lucide-react';
 import FeatureCard from '@/components/FeatureCard';
 
 interface SpotifyTrack {
