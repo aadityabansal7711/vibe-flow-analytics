@@ -26,9 +26,13 @@ interface SpotifyTrack {
   id: string;
   name: string;
   artists: Array<{ name: string }>;
-  album: { name: string };
+  album: { name: string; images: { url: string }[] };
   duration_ms: number;
   played_at?: string;
+  popularity: number;
+  preview_url?: string;
+  external_urls: { spotify: string };
+  uri: string;
 }
 
 const Dashboard = () => {
@@ -124,7 +128,7 @@ const Dashboard = () => {
     if (tracks.length === 0) return 15;
     
     // Estimate based on track duration vs average listening time
-    const avgDuration = tracks.reduce((sum, track) => sum + track.duration_ms, 0) / tracks.length;
+    const avgDuration = tracks.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / tracks.length;
     const estimatedListenTime = avgDuration * 0.7; // Assume 70% listen rate
     const skipRate = ((avgDuration - estimatedListenTime) / avgDuration) * 100;
     
