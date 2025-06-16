@@ -69,6 +69,42 @@ export type Database = {
         }
         Relationships: []
       }
+      giveaways: {
+        Row: {
+          created_at: string
+          gift_image_url: string | null
+          gift_name: string
+          gift_price: number
+          id: string
+          is_active: boolean
+          updated_at: string
+          winner_user_id: string | null
+          withdrawal_date: string
+        }
+        Insert: {
+          created_at?: string
+          gift_image_url?: string | null
+          gift_name: string
+          gift_price: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          winner_user_id?: string | null
+          withdrawal_date: string
+        }
+        Update: {
+          created_at?: string
+          gift_image_url?: string | null
+          gift_name?: string
+          gift_price?: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          winner_user_id?: string | null
+          withdrawal_date?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
