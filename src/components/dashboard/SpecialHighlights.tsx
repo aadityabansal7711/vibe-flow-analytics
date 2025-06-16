@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Music, Zap, Moon, Award, Calendar, TrendingUp } from 'lucide-react';
+import { Music, Zap, Moon, Award, TrendingUp } from 'lucide-react';
 import FeatureCard from '@/components/FeatureCard';
 
 interface SpotifyTrack {
@@ -45,60 +44,46 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
   hasActiveSubscription,
   onGeneratePlaylist
 }) => {
-  // Find hidden gems (low popularity but high personal play count)
   const getHiddenGem = () => {
     const hiddenGems = topTracks.filter(track => track.popularity < 50);
     return hiddenGems[0] || topTracks[Math.floor(Math.random() * topTracks.length)];
   };
 
   const getLateNightTracks = () => {
-  const lateNightMap: Record<string, { count: number; track: SpotifyTrack }> = {};
-
-  recentlyPlayed.forEach((track) => {
-    if (!track.played_at) return;
-    const hour = new Date(track.played_at).getHours();
-    if (hour >= 22 || hour <= 4) {
-      const key = track.name + ' - ' + track.artists[0]?.name;
-      if (lateNightMap[key]) {
-        lateNightMap[key].count += 1;
-      } else {
-        lateNightMap[key] = { count: 1, track };
+    const lateNightMap: { [key: string]: number } = {};
+    recentlyPlayed.forEach(track => {
+      if (!track.played_at) return;
+      const hour = new Date(track.played_at).getHours();
+      if (hour >= 22 || hour <= 4) {
+        lateNightMap[track.name] = (lateNightMap[track.name] || 0) + 1;
       }
-    }
-  });
+    });
 
-  const sortedTracks = Object.values(lateNightMap)
-    .sort((a, b) => b.count - a.count)
-    .map((entry) => entry.track);
-
-  return sortedTracks.slice(0, 3);
-};
-
-
- const getListeningMilestones = () => {
-  const allTracks = [...recentlyPlayed, ...topTracks];
-  const trackCount = allTracks.length;
-
-  const getDateForMilestone = (index: number) => {
-    const sorted = allTracks
-      .filter(t => t.played_at)
-      .sort((a, b) => new Date(a.played_at!).getTime() - new Date(b.played_at!).getTime());
-
-    if (sorted[index]) {
-      const date = new Date(sorted[index].played_at!);
-      return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-    }
-    return '—';
+    return Object.entries(lateNightMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([trackName]) => recentlyPlayed.find(t => t.name === trackName)!);
   };
 
-  return [
-    { milestone: 'First Track', date: getDateForMilestone(0), achieved: trackCount >= 1 },
-    { milestone: '100th Song', date: getDateForMilestone(99), achieved: trackCount >= 100 },
-    { milestone: '500th Song', date: getDateForMilestone(499), achieved: trackCount >= 500 },
-    { milestone: '1000th Song', date: getDateForMilestone(999), achieved: trackCount >= 1000 },
-  ];
-};
+  const getListeningMilestones = () => {
+    const allTracks = [...topTracks, ...recentlyPlayed]
+      .filter(track => track.played_at)
+      .sort((a, b) => new Date(a.played_at!).getTime() - new Date(b.played_at!).getTime());
 
+    const getDate = (index: number) =>
+      allTracks[index]?.played_at
+        ? new Date(allTracks[index].played_at!).toLocaleDateString('en-IN', {
+            month: 'short', year: 'numeric'
+          })
+        : '—';
+
+    return [
+      { milestone: 'First Track', date: getDate(0), achieved: allTracks.length >= 1 },
+      { milestone: '100th Song', date: getDate(99), achieved: allTracks.length >= 100 },
+      { milestone: '500th Song', date: getDate(499), achieved: allTracks.length >= 500 },
+      { milestone: '1000th Song', date: getDate(999), achieved: allTracks.length >= 1000 },
+    ];
+  };
 
   const hiddenGem = getHiddenGem();
   const lateNightTracks = getLateNightTracks();
@@ -106,7 +91,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {/* AI Playlist Generator - Premium */}
+      {/* AI Playlist Generator */}
       <FeatureCard
         title="Make Playlist from Listening"
         description="AI-generated playlists based on your taste"
@@ -129,7 +114,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         </div>
       </FeatureCard>
 
-      {/* Hidden Gem - Premium */}
+      {/* Hidden Gem */}
       <FeatureCard
         title="Hidden Gem Discovery"
         description="Most played underrated track"
@@ -148,7 +133,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         )}
       </FeatureCard>
 
-      {/* Late Night Repeat Offenders - Premium */}
+      {/* Late Night Repeat Offenders */}
       <FeatureCard
         title="Late Night Repeat Offenders"
         description="Songs often repeated late night"
@@ -157,7 +142,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
       >
         <div className="space-y-2">
           {lateNightTracks.length > 0 ? (
-            lateNightTracks.map((track, index) => (
+            lateNightTracks.map((track) => (
               <div key={track.id} className="text-center">
                 <p className="text-sm font-medium text-foreground truncate">{track.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{track.artists[0]?.name}</p>
@@ -172,7 +157,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         </div>
       </FeatureCard>
 
-      {/* Listening Milestones - Premium */}
+      {/* Listening Milestones Timeline */}
       <FeatureCard
         title="Listening Milestones Timeline"
         description="Your musical journey markers"
@@ -196,7 +181,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         </div>
       </FeatureCard>
 
-      {/* Sleeper Hits - Premium */}
+      {/* Sleeper Hits */}
       <FeatureCard
         title="Sleeper Hits"
         description="Songs that grew on you over time"
@@ -204,7 +189,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         isLocked={isLocked}
       >
         <div className="space-y-3">
-          {topTracks.slice(3, 6).map((track, index) => (
+          {topTracks.slice(3, 6).map((track) => (
             <div key={track.id} className="text-center">
               <p className="text-sm font-medium text-foreground truncate">{track.name}</p>
               <p className="text-xs text-muted-foreground truncate">{track.artists[0]?.name}</p>
