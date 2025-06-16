@@ -2,12 +2,12 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Music, User, Crown } from 'lucide-react';
+import { Music, User, Crown, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 
 const SpotifyConnect = () => {
-  const { user, profile, connectSpotify, loading } = useAuth();
+  const { user, profile, connectSpotify, loading, isUnlocked } = useAuth();
 
   if (loading) {
     return (
@@ -58,6 +58,17 @@ const SpotifyConnect = () => {
           <div className="text-center text-sm text-muted-foreground">
             Your Spotify account is successfully connected. Enjoy your personalized music insights!
           </div>
+          {isUnlocked && (
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex items-center space-x-2 text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-medium">Premium Account Notice</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Premium users cannot disconnect their Spotify account to ensure continuous access to advanced analytics and features.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -104,6 +115,13 @@ const SpotifyConnect = () => {
           We'll redirect you to Spotify to authorize access to your music data. 
           Your data is kept private and secure.
         </p>
+        
+        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <p className="text-xs text-blue-400 text-center">
+            <strong>Note:</strong> Free users can connect and disconnect Spotify anytime. 
+            Premium users cannot disconnect to ensure continuous access to advanced features.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

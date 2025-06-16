@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,7 +73,7 @@ const Auth = () => {
       // Send password reset request to Supabase
       // @ts-ignore - resetPasswordForEmail is part of supabase.auth
       const { supabase } = await import('@/integrations/supabase/client');
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/auth' });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/forgot-password' });
       if (error) {
         setError(error.message || "Failed to send reset email");
       } else {
@@ -95,7 +96,7 @@ const Auth = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-3">
             <div className="relative">
-              <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10" />
+              <img src="/lovable-uploads/7ff9a618-2e78-44bd-be12-56d460d9c38c.png" alt="MyVibeLytics" className="h-12 w-12" />
             </div>
             <span className="text-3xl font-bold text-gradient">MyVibeLytics</span>
           </Link>
@@ -198,7 +199,7 @@ const Auth = () => {
                   disabled={isResetting}
                   type="button"
                 >
-                  {isResetting ? "Sending reset email..." : "Forgot Password (Email)?"}
+                  {isResetting ? "Sending reset email..." : "Forgot Password?"}
                 </button>
               </div>
             )}

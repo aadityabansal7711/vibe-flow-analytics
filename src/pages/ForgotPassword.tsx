@@ -27,13 +27,19 @@ const ForgotPassword: React.FC = () => {
 
   useEffect(() => {
     if (!accessToken) {
-      setError("No access token found. Please use the password reset link in your email.");
+      setError("Invalid or expired reset link. Please request a new password reset.");
     }
   }, [accessToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!accessToken) {
+      setError("Invalid or expired reset link. Please request a new password reset.");
+      return;
+    }
+    
     if (!password || !confirm) {
       setError('Please fill out both fields.');
       return;
@@ -42,6 +48,11 @@ const ForgotPassword: React.FC = () => {
       setError('Passwords do not match.');
       return;
     }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
@@ -53,10 +64,15 @@ const ForgotPassword: React.FC = () => {
       const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Set session with the one-time access token
-      await supabase.auth.setSession({
-        access_token: accessToken!,
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
         refresh_token: '',
       });
+
+      if (sessionError) {
+        setError("Invalid or expired reset link. Please request a new password reset.");
+        return;
+      }
 
       // Use access token to update the user's password
       const { error: updateError } = await supabase.auth.updateUser({
@@ -68,8 +84,8 @@ const ForgotPassword: React.FC = () => {
       } else {
         setSuccess(true);
         toast({
-          title: 'Password reset!',
-          description: "Your password has been updated, please log in.",
+          title: 'Password reset successful!',
+          description: "Your password has been updated. Redirecting to login...",
         });
         setTimeout(() => navigate('/auth'), 2000);
       }
@@ -86,7 +102,7 @@ const ForgotPassword: React.FC = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-3">
             <div className="relative">
-              <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10" />
+              <img src="/lovable-uploads/7ff9a618-2e78-44bd-be12-56d460d9c38c.png" alt="MyVibeLytics" className="h-12 w-12" />
             </div>
             <span className="text-3xl font-bold text-gradient">MyVibeLytics</span>
           </Link>
