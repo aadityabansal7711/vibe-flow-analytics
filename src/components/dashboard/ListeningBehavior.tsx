@@ -151,24 +151,33 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       <FeatureCard
-        title="Time of Day Preference"
-        description="When you listen the most"
-        icon={<Clock className="h-4 w-4 text-yellow-400" />}
-        isLocked={isLocked}
-      >
-        <Badge variant="outline" className="text-yellow-400 border-yellow-400 mb-3">
-          {timeData.preference}
-        </Badge>
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={timeData.data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey="label" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-            <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-            <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }} />
-            <Bar dataKey="plays" fill="#F59E0B" />
-          </BarChart>
-        </ResponsiveContainer>
-      </FeatureCard>
+  title="Time of Day Preference"
+  description="When you listen the most"
+  icon={<Clock className="h-4 w-4 text-yellow-400" />}
+  isLocked={isLocked}
+>
+  <Badge variant="outline" className="text-yellow-400 border-yellow-400 mb-3">
+    {timeData.preference}
+  </Badge>
+  {timeData.data.reduce((sum, d) => sum + d.plays, 0) === 0 ? (
+    <div className="text-sm text-muted-foreground">
+      Not enough data to determine time of day preference.
+    </div>
+  ) : (
+    <ul className="text-sm space-y-1 text-yellow-300">
+      {timeData.data.map(slot => {
+        const totalPlays = timeData.data.reduce((sum, s) => sum + s.plays, 0);
+        const percent = ((slot.plays / totalPlays) * 100).toFixed(1);
+        return (
+          <li key={slot.label}>
+            {slot.label}: {percent}%
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</FeatureCard>
+
 
       <FeatureCard
         title="Weekday vs Weekend"
@@ -191,13 +200,16 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
       </FeatureCard>
 
       <FeatureCard
-        title="Skips vs Completions"
-        description="Estimated skip rate"
-        icon={<SkipForward className="h-4 w-4 text-orange-400" />}
-        isLocked={isLocked}
-      >
-        <div className="text-center text-xl text-orange-400 font-semibold">{skip}% Skip Rate</div>
-      </FeatureCard>
+  title="Skips vs Completions"
+  description="Estimated skip rate"
+  icon={<SkipForward className="h-4 w-4 text-orange-400" />}
+  isLocked={isLocked}
+>
+  <div className="text-center text-3xl text-orange-400 font-semibold">
+    {Math.round(skip)}% Skip Rate
+  </div>
+</FeatureCard>
+
 
       <FeatureCard
         title="Replay Value"
