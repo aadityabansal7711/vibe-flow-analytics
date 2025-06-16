@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FeatureCard } from "@/components/FeatureCard";
+import FeatureCard from "@/components/FeatureCard";
 import { 
   Music, 
   BarChart3, 
