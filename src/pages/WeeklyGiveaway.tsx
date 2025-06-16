@@ -14,7 +14,8 @@ import {
   Trophy,
   ArrowLeft,
   Sparkles,
-  Users
+  Users,
+  AlertCircle
 } from 'lucide-react';
 
 interface Giveaway {
@@ -32,6 +33,7 @@ const WeeklyGiveaway = () => {
   const { user, profile } = useAuth();
   const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGiveaways();
@@ -39,19 +41,24 @@ const WeeklyGiveaway = () => {
 
   const fetchGiveaways = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      setError(null);
+      
+      const { data, error: fetchError } = await supabase
         .from('giveaways')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching giveaways:', error);
+      if (fetchError) {
+        console.error('Error fetching giveaways:', fetchError);
+        setError('Failed to load giveaways. Please try again later.');
         return;
       }
       
       setGiveaways(data || []);
     } catch (error) {
       console.error('Error fetching giveaways:', error);
+      setError('Failed to load giveaways. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -61,13 +68,17 @@ const WeeklyGiveaway = () => {
   const pastGiveaways = giveaways.filter(g => !g.is_active);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
 
   const isEligible = user && profile?.has_active_subscription;
@@ -92,7 +103,7 @@ const WeeklyGiveaway = () => {
             <Link to="/">
               <Button variant="outline" className="border-border text-foreground hover:bg-muted">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
+                Back to Dashboard
               </Button>
             </Link>
             <div className="flex items-center space-x-2">
@@ -109,6 +120,20 @@ const WeeklyGiveaway = () => {
             </Link>
           )}
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <Card className="glass-effect border-red-500/50 mb-8">
+            <CardContent className="p-6 text-center">
+              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-foreground mb-2">Error Loading Giveaways</h2>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={fetchGiveaways} variant="outline">
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Eligibility Status */}
         {!user ? (
@@ -190,6 +215,9 @@ const WeeklyGiveaway = () => {
                         src={giveaway.gift_image_url} 
                         alt={giveaway.gift_name}
                         className="w-full h-48 object-cover rounded-lg mb-4"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
                       />
                     )}
                     <div className="flex items-center text-muted-foreground text-sm mb-4">
@@ -257,7 +285,7 @@ const WeeklyGiveaway = () => {
         )}
 
         {/* No Giveaways */}
-        {giveaways.length === 0 && (
+        {giveaways.length === 0 && !error && (
           <Card className="glass-effect border-border/50">
             <CardContent className="p-12 text-center">
               <Gift className="h-16 w-16 text-muted-foreground mx-auto mb-4" />

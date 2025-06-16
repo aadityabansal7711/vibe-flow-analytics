@@ -85,12 +85,15 @@ const Admin = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      setMessage('');
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
+        console.error('Error fetching users:', error);
         setMessage('Error fetching users: ' + error.message);
         setUsers([]);
         return;
@@ -103,8 +106,9 @@ const Admin = () => {
       }
       
       setUsers(data);
-      setMessage('');
+      setMessage('Users loaded successfully');
     } catch (error: any) {
+      console.error('Error in fetchUsers:', error);
       setMessage('Error fetching users: ' + error.message);
       setUsers([]);
     } finally {
@@ -121,20 +125,27 @@ const Admin = () => {
 
       if (error) {
         console.error('Error fetching giveaways:', error);
+        setMessage('Error fetching giveaways: ' + error.message);
         return;
       }
       
       setGiveaways(data || []);
     } catch (error) {
       console.error('Error fetching giveaways:', error);
+      setMessage('Error fetching giveaways');
     }
   };
 
   const fetchStats = async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('has_active_subscription, spotify_connected, created_at');
+
+      if (error) {
+        console.error('Error fetching stats:', error);
+        return;
+      }
 
       if (data) {
         const today = new Date();
@@ -248,6 +259,13 @@ const Admin = () => {
   const createGiveaway = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setMessage('');
+      
+      if (!giveawayForm.gift_name || !giveawayForm.gift_price || !giveawayForm.withdrawal_date) {
+        setMessage('Please fill in all required fields');
+        return;
+      }
+
       const { error } = await supabase
         .from('giveaways')
         .insert({
@@ -259,6 +277,7 @@ const Admin = () => {
         });
 
       if (error) {
+        console.error('Error creating giveaway:', error);
         setMessage('Error creating giveaway: ' + error.message);
         return;
       }
@@ -268,19 +287,29 @@ const Admin = () => {
       setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' });
       await fetchGiveaways();
     } catch (error: any) {
+      console.error('Error creating giveaway:', error);
       setMessage('Error creating giveaway: ' + error.message);
     }
   };
 
   const selectRandomWinner = async (giveawayId: string) => {
     try {
+      setMessage('');
+      
       const premiumUsers = users.filter(u => u.has_active_subscription);
+      
+      if (premiumUsers.length === 0) {
+        setMessage('No premium users available for this giveaway');
+        return;
+      }
+
+      // Filter out users who have already won giveaways
       const eligibleUsers = premiumUsers.filter(user => {
-        return !giveaways.some(g => g.winner_user_id === user.user_id);
+        return !giveaways.some(g => g.winner_user_id === user.user_id && g.id !== giveawayId);
       });
 
       if (eligibleUsers.length === 0) {
-        setMessage('No eligible users for this giveaway');
+        setMessage('No eligible users for this giveaway (all premium users have already won)');
         return;
       }
 
@@ -295,13 +324,15 @@ const Admin = () => {
         .eq('id', giveawayId);
 
       if (error) {
+        console.error('Error selecting winner:', error);
         setMessage('Error selecting winner: ' + error.message);
         return;
       }
 
-      setMessage(`Winner selected: ${randomWinner.email}`);
+      setMessage(`Winner selected: ${randomWinner.email || randomWinner.full_name}`);
       await fetchGiveaways();
     } catch (error: any) {
+      console.error('Error selecting winner:', error);
       setMessage('Error selecting winner: ' + error.message);
     }
   };
@@ -417,7 +448,7 @@ const Admin = () => {
             <CardTitle className="text-foreground flex items-center justify-between">
               <div className="flex items-center">
                 <Gift className="mr-2 h-5 w-5" />
-                Weekly Giveaways
+                Weekly Giveaways ({giveaways.length})
               </div>
               <Button onClick={() => setShowGiveawayForm(!showGiveawayForm)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -430,35 +461,40 @@ const Admin = () => {
               <form onSubmit={createGiveaway} className="mb-6 p-4 bg-background/30 rounded-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="gift_name">Gift Name</Label>
+                    <Label htmlFor="gift_name">Gift Name *</Label>
                     <Input
                       id="gift_name"
                       value={giveawayForm.gift_name}
                       onChange={(e) => setGiveawayForm({...giveawayForm, gift_name: e.target.value})}
+                      placeholder="Enter gift name"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="gift_price">Gift Price ($)</Label>
+                    <Label htmlFor="gift_price">Gift Price ($) *</Label>
                     <Input
                       id="gift_price"
                       type="number"
                       step="0.01"
+                      min="0"
                       value={giveawayForm.gift_price}
                       onChange={(e) => setGiveawayForm({...giveawayForm, gift_price: e.target.value})}
+                      placeholder="0.00"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="gift_image_url">Gift Image URL</Label>
+                    <Label htmlFor="gift_image_url">Gift Image URL (optional)</Label>
                     <Input
                       id="gift_image_url"
+                      type="url"
                       value={giveawayForm.gift_image_url}
                       onChange={(e) => setGiveawayForm({...giveawayForm, gift_image_url: e.target.value})}
+                      placeholder="https://example.com/image.jpg"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="withdrawal_date">Withdrawal Date</Label>
+                    <Label htmlFor="withdrawal_date">Withdrawal Date *</Label>
                     <Input
                       id="withdrawal_date"
                       type="datetime-local"
@@ -478,30 +514,42 @@ const Admin = () => {
             )}
 
             <div className="space-y-3">
-              {giveaways.map((giveaway) => (
-                <div key={giveaway.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
-                  <div className="flex-1">
-                    <h3 className="text-foreground font-medium">{giveaway.gift_name}</h3>
-                    <p className="text-muted-foreground text-sm">${giveaway.gift_price}</p>
-                    <p className="text-muted-foreground text-xs">
-                      Withdrawal: {formatDate(giveaway.withdrawal_date)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={giveaway.is_active ? "default" : "secondary"}>
-                      {giveaway.is_active ? 'Active' : 'Completed'}
-                    </Badge>
-                    {giveaway.is_active && (
-                      <Button
-                        size="sm"
-                        onClick={() => selectRandomWinner(giveaway.id)}
-                      >
-                        Select Winner
-                      </Button>
-                    )}
-                  </div>
+              {giveaways.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Gift className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No giveaways created yet. Create your first giveaway above!</p>
                 </div>
-              ))}
+              ) : (
+                giveaways.map((giveaway) => (
+                  <div key={giveaway.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
+                    <div className="flex-1">
+                      <h3 className="text-foreground font-medium">{giveaway.gift_name}</h3>
+                      <p className="text-muted-foreground text-sm">${giveaway.gift_price}</p>
+                      <p className="text-muted-foreground text-xs">
+                        Withdrawal: {formatDate(giveaway.withdrawal_date)}
+                      </p>
+                      {giveaway.winner_user_id && (
+                        <p className="text-green-400 text-xs">
+                          Winner: {users.find(u => u.user_id === giveaway.winner_user_id)?.email || 'Unknown user'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={giveaway.is_active ? "default" : "secondary"}>
+                        {giveaway.is_active ? 'Active' : 'Completed'}
+                      </Badge>
+                      {giveaway.is_active && !giveaway.winner_user_id && (
+                        <Button
+                          size="sm"
+                          onClick={() => selectRandomWinner(giveaway.id)}
+                        >
+                          Select Winner
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
