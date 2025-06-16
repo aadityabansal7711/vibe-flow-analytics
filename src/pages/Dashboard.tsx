@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSpotifyData } from '@/hooks/useSpotifyData';
+import useSpotifyData from '@/hooks/useSpotifyData';
 import { 
   Music, 
   TrendingUp, 
@@ -28,12 +28,12 @@ interface SpotifyTrack {
   artists: Array<{ name: string }>;
   album: { name: string };
   duration_ms: number;
-  played_at?: string; // Make this optional since it might not always be present
+  played_at?: string;
 }
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
-  const { topTracks, recentTracks, loading } = useSpotifyData();
+  const { topTracks, topArtists, recentlyPlayed, loading } = useSpotifyData();
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -44,25 +44,25 @@ const Dashboard = () => {
   }
 
   // Get actual data or fallback to sample data
-  const tracks = topTracks.length > 0 ? topTracks : recentTracks;
+  const tracks = topTracks.length > 0 ? topTracks : recentlyPlayed;
 
   // Time preference analysis with fallback
   const getTimePreference = () => {
-    if (recentTracks.length === 0) return 'Morning Listener';
+    if (recentlyPlayed.length === 0) return 'Morning Listener';
     
-    const morningCount = recentTracks.filter(track => {
+    const morningCount = recentlyPlayed.filter(track => {
       if (!track.played_at) return false;
       const hour = new Date(track.played_at).getHours();
       return hour >= 6 && hour < 12;
     }).length;
     
-    const afternoonCount = recentTracks.filter(track => {
+    const afternoonCount = recentlyPlayed.filter(track => {
       if (!track.played_at) return false;
       const hour = new Date(track.played_at).getHours();
       return hour >= 12 && hour < 18;
     }).length;
     
-    const eveningCount = recentTracks.filter(track => {
+    const eveningCount = recentlyPlayed.filter(track => {
       if (!track.played_at) return false;
       const hour = new Date(track.played_at).getHours();
       return hour >= 18 || hour < 6;
@@ -75,15 +75,15 @@ const Dashboard = () => {
 
   // Weekday vs Weekend analysis with fallback
   const getWeekdayPreference = () => {
-    if (recentTracks.length === 0) return 'Weekday Warrior';
+    if (recentlyPlayed.length === 0) return 'Weekday Warrior';
     
-    const weekdayTracks = recentTracks.filter(track => {
+    const weekdayTracks = recentlyPlayed.filter(track => {
       if (!track.played_at) return false;
       const day = new Date(track.played_at).getDay();
       return day >= 1 && day <= 5;
     }).length;
     
-    const weekendTracks = recentTracks.filter(track => {
+    const weekendTracks = recentlyPlayed.filter(track => {
       if (!track.played_at) return false;
       const day = new Date(track.played_at).getDay();
       return day === 0 || day === 6;
@@ -94,7 +94,7 @@ const Dashboard = () => {
 
   // Calculate listening streak with fallback
   const getListeningStreak = () => {
-    if (recentTracks.length === 0) return 7;
+    if (recentlyPlayed.length === 0) return 7;
     
     const today = new Date();
     let streak = 0;
@@ -103,7 +103,7 @@ const Dashboard = () => {
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
       
-      const hasListenedOnDay = recentTracks.some(track => {
+      const hasListenedOnDay = recentlyPlayed.some(track => {
         if (!track.played_at) return false;
         const trackDate = new Date(track.played_at);
         return trackDate.toDateString() === checkDate.toDateString();
@@ -145,13 +145,13 @@ const Dashboard = () => {
 
   // Music personality analysis
   const getMusicPersonality = () => {
-    if (tracks.length === 0) return 'The Explorer';
+    if (topArtists.length === 0) return 'The Explorer';
     
-    const genres = tracks.map(track => track.album.name.toLowerCase());
+    const genres = topArtists.flatMap(artist => artist.genres);
     const uniqueGenres = new Set(genres).size;
     
-    if (uniqueGenres > tracks.length * 0.8) return 'The Explorer';
-    if (uniqueGenres < tracks.length * 0.3) return 'The Loyalist';
+    if (uniqueGenres > genres.length * 0.8) return 'The Explorer';
+    if (uniqueGenres < genres.length * 0.3) return 'The Loyalist';
     return 'The Balanced Listener';
   };
 
@@ -197,6 +197,11 @@ const Dashboard = () => {
             <Link to="/profile">
               <Button variant="outline" className="border-border text-foreground hover:bg-muted">
                 Profile Settings
+              </Button>
+            </Link>
+            <Link to="/weekly-giveaway">
+              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
+                Weekly Giveaway
               </Button>
             </Link>
             {profile?.has_active_subscription && (
@@ -351,24 +356,35 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-background/30 rounded-lg">
-                <div className="text-xl font-bold text-foreground">35%</div>
-                <p className="text-xs text-muted-foreground">Pop</p>
+            {topArtists.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {topArtists.slice(0, 4).map((artist, index) => (
+                  <div key={artist.id} className="text-center p-4 bg-background/30 rounded-lg">
+                    <div className="text-xl font-bold text-foreground">{artist.popularity}%</div>
+                    <p className="text-xs text-muted-foreground">{artist.name}</p>
+                  </div>
+                ))}
               </div>
-              <div className="text-center p-4 bg-background/30 rounded-lg">
-                <div className="text-xl font-bold text-foreground">28%</div>
-                <p className="text-xs text-muted-foreground">Rock</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-background/30 rounded-lg">
+                  <div className="text-xl font-bold text-foreground">35%</div>
+                  <p className="text-xs text-muted-foreground">Pop</p>
+                </div>
+                <div className="text-center p-4 bg-background/30 rounded-lg">
+                  <div className="text-xl font-bold text-foreground">28%</div>
+                  <p className="text-xs text-muted-foreground">Rock</p>
+                </div>
+                <div className="text-center p-4 bg-background/30 rounded-lg">
+                  <div className="text-xl font-bold text-foreground">22%</div>
+                  <p className="text-xs text-muted-foreground">Electronic</p>
+                </div>
+                <div className="text-center p-4 bg-background/30 rounded-lg">
+                  <div className="text-xl font-bold text-foreground">15%</div>
+                  <p className="text-xs text-muted-foreground">Other</p>
+                </div>
               </div>
-              <div className="text-center p-4 bg-background/30 rounded-lg">
-                <div className="text-xl font-bold text-foreground">22%</div>
-                <p className="text-xs text-muted-foreground">Electronic</p>
-              </div>
-              <div className="text-center p-4 bg-background/30 rounded-lg">
-                <div className="text-xl font-bold text-foreground">15%</div>
-                <p className="text-xs text-muted-foreground">Other</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
