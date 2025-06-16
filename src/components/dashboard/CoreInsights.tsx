@@ -1,9 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Music, User, Album, Heart, Sparkles, Calendar } from 'lucide-react';
+import { Music, User, Album, Heart } from 'lucide-react';
 import FeatureCard from '@/components/FeatureCard';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface SpotifyTrack {
   id: string;
@@ -69,25 +66,8 @@ const CoreInsights: React.FC<CoreInsightsProps> = ({ topTracks, topArtists, rece
     return Object.values(albumCounts).sort((a: any, b: any) => b.count - a.count).slice(0, 5);
   };
 
-  const getMonthlyPlayData = () => {
-    const monthlyCounts: { [key: string]: number } = {};
-    recentlyPlayed.forEach(track => {
-      if (track.played_at) {
-        const date = new Date(track.played_at);
-        const key = date.toLocaleString('default', { month: 'short' });
-        monthlyCounts[key] = (monthlyCounts[key] || 0) + 1;
-      }
-    });
-
-    return Object.entries(monthlyCounts).map(([month, count]) => ({
-      month,
-      plays: count
-    }));
-  };
-
   const mostRepeatedRecent = getMostRepeatedInRecent();
   const topAlbums = getTopAlbums();
-  const monthlyPlayData = getMonthlyPlayData();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -169,40 +149,13 @@ const CoreInsights: React.FC<CoreInsightsProps> = ({ topTracks, topArtists, rece
         isLocked={isLocked}
       >
         {mostRepeatedRecent && (
-          <div className="text-center py-4">
-            <Heart className="h-12 w-12 text-red-400 mx-auto mb-2" />
-            <h3 className="text-white font-semibold">{mostRepeatedRecent.track?.name}</h3>
-            <p className="text-gray-300 text-sm">{mostRepeatedRecent.track?.artists[0]?.name}</p>
+          <div className="text-center py-2">
+            <Heart className="h-8 w-8 text-red-400 mx-auto mb-1" />
+            <h3 className="text-white text-base font-semibold truncate">{mostRepeatedRecent.track?.name}</h3>
+            <p className="text-gray-300 text-xs truncate">{mostRepeatedRecent.track?.artists[0]?.name}</p>
             <p className="text-red-400 text-xs mt-1">{mostRepeatedRecent.playCount} plays detected</p>
           </div>
         )}
-      </FeatureCard>
-
-      {/* Your 2024 Music Journey */}
-      <FeatureCard
-        title="Your 2024 Music Journey"
-        description="A rewind of your sonic vibe"
-        icon={<Sparkles className="h-5 w-5 text-yellow-400" />}
-        isLocked={isLocked}
-      >
-        <div className="text-center py-4 space-y-3">
-          <div className="text-3xl font-bold text-yellow-400">{topTracks.length}</div>
-          <p className="text-white">Top tracks discovered</p>
-          <div className="text-xl font-semibold text-green-400">{topArtists.length}</div>
-          <p className="text-gray-300 text-sm">Artists in rotation</p>
-          <p className="text-xs text-muted-foreground mt-2">Total Listening Time: {(recentlyPlayed.length * 3).toFixed(0)} min</p>
-          <p className="text-xs text-muted-foreground">Top Genre: Pop (sample)</p>
-        </div>
-        <div className="mt-4">
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={monthlyPlayData}>
-              <XAxis dataKey="month" stroke="#ccc" />
-              <YAxis stroke="#ccc" />
-              <Tooltip />
-              <Bar dataKey="plays" fill="#facc15" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </FeatureCard>
     </div>
   );
