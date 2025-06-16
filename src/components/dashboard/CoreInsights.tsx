@@ -38,13 +38,22 @@ interface CoreInsightsProps {
 const CoreInsights: React.FC<CoreInsightsProps> = ({ topTracks, topArtists, recentlyPlayed, isLocked }) => {
   // Find most played song of all time (using play count proxy via recently played frequency)
   const getMostPlayedSong = () => {
-    if (recentlyPlayed.length === 0) return null;
-    
-    const songCounts = recentlyPlayed.reduce((acc, track) => {
-      const key = `${track.name}-${track.artists[0]?.name}`;
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  if (topTracks.length === 0 && recentlyPlayed.length === 0) return null;
+
+  // Use topTracks[0] if available (Spotify's long-term ranking)
+  const mostPlayedTopTrack = topTracks[0];
+
+  // Estimate recent play count from recentlyPlayed
+  const recentCount = recentlyPlayed.filter(
+    t => t.name === mostPlayedTopTrack.name && t.artists[0]?.name === mostPlayedTopTrack.artists[0]?.name
+  ).length;
+
+  return {
+    track: mostPlayedTopTrack,
+    playCount: `${recentCount}+ plays (recent only)`,
+  };
+};
+
     
     const mostPlayed = Object.entries(songCounts).sort(([,a], [,b]) => b - a)[0];
     const track = recentlyPlayed.find(t => `${t.name}-${t.artists[0]?.name}` === mostPlayed[0]);
