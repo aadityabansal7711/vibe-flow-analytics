@@ -130,8 +130,10 @@ const Dashboard = () => {
       
       const playlist = await playlistResponse.json();
 
-      // Add tracks to playlist (top 25 tracks)
-      const trackUris = topTracks.slice(0, 25).map(track => track.uri).filter(Boolean);
+      // Add tracks to playlist (top 25 tracks) - with fallback for uri
+      const trackUris = topTracks.slice(0, 25)
+        .map(track => track.uri || `spotify:track:${track.id}`)
+        .filter(Boolean);
       
       if (trackUris.length > 0) {
         await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
