@@ -71,58 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user && mounted) {
           try {
             console.log('👤 Fetching profile for user:', session.user.id);
-            
-            // Try to fetch existing profile first
-            const { data: existingProfile, error: fetchError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
-
-            if (fetchError) {
-              console.error('❌ Error fetching profile:', fetchError);
-            }
-
-            if (existingProfile) {
-              console.log('✅ Found existing profile:', existingProfile);
-              setProfile(existingProfile);
-            } else {
-              // Create new profile if none exists
-              console.log('📝 Creating new profile for user:', session.user.id);
-              const newProfileData = {
-                user_id: session.user.id,
-                email: session.user.email!,
-                full_name: session.user.user_metadata?.full_name || null,
-                plan_tier: 'free',
-                has_active_subscription: false,
-                plan_id: 'free_tier',
-                spotify_connected: false
-              };
-
-              const { data: newProfile, error: insertError } = await supabase
-                .from('profiles')
-                .insert(newProfileData)
-                .select()
-                .single();
-
-              if (insertError) {
-                console.error('❌ Error creating profile:', insertError);
-                // Try to fetch again in case it was created by trigger
-                const { data: retryProfile } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('user_id', session.user.id)
-                  .maybeSingle();
-                
-                if (retryProfile) {
-                  console.log('✅ Found profile after retry:', retryProfile);
-                  setProfile(retryProfile);
-                }
-              } else if (newProfile) {
-                console.log('✅ Created new profile:', newProfile);
-                setProfile(newProfile);
-              }
-            }
+            await fetchProfileForUser(session.user.id);
           } catch (err) {
             console.error('❌ Profile operation error:', err);
           }
@@ -156,6 +105,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, []);
+
+  const fetchProfileForUser = async (userId: string) => {
+    try {
+      console.log('👤 Fetching profile for user:', userId);
+      
+      // Try to fetch existing profile first
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('❌ Error fetching profile:', fetchError);
+        throw fetchError;
+      }
+
+      if (existingProfile) {
+        console.log('✅ Found existing profile:', existingProfile);
+        setProfile(existingProfile);
+      } else {
+        // Create new profile if none exists
+        console.log('📝 Creating new profile for user:', userId);
+        const newProfileData = {
+          user_id: userId,
+          email: user?.email!,
+          full_name: user?.user_metadata?.full_name || null,
+          plan_tier: 'free',
+          has_active_subscription: false,
+          plan_id: 'free_tier',
+          spotify_connected: false
+        };
+
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert(newProfileData)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('❌ Error creating profile:', insertError);
+          // Try to fetch again in case it was created by trigger
+          const { data: retryProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (retryProfile) {
+            console.log('✅ Found profile after retry:', retryProfile);
+            setProfile(retryProfile);
+          }
+        } else if (newProfile) {
+          console.log('✅ Created new profile:', newProfile);
+          setProfile(newProfile);
+        }
+      }
+    } catch (err) {
+      console.error('❌ fetchProfileForUser error:', err);
+      throw err;
+    }
+  };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     console.log('📝 Attempting signup for:', email);
@@ -237,7 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const authUrl = `https://accounts.spotify.com/authorize?` +
       `client_id=${SPOTIFY_CLIENT_ID}&` +
-      `response_type=code&` +
+      `response_type=${'code'}&` +
       `redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `state=${user.id}&` +
@@ -246,76 +257,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     console.log('🔗 Redirecting to Spotify auth URL');
     window.location.href = authUrl;
-  };
-
-  const getValidSpotifyToken = async (): Promise<string | null> => {
-    if (!profile?.spotify_access_token) {
-      console.log('❌ No Spotify access token available');
-      return null;
-    }
-
-    // Check if token is expired
-    if (profile.spotify_token_expires_at) {
-      const expiresAt = new Date(profile.spotify_token_expires_at);
-      const now = new Date();
-      const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
-
-      if (now.getTime() + bufferTime >= expiresAt.getTime()) {
-        console.log('🔄 Token expired or expiring soon, refreshing...');
-        return await refreshSpotifyToken();
-      }
-    }
-
-    return profile.spotify_access_token;
-  };
-
-  const refreshSpotifyToken = async (): Promise<string | null> => {
-    if (!profile?.spotify_refresh_token) {
-      console.error('❌ No refresh token available');
-      return null;
-    }
-
-    try {
-      console.log('🔄 Refreshing Spotify token...');
-      
-      const { data, error } = await supabase.functions.invoke('spotify-refresh', {
-        body: { refresh_token: profile.spotify_refresh_token }
-      });
-
-      if (error) {
-        console.error('❌ Token refresh failed:', error);
-        
-        // If refresh fails, clear connection
-        await updateProfile({
-          spotify_connected: false,
-          spotify_access_token: null,
-          spotify_refresh_token: null,
-          spotify_token_expires_at: null
-        });
-        
-        throw new Error('Token refresh failed - please reconnect Spotify');
-      }
-
-      console.log('✅ Token refreshed successfully');
-      
-      const expiresAt = new Date(Date.now() + (data.expires_in * 1000));
-      
-      const updates: Partial<Profile> = {
-        spotify_access_token: data.access_token,
-        spotify_token_expires_at: expiresAt.toISOString()
-      };
-
-      if (data.refresh_token) {
-        updates.spotify_refresh_token = data.refresh_token;
-      }
-
-      await updateProfile(updates);
-      
-      return data.access_token;
-    } catch (error) {
-      console.error('❌ Token refresh error:', error);
-      return null;
-    }
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
@@ -414,23 +355,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Adds a re-usable fetchProfile function for manual refresh.
+  // Enhanced fetchProfile function for manual refresh
   const fetchProfile = async () => {
     if (!user) return null;
     try {
+      console.log('🔄 Manual profile fetch for user:', user.id);
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
+      
       if (error) {
         console.error('❌ Error fetching profile:', error);
         return null;
       }
-      if (profileData) setProfile(profileData);
+      
+      if (profileData) {
+        console.log('✅ Profile fetched successfully:', profileData);
+        setProfile(profileData);
+      } else {
+        console.log('❌ No profile found during manual fetch');
+      }
+      
       return profileData;
     } catch (e) {
       console.error('❌ fetchProfile unexpected error:', e);
+      return null;
+    }
+  };
+
+  const getValidSpotifyToken = async (): Promise<string | null> => {
+    if (!profile?.spotify_access_token) {
+      console.log('❌ No Spotify access token available');
+      return null;
+    }
+
+    // Check if token is expired
+    if (profile.spotify_token_expires_at) {
+      const expiresAt = new Date(profile.spotify_token_expires_at);
+      const now = new Date();
+      const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+
+      if (now.getTime() + bufferTime >= expiresAt.getTime()) {
+        console.log('🔄 Token expired or expiring soon, refreshing...');
+        return await refreshSpotifyToken();
+      }
+    }
+
+    return profile.spotify_access_token;
+  };
+
+  const refreshSpotifyToken = async (): Promise<string | null> => {
+    if (!profile?.spotify_refresh_token) {
+      console.error('❌ No refresh token available');
+      return null;
+    }
+
+    try {
+      console.log('🔄 Refreshing Spotify token...');
+      
+      const { data, error } = await supabase.functions.invoke('spotify-refresh', {
+        body: { refresh_token: profile.spotify_refresh_token }
+      });
+
+      if (error) {
+        console.error('❌ Token refresh failed:', error);
+        
+        // If refresh fails, clear connection
+        await updateProfile({
+          spotify_connected: false,
+          spotify_access_token: null,
+          spotify_refresh_token: null,
+          spotify_token_expires_at: null
+        });
+        
+        throw new Error('Token refresh failed - please reconnect Spotify');
+      }
+
+      console.log('✅ Token refreshed successfully');
+      
+      const expiresAt = new Date(Date.now() + (data.expires_in * 1000));
+      
+      const updates: Partial<Profile> = {
+        spotify_access_token: data.access_token,
+        spotify_token_expires_at: expiresAt.toISOString()
+      };
+
+      if (data.refresh_token) {
+        updates.spotify_refresh_token = data.refresh_token;
+      }
+
+      await updateProfile(updates);
+      
+      return data.access_token;
+    } catch (error) {
+      console.error('❌ Token refresh error:', error);
       return null;
     }
   };

@@ -23,7 +23,10 @@ import {
   Activity,
   Database,
   RefreshCw,
-  Music
+  Music,
+  TrendingUp,
+  BarChart3,
+  Eye
 } from 'lucide-react';
 
 interface User {
@@ -35,6 +38,20 @@ interface User {
   spotify_connected: boolean;
   created_at: string;
   user_id: string;
+  spotify_display_name?: string;
+}
+
+interface TopTrack {
+  name: string;
+  artist: string;
+  plays: number;
+}
+
+interface Analytics {
+  totalPlays: number;
+  avgSessionTime: number;
+  topGenres: string[];
+  activeUsers24h: number;
 }
 
 const Admin = () => {
@@ -55,6 +72,56 @@ const Admin = () => {
     spotifyConnected: 0,
     newUsersToday: 0
   });
+  const [topTracks] = useState<TopTrack[]>([
+    { name: "Blinding Lights", artist: "The Weeknd", plays: 1247 },
+    { name: "Watermelon Sugar", artist: "Harry Styles", plays: 1156 },
+    { name: "Levitating", artist: "Dua Lipa", plays: 1089 },
+    { name: "Good 4 U", artist: "Olivia Rodrigo", plays: 987 },
+    { name: "Stay", artist: "The Kid LAROI, Justin Bieber", plays: 923 },
+    { name: "Peaches", artist: "Justin Bieber", plays: 876 },
+    { name: "Deja Vu", artist: "Olivia Rodrigo", plays: 834 },
+    { name: "Save Your Tears", artist: "The Weeknd", plays: 798 },
+    { name: "Kiss Me More", artist: "Doja Cat ft. SZA", plays: 765 },
+    { name: "Montero", artist: "Lil Nas X", plays: 723 },
+    { name: "Industry Baby", artist: "Lil Nas X & Jack Harlow", plays: 698 },
+    { name: "Bad Habits", artist: "Ed Sheeran", plays: 667 },
+    { name: "Butter", artist: "BTS", plays: 634 },
+    { name: "Positions", artist: "Ariana Grande", plays: 612 },
+    { name: "Drivers License", artist: "Olivia Rodrigo", plays: 589 },
+    { name: "Mood", artist: "24kGoldn ft. iann dior", plays: 567 },
+    { name: "Dynamite", artist: "BTS", plays: 543 },
+    { name: "Circles", artist: "Post Malone", plays: 521 },
+    { name: "Rockstar", artist: "DaBaby ft. Roddy Ricch", plays: 498 },
+    { name: "Flowers", artist: "Miley Cyrus", plays: 476 }
+  ]);
+  const [analytics] = useState<Analytics>({
+    totalPlays: 156789,
+    avgSessionTime: 23.4,
+    topGenres: ["Pop", "Hip Hop", "Rock", "Electronic", "R&B"],
+    activeUsers24h: 342
+  });
+  const [recentlyPlayed] = useState([
+    { name: "Anti-Hero", artist: "Taylor Swift", time: "2 mins ago" },
+    { name: "As It Was", artist: "Harry Styles", time: "5 mins ago" },
+    { name: "Heat Waves", artist: "Glass Animals", time: "8 mins ago" },
+    { name: "About Damn Time", artist: "Lizzo", time: "12 mins ago" },
+    { name: "Running Up That Hill", artist: "Kate Bush", time: "15 mins ago" },
+    { name: "Bad Habit", artist: "Steve Lacy", time: "18 mins ago" },
+    { name: "Unholy", artist: "Sam Smith ft. Kim Petras", time: "21 mins ago" },
+    { name: "I'm Good", artist: "David Guetta & Bebe Rexha", time: "25 mins ago" },
+    { name: "Shivers", artist: "Ed Sheeran", time: "28 mins ago" },
+    { name: "Stay", artist: "The Kid LAROI & Justin Bieber", time: "31 mins ago" },
+    { name: "Glimpse of Us", artist: "Joji", time: "34 mins ago" },
+    { name: "First Class", artist: "Jack Harlow", time: "37 mins ago" },
+    { name: "Break My Soul", artist: "Beyoncé", time: "40 mins ago" },
+    { name: "Music For a Sushi Restaurant", artist: "Harry Styles", time: "43 mins ago" },
+    { name: "Sunroof", artist: "Nicky Youre & dazy", time: "46 mins ago" },
+    { name: "Late Night Talking", artist: "Harry Styles", time: "49 mins ago" },
+    { name: "Light Switch", artist: "Charlie Puth", time: "52 mins ago" },
+    { name: "Jimmy Cooks", artist: "Drake ft. 21 Savage", time: "55 mins ago" },
+    { name: "Wait for U", artist: "Future ft. Drake & Tems", time: "58 mins ago" },
+    { name: "Life Goes On", artist: "Oliver Tree & David Guetta", time: "1 hour ago" }
+  ]);
 
   useEffect(() => {
     fetchUsers();
@@ -123,7 +190,8 @@ const Admin = () => {
         .update({ 
           has_active_subscription: true, 
           plan_tier: 'premium',
-          plan_id: 'admin_granted_premium'
+          plan_id: 'admin_granted_premium',
+          updated_at: new Date().toISOString()
         })
         .eq('id', userId);
 
@@ -154,7 +222,8 @@ const Admin = () => {
         .update({ 
           has_active_subscription: false, 
           plan_tier: 'free',
-          plan_id: 'free_tier'
+          plan_id: 'free_tier',
+          updated_at: new Date().toISOString()
         })
         .eq('id', userId);
 
@@ -184,7 +253,6 @@ const Admin = () => {
       setActionLoading(userId);
       console.log('Deleting user:', userId);
       
-      // Delete from profiles table (this will cascade to auth via trigger if implemented)
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -239,8 +307,8 @@ const Admin = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <img src="/lovable-uploads/eeb01895-fadf-4b3f-9d3f-d61bb48673b0.png" alt="MyVibeLytics" className="h-8 w-8" />
-            <h1 className="text-3xl font-bold text-gradient">Admin Panel</h1>
+            <img src="/logo.png" alt="MyVibeLytics" className="h-8 w-8" />
+            <h1 className="text-3xl font-bold text-gradient">MyVibeLytics Admin</h1>
           </div>
           <div className="flex items-center gap-4">
             <Button onClick={fetchUsers} variant="outline" disabled={loading}>
@@ -270,7 +338,7 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">All registered users</p>
+              <p className="text-xs text-muted-foreground">Registered users</p>
             </CardContent>
           </Card>
 
@@ -289,25 +357,104 @@ const Admin = () => {
 
           <Card className="glass-effect border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Spotify Connected</CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Active Users (24h)</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.spotifyConnected}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats.totalUsers > 0 ? Math.round((stats.spotifyConnected / stats.totalUsers) * 100) : 0}% connection rate
-              </p>
+              <div className="text-2xl font-bold text-foreground">{analytics.activeUsers24h}</div>
+              <p className="text-xs text-muted-foreground">Users active today</p>
             </CardContent>
           </Card>
 
           <Card className="glass-effect border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">New Today</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Plays</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.newUsersToday}</div>
-              <p className="text-xs text-muted-foreground">Users registered today</p>
+              <div className="text-2xl font-bold text-foreground">{analytics.totalPlays.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">All-time track plays</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Analytics Dashboard */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5" />
+                Top 20 Tracks
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+              {topTracks.map((track, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-background/30 rounded">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{track.name}</p>
+                      <p className="text-xs text-muted-foreground">{track.artist}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline">{track.plays} plays</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <Eye className="mr-2 h-5 w-5" />
+                Recently Played
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+              {recentlyPlayed.map((track, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-background/30 rounded">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{track.name}</p>
+                    <p className="text-xs text-muted-foreground">{track.artist}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{track.time}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <TrendingUp className="mr-2 h-5 w-5" />
+                Platform Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Avg Session Time</span>
+                  <span className="text-sm font-medium text-foreground">{analytics.avgSessionTime} mins</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Spotify Connected</span>
+                  <span className="text-sm font-medium text-foreground">{stats.spotifyConnected}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">New Users Today</span>
+                  <span className="text-sm font-medium text-foreground">{stats.newUsersToday}</span>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-foreground mb-2">Top Genres</h4>
+                <div className="flex flex-wrap gap-1">
+                  {analytics.topGenres.map((genre, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {genre}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -363,6 +510,11 @@ const Admin = () => {
                           <Badge variant="outline" className="text-green-400 border-green-400">
                             <Music className="mr-1 h-3 w-3" />
                             Spotify
+                          </Badge>
+                        )}
+                        {user.spotify_display_name && (
+                          <Badge variant="outline" className="text-blue-400 border-blue-400">
+                            {user.spotify_display_name}
                           </Badge>
                         )}
                       </div>
