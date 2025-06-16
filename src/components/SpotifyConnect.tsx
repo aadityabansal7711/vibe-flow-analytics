@@ -58,6 +58,17 @@ const SpotifyConnect = () => {
           <div className="text-center text-sm text-muted-foreground">
             Your Spotify account is successfully connected. Enjoy your personalized music insights!
           </div>
+          {isUnlocked && (
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex items-center space-x-2 text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-medium">Premium Account Notice</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Premium users cannot disconnect their Spotify account to ensure continuous access to advanced analytics and features.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -71,7 +82,7 @@ const SpotifyConnect = () => {
           Connect Your Spotify
         </CardTitle>
         <CardDescription>
-          Connect your Spotify account to get personalized music insights and analytics. You can still access the app with sample data if you prefer not to connect.
+          Connect your Spotify account to get personalized music insights and analytics
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -79,15 +90,15 @@ const SpotifyConnect = () => {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center">
               <Music className="h-8 w-8 text-green-400 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Your Tracks</p>
+              <p className="text-sm text-muted-foreground">Top Tracks</p>
             </div>
             <div className="text-center">
               <User className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Your Artists</p>
+              <p className="text-sm text-muted-foreground">Top Artists</p>
             </div>
             <div className="text-center">
               <Crown className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Real Insights</p>
+              <p className="text-sm text-muted-foreground">Premium Insights</p>
             </div>
           </div>
         </div>
@@ -107,8 +118,8 @@ const SpotifyConnect = () => {
         
         <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <p className="text-xs text-blue-400 text-center">
-            <strong>Note:</strong> You can explore the app with sample data without connecting Spotify. 
-            Connect for your personal music insights and playlist generation.
+            <strong>Note:</strong> Free users can connect and disconnect Spotify anytime. 
+            Premium users cannot disconnect to ensure continuous access to advanced features.
           </p>
         </div>
       </CardContent>

@@ -3,10 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, 
+  UserCheck, 
+  Settings, 
   Search, 
   Mail, 
   Calendar,
@@ -16,12 +21,10 @@ import {
   X,
   Shield,
   Activity,
+  Database,
   RefreshCw,
-  Music,
-  TrendingUp
+  Music
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface User {
   id: string;
@@ -32,7 +35,6 @@ interface User {
   spotify_connected: boolean;
   created_at: string;
   user_id: string;
-  spotify_display_name?: string;
 }
 
 const Admin = () => {
@@ -121,8 +123,7 @@ const Admin = () => {
         .update({ 
           has_active_subscription: true, 
           plan_tier: 'premium',
-          plan_id: 'admin_granted_premium',
-          updated_at: new Date().toISOString()
+          plan_id: 'admin_granted_premium'
         })
         .eq('id', userId);
 
@@ -153,8 +154,7 @@ const Admin = () => {
         .update({ 
           has_active_subscription: false, 
           plan_tier: 'free',
-          plan_id: 'free_tier',
-          updated_at: new Date().toISOString()
+          plan_id: 'free_tier'
         })
         .eq('id', userId);
 
@@ -184,6 +184,7 @@ const Admin = () => {
       setActionLoading(userId);
       console.log('Deleting user:', userId);
       
+      // Delete from profiles table (this will cascade to auth via trigger if implemented)
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -238,8 +239,8 @@ const Admin = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-8 w-8" />
-            <h1 className="text-3xl font-bold text-gradient">MyVibeLytics Admin</h1>
+            <img src="/lovable-uploads/eeb01895-fadf-4b3f-9d3f-d61bb48673b0.png" alt="MyVibeLytics" className="h-8 w-8" />
+            <h1 className="text-3xl font-bold text-gradient">Admin Panel</h1>
           </div>
           <div className="flex items-center gap-4">
             <Button onClick={fetchUsers} variant="outline" disabled={loading}>
@@ -269,7 +270,7 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">Registered users</p>
+              <p className="text-xs text-muted-foreground">All registered users</p>
             </CardContent>
           </Card>
 
@@ -288,51 +289,25 @@ const Admin = () => {
 
           <Card className="glass-effect border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Active Users (24h)</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Spotify Connected</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">342</div>
-              <p className="text-xs text-muted-foreground">Users active today</p>
+              <div className="text-2xl font-bold text-foreground">{stats.spotifyConnected}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalUsers > 0 ? Math.round((stats.spotifyConnected / stats.totalUsers) * 100) : 0}% connection rate
+              </p>
             </CardContent>
           </Card>
 
           <Card className="glass-effect border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Plays</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">New Today</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">156,789</div>
-              <p className="text-xs text-muted-foreground">All-time track plays</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Platform Analytics Only */}
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
-          <Card className="glass-effect border-border/50">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center">
-                <TrendingUp className="mr-2 h-5 w-5" />
-                Platform Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Avg Session Time</span>
-                  <span className="text-sm font-medium text-foreground">23.4 mins</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Spotify Connected</span>
-                  <span className="text-sm font-medium text-foreground">{stats.spotifyConnected}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">New Users Today</span>
-                  <span className="text-sm font-medium text-foreground">{stats.newUsersToday}</span>
-                </div>
-              </div>
+              <div className="text-2xl font-bold text-foreground">{stats.newUsersToday}</div>
+              <p className="text-xs text-muted-foreground">Users registered today</p>
             </CardContent>
           </Card>
         </div>
@@ -341,7 +316,7 @@ const Admin = () => {
         <Card className="glass-effect border-border/50">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center">
-              <Users className="mr-2 h-5 w-5" />
+              <Database className="mr-2 h-5 w-5" />
               User Management
             </CardTitle>
           </CardHeader>
@@ -388,11 +363,6 @@ const Admin = () => {
                           <Badge variant="outline" className="text-green-400 border-green-400">
                             <Music className="mr-1 h-3 w-3" />
                             Spotify
-                          </Badge>
-                        )}
-                        {user.spotify_display_name && (
-                          <Badge variant="outline" className="text-blue-400 border-blue-400">
-                            {user.spotify_display_name}
                           </Badge>
                         )}
                       </div>

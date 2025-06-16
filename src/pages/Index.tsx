@@ -1,80 +1,88 @@
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import FeatureCard from "@/components/FeatureCard";
-import { 
-  Music, 
-  BarChart3, 
-  Users, 
-  Sparkles, 
-  TrendingUp, 
-  Heart,
-  Star,
-  Play,
-  Headphones,
-  Mic,
-  Radio,
-  Volume2
-} from "lucide-react";
 
-const Index = () => {
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
+import { 
+  Play, 
+  TrendingUp, 
+  Users, 
+  BarChart3, 
+  Music, 
+  Star, 
+  Clock, 
+  Heart,
+  Sparkles,
+  Crown,
+  Shield,
+  ArrowRight,
+  CheckCircle
+} from "lucide-react";
+import { Instagram } from "lucide-react";
+
+export default function Index() {
   const features = [
     {
-      icon: <BarChart3 className="h-8 w-8 text-green-400" />,
-      title: "Advanced Analytics",
-      description: "Deep insights into your listening habits, top genres, and music discovery patterns.",
-      isLocked: false
+      icon: <Music className="h-8 w-8 text-primary" />,
+      title: "Top Tracks & Artists",
+      description: "Discover your most played songs and favorite artists with detailed listening statistics"
     },
     {
-      icon: <TrendingUp className="h-8 w-8 text-blue-400" />,
-      title: "Trend Analysis", 
-      description: "Track how your music taste evolves over time with detailed trend reports.",
-      isLocked: false
+      icon: <TrendingUp className="h-8 w-8 text-green-400" />,
+      title: "Listening Trends",
+      description: "Track your music habits over time with beautiful charts and analytics"
     },
     {
-      icon: <Sparkles className="h-8 w-8 text-purple-400" />,
-      title: "AI-Powered Insights",
-      description: "Get personalized recommendations and insights powered by advanced AI algorithms.",
-      isLocked: false
+      icon: <BarChart3 className="h-8 w-8 text-blue-400" />,
+      title: "Genre Distribution",
+      description: "See your musical taste breakdown across different genres and moods"
     },
     {
-      icon: <Users className="h-8 w-8 text-yellow-400" />,
-      title: "Social Features",
-      description: "Share your music stats and discover what your friends are listening to.",
-      isLocked: false
+      icon: <Clock className="h-8 w-8 text-purple-400" />,
+      title: "Time Patterns",
+      description: "Understand when and how you listen to music throughout the day"
     },
     {
       icon: <Heart className="h-8 w-8 text-red-400" />,
-      title: "Mood Tracking",
-      description: "Understand the emotional patterns in your music and how they reflect your mood.",
-      isLocked: false
+      title: "Music Personality",
+      description: "Get insights into your musical personality and listening habits"
     },
     {
-      icon: <Star className="h-8 w-8 text-orange-400" />,
-      title: "Artist Discovery",
-      description: "Find new artists based on your listening patterns and music DNA.",
-      isLocked: false
+      icon: <Star className="h-8 w-8 text-yellow-400" />,
+      title: "Hidden Gems",
+      description: "Discover underrated tracks you love and new music recommendations"
     }
+  ];
+
+  const premiumFeatures = [
+    "Advanced Analytics Dashboard",
+    "AI-Generated Playlists",
+    "Detailed Listening History", 
+    "Music Mood Analysis",
+    "Personalized Insights",
+    "Export Your Data",
+    "Priority Support",
+    "Early Access to New Features"
   ];
 
   return (
     <div className="min-h-screen bg-gradient-dark">
-      {/* Navigation */}
+      {/* Header */}
       <nav className="sticky top-0 z-50 glass-effect-strong border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
-          <Link to="/" className="flex items-center space-x-3">
-            <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-8 w-8" />
+          <div className="flex items-center space-x-3">
+            <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-10 w-10" />
             <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
-          </Link>
-          <div className="flex items-center gap-4">
+          </div>
+          <div className="flex items-center space-x-4">
             <Link to="/demo">
-              <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/10">
+              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
                 View Demo
               </Button>
             </Link>
             <Link to="/auth">
               <Button className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
-                <Music className="mr-2 h-5 w-5" />
+                <Play className="mr-2 h-5 w-5" />
                 Get Started
               </Button>
             </Link>
@@ -83,115 +91,208 @@ const Index = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-blue-500/20 to-purple-500/20" />
-        <div className="relative max-w-7xl mx-auto px-6 py-24 text-center">
-          <div className="flex justify-center mb-6">
-            <Badge className="bg-gradient-spotify text-white px-4 py-2 text-sm font-medium">
-              🎵 Connect Your Spotify Account
+      <section className="relative">
+        <div className="absolute inset-0 bg-gradient-hero"></div>
+        <div className="relative px-6 py-24">
+          <div className="max-w-4xl mx-auto text-center">
+            <Badge className="mb-6 bg-gradient-spotify text-white">
+              <Sparkles className="mr-1 h-4 w-4" />
+              Your Music, Analyzed
             </Badge>
-          </div>
-          
-          <h1 className="text-6xl md:text-7xl font-extrabold text-gradient mb-6 leading-tight">
-            Your Music,
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-400">
-              Analyzed
-            </span>
-          </h1>
-          
-          <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
-            Discover deep insights about your music taste, explore listening patterns, 
-            and get personalized recommendations with our advanced Spotify analytics platform.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Link to="/auth">
-              <Button size="lg" className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 text-lg px-8 py-4">
-                <Music className="mr-2 h-6 w-6" />
-                Connect Spotify Now
-              </Button>
-            </Link>
-            <Link to="/demo">
-              <Button size="lg" variant="outline" className="border-border text-foreground hover:bg-muted text-lg px-8 py-4">
-                <Play className="mr-2 h-5 w-5" />
-                Try Demo
-              </Button>
-            </Link>
-          </div>
-
-          {/* Floating Music Icons */}
-          <div className="relative">
-            <div className="absolute top-0 left-1/4 animate-bounce delay-1000">
-              <Headphones className="h-8 w-8 text-green-400/60" />
-            </div>
-            <div className="absolute top-10 right-1/4 animate-bounce delay-2000">
-              <Mic className="h-6 w-6 text-blue-400/60" />
-            </div>
-            <div className="absolute -top-5 left-1/3 animate-bounce">
-              <Radio className="h-7 w-7 text-purple-400/60" />
-            </div>
-            <div className="absolute top-8 right-1/3 animate-bounce delay-3000">
-              <Volume2 className="h-5 w-5 text-yellow-400/60" />
+            <h1 className="text-5xl md:text-7xl font-bold text-gradient mb-6">
+              Discover Your Music DNA
+            </h1>
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Connect your Spotify account and unlock deep insights into your listening habits, 
+              discover new music, and see your musical journey like never before.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/auth">
+                <Button size="lg" className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
+                  <Play className="mr-2 h-6 w-6" />
+                  Connect Spotify Free
+                </Button>
+              </Link>
+              <Link to="/demo">
+                <Button size="lg" variant="outline" className="border-border text-foreground hover:bg-muted">
+                  See Demo
+                  <ArrowRight className="ml-2 h-6 w-6" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-24 px-6">
+      {/* Features Grid */}
+      <section className="px-6 py-16">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gradient mb-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">
               Powerful Music Analytics
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Unlock the full potential of your Spotify data with comprehensive analytics and insights.
+            <p className="text-xl text-muted-foreground">
+              Get insights that Spotify doesn't show you
             </p>
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <FeatureCard key={index} {...feature} />
+              <Card key={index} className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300">
+                <CardHeader>
+                  <div className="mb-4">{feature.icon}</div>
+                  <CardTitle className="text-foreground">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-muted-foreground">
+                    {feature.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="glass-effect-strong rounded-3xl p-12 border border-border/50">
-            <h2 className="text-4xl font-bold text-gradient mb-6">
-              Ready to Explore Your Music?
+      {/* Premium Section */}
+      <section className="px-6 py-16 bg-gradient-to-r from-primary/10 to-accent/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 bg-gradient-to-r from-primary to-accent text-white">
+              <Crown className="mr-1 h-4 w-4" />
+              Premium Features
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">
+              Unlock Your Full Music Potential
             </h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Connect your Spotify account and start discovering insights about your music taste today.
+            <p className="text-xl text-muted-foreground">
+              Get advanced analytics and AI-powered insights
             </p>
-            <Link to="/auth">
-              <Button size="lg" className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 text-lg px-8 py-4">
-                <Music className="mr-2 h-6 w-6" />
-                Get Started Free
-              </Button>
-            </Link>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {premiumFeatures.map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+                    <span className="text-foreground">{feature}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-6">
+                <Link to="/buy">
+                  <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
+                    <Crown className="mr-2 h-6 w-6" />
+                    Upgrade to Premium
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="glass-effect border-border/50 p-8 rounded-xl">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-spotify rounded-lg flex items-center justify-center">
+                      <BarChart3 className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-foreground font-semibold">Advanced Analytics</h3>
+                      <p className="text-muted-foreground text-sm">Deep dive into your music data</p>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-foreground">89% Match</div>
+                    <div className="text-muted-foreground text-sm">Your music personality score</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-12">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-6 w-6" />
-            <span className="text-xl font-bold text-gradient">MyVibeLytics</span>
-          </div>
-          <p className="text-muted-foreground">
-            © 2024 MyVibeLytics. All rights reserved.
+      {/* Social Section */}
+      <section className="px-6 py-16">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">
+            Connect With Us
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Follow us for updates and music insights
           </p>
+          <div className="flex justify-center">
+            <a 
+              href="https://instagram.com/myvibelytics" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center space-x-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-6 py-3 rounded-lg transition-all duration-300 hover:scale-105"
+            >
+              <Instagram className="h-6 w-6" />
+              <span className="font-semibold">@myvibelytics</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="px-6 py-16 bg-gradient-to-r from-primary/20 to-accent/20">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">
+            Ready to Discover Your Music DNA?
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Connect your Spotify account and start exploring your music like never before
+          </p>
+          <Link to="/auth">
+            <Button size="lg" className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
+              <Play className="mr-2 h-6 w-6" />
+              Get Started Free
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-8 w-8" />
+                <span className="text-xl font-bold text-gradient">MyVibeLytics</span>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Discover your music DNA with powerful Spotify analytics
+              </p>
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-foreground font-semibold">Product</h4>
+              <div className="space-y-2 text-sm">
+                <Link to="/demo" className="block text-muted-foreground hover:text-foreground">Demo</Link>
+                <Link to="/buy" className="block text-muted-foreground hover:text-foreground">Pricing</Link>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-foreground font-semibold">Company</h4>
+              <div className="space-y-2 text-sm">
+                <Link to="/about" className="block text-muted-foreground hover:text-foreground">About</Link>
+                <Link to="/contact" className="block text-muted-foreground hover:text-foreground">Contact</Link>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-foreground font-semibold">Legal</h4>
+              <div className="space-y-2 text-sm">
+                <Link to="/privacy" className="block text-muted-foreground hover:text-foreground">Privacy</Link>
+                <Link to="/terms" className="block text-muted-foreground hover:text-foreground">Terms</Link>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-border/50 mt-8 pt-8 text-center">
+            <p className="text-muted-foreground text-sm">
+              © 2024 MyVibeLytics. All rights reserved.
+            </p>
+          </div>
         </div>
       </footer>
     </div>
   );
-};
-
-export default Index;
+}

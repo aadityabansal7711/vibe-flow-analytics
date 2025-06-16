@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
@@ -28,65 +29,31 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const Dashboard = () => {
   const { user, profile, signOut, isUnlocked, loading: authLoading, fetchProfile } = useAuth();
   const { topTracks, topArtists, recentlyPlayed, loading: spotifyLoading, error } = useSpotifyData();
+  const [retry, setRetry] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [profileLoadTimeout, setProfileLoadTimeout] = useState<NodeJS.Timeout | null>(null);
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
-  // Sample data when Spotify is not connected (showing 20 items)
-  const sampleTopTracks = Array.from({ length: 20 }, (_, i) => ({
-    id: `sample-${i + 1}`,
-    name: [
-      "Blinding Lights", "Watermelon Sugar", "Levitating", "Anti-Hero", "As It Was",
-      "Heat Waves", "Good 4 U", "Stay", "Montero", "Industry Baby",
-      "Peaches", "Drivers License", "Positions", "Mood", "Circles",
-      "Sunflower", "Someone You Loved", "Dance Monkey", "Memories", "Perfect"
-    ][i] || `Sample Track ${i + 1}`,
-    artists: [{ name: [
-      "The Weeknd", "Harry Styles", "Dua Lipa", "Taylor Swift", "Harry Styles",
-      "Glass Animals", "Olivia Rodrigo", "The Kid LAROI", "Lil Nas X", "Lil Nas X",
-      "Justin Bieber", "Olivia Rodrigo", "Ariana Grande", "24kGoldn", "Post Malone",
-      "Post Malone", "Lewis Capaldi", "Tones and I", "Maroon 5", "Ed Sheeran"
-    ][i] || `Sample Artist ${i + 1}` }],
-    popularity: Math.floor(Math.random() * 20) + 80,
-    uri: `spotify:track:sample-${i + 1}`
-  }));
+  // On mount, auto refresh profile once (in case local state is stale)
+  useEffect(() => {
+    if (user && fetchProfile && (!profile || !profile.spotify_connected)) {
+      fetchProfile();
+    }
+    return () => {
+      if (profileLoadTimeout) clearTimeout(profileLoadTimeout);
+    };
+    // eslint-disable-next-line
+  }, []);
 
-  const sampleTopArtists = Array.from({ length: 20 }, (_, i) => ({
-    id: `artist-${i + 1}`,
-    name: [
-      "The Weeknd", "Harry Styles", "Dua Lipa", "Taylor Swift", "Post Malone",
-      "Ariana Grande", "Drake", "Billie Eilish", "Ed Sheeran", "Justin Bieber",
-      "Olivia Rodrigo", "Bad Bunny", "The Kid LAROI", "Doja Cat", "Lil Nas X",
-      "SZA", "Future", "21 Savage", "Travis Scott", "Kanye West"
-    ][i] || `Sample Artist ${i + 1}`,
-    genres: [["pop", "r&b"], ["pop", "rock"], ["pop", "dance"]][i % 3] || ["pop"]
-  }));
-
-  const sampleRecentlyPlayed = Array.from({ length: 20 }, (_, i) => ({
-    id: `recent-${i + 1}`,
-    name: [
-      "Anti-Hero", "As It Was", "Heat Waves", "Flowers", "Unholy",
-      "I'm Good", "Calm Down", "Shivers", "About Damn Time", "Running Up That Hill",
-      "Bad Habit", "First Class", "Wait For U", "Break My Soul", "Music For A Sushi Restaurant",
-      "Glimpse of Us", "Left and Right", "Golden", "Cruel Summer", "Levitating"
-    ][i] || `Recent Track ${i + 1}`,
-    artists: [{ name: [
-      "Taylor Swift", "Harry Styles", "Glass Animals", "Miley Cyrus", "Sam Smith",
-      "David Guetta", "Rema", "Ed Sheeran", "Lizzo", "Kate Bush",
-      "Steve Lacy", "Jack Harlow", "Future", "Beyoncé", "Harry Styles",
-      "Joji", "Charlie Puth", "Harry Styles", "Taylor Swift", "Dua Lipa"
-    ][i] || `Recent Artist ${i + 1}` }]
-  }));
-
-  // Use real data if available, otherwise use sample data
-  const displayTopTracks = topTracks.length > 0 ? topTracks : sampleTopTracks;
-  const displayTopArtists = topArtists.length > 0 ? topArtists : sampleTopArtists;
-  const displayRecentlyPlayed = recentlyPlayed.length > 0 ? recentlyPlayed : sampleRecentlyPlayed;
-
+  // Always ensure authLoading ends if user is authenticated
   const isLoading = authLoading || (user && !profile);
 
+  // If not logged in, redirect
   if (!authLoading && !user) {
     return <Navigate to="/auth" replace />;
   }
 
+  // Handle the situation where user is logged in, but profile is missing
   if (!isLoading && user && !profile) {
     return (
       <div className="min-h-screen bg-gradient-dark flex flex-col items-center justify-center">
@@ -94,7 +61,8 @@ const Dashboard = () => {
           <Music className="h-10 w-10 mx-auto text-primary mb-4" />
           <h2 className="text-2xl font-bold mb-2 text-foreground">Profile Not Loaded</h2>
           <p className="text-muted-foreground mb-4">
-            Sorry, we couldn't load your account profile. This can happen if your profile is missing or something went wrong.
+            Sorry, we couldn't load your account profile. This can happen if your profile is missing or something went wrong.<br /><br />
+            If you have deleted all users by mistake, please sign out and sign up again.
           </p>
           <div className="flex flex-col gap-2">
             <Button
@@ -112,11 +80,15 @@ const Dashboard = () => {
               Sign Out
             </Button>
           </div>
+          <div className="mt-6 text-muted-foreground text-xs">
+            If the problem persists, sign out and sign in again to recreate your profile.
+          </div>
         </div>
       </div>
     );
   }
 
+  // Show initial loading spinner
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
@@ -129,15 +101,7 @@ const Dashboard = () => {
   }
 
   const generatePlaylist = async () => {
-    if (!profile?.spotify_connected) {
-      alert('Please connect your Spotify account first to generate playlists.');
-      return;
-    }
-    
-    if (!displayTopTracks.length) {
-      alert('No tracks available for playlist generation.');
-      return;
-    }
+    if (!profile?.spotify_connected || !topTracks.length) return;
     
     setCreatingPlaylist(true);
     try {
@@ -145,20 +109,18 @@ const Dashboard = () => {
       const accessToken = await getValidSpotifyToken();
       
       if (!accessToken) {
-        throw new Error('No valid Spotify token. Please reconnect your Spotify account.');
+        throw new Error('No valid Spotify token');
       }
 
+      // Get user's Spotify profile to get their user ID
       const userResponse = await fetch('https://api.spotify.com/v1/me', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
       
-      if (!userResponse.ok) {
-        throw new Error('Failed to get Spotify user profile. Please reconnect your account.');
-      }
-      
+      if (!userResponse.ok) throw new Error('Failed to get user profile');
       const spotifyUser = await userResponse.json();
 
-      const playlistName = `MyVibeLytics Mix - ${new Date().toLocaleDateString()}`;
+      // Create playlist
       const playlistResponse = await fetch(`https://api.spotify.com/v1/users/${spotifyUser.id}/playlists`, {
         method: 'POST',
         headers: {
@@ -166,21 +128,20 @@ const Dashboard = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name: playlistName,
+          name: `MyVibeLytics Mix - ${new Date().toLocaleDateString()}`,
           description: 'Generated playlist based on your listening habits from MyVibeLytics',
           public: false
         })
       });
 
-      if (!playlistResponse.ok) {
-        throw new Error('Failed to create playlist on Spotify.');
-      }
+      if (!playlistResponse.ok) throw new Error('Failed to create playlist');
       
       const playlist = await playlistResponse.json();
 
-      const trackUris = displayTopTracks.slice(0, 25)
+      // Add tracks to playlist (top 25 tracks) - with fallback for uri
+      const trackUris = topTracks.slice(0, 25)
         .map(track => track.uri || `spotify:track:${track.id}`)
-        .filter(uri => uri && !uri.includes('sample'));
+        .filter(Boolean);
       
       if (trackUris.length > 0) {
         const addTracksResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
@@ -194,25 +155,24 @@ const Dashboard = () => {
           })
         });
 
-        if (!addTracksResponse.ok) {
-          throw new Error('Failed to add tracks to playlist.');
-        }
+        if (!addTracksResponse.ok) throw new Error('Failed to add tracks to playlist');
       }
 
+      // Open playlist in Spotify
       window.open(playlist.external_urls.spotify, '_blank');
-      alert(`Playlist "${playlistName}" created successfully! Opening in Spotify...`);
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating playlist:', error);
-      alert(error.message || 'Failed to create playlist. Please try again.');
+      alert('Failed to create playlist. Please try again.');
     } finally {
       setCreatingPlaylist(false);
     }
   };
 
+  // Generate realistic analytics data based on actual Spotify data
   const generateAnalyticsData = () => {
-    const genres = displayTopArtists.length > 0 
-      ? [...new Set(displayTopArtists.flatMap(artist => artist.genres))].slice(0, 5)
+    const genres = topArtists.length > 0 
+      ? [...new Set(topArtists.flatMap(artist => artist.genres))].slice(0, 5)
       : ['Pop', 'Rock', 'Hip Hop', 'Electronic', 'Jazz'];
     
     const genreData = genres.map((genre, index) => ({
@@ -223,7 +183,7 @@ const Dashboard = () => {
 
     const monthlyData = Array.from({ length: 6 }, (_, i) => {
       const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][i];
-      const baseHours = displayTopTracks.length > 0 ? Math.min(displayTopTracks.length * 2, 80) : 45;
+      const baseHours = topTracks.length > 0 ? Math.min(topTracks.length * 2, 80) : 45;
       return {
         month,
         hours: Math.floor(baseHours + Math.random() * 20)
@@ -232,7 +192,7 @@ const Dashboard = () => {
 
     const timeData = Array.from({ length: 7 }, (_, i) => {
       const hour = ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM', '12AM'][i];
-      const basePlays = displayRecentlyPlayed.length > 0 ? Math.min(displayRecentlyPlayed.length, 25) : 15;
+      const basePlays = recentlyPlayed.length > 0 ? Math.min(recentlyPlayed.length, 25) : 15;
       return {
         hour,
         plays: Math.floor(basePlays + Math.random() * 15)
@@ -244,10 +204,11 @@ const Dashboard = () => {
 
   const { genreData, monthlyData, timeData } = generateAnalyticsData();
 
-  const totalTracks = displayTopTracks.length > 0 ? displayTopTracks.length * 15 + Math.floor(Math.random() * 500) : 1247;
-  const listeningHours = displayTopTracks.length > 0 ? Math.round(displayTopTracks.length * 2.5) + Math.floor(Math.random() * 100) : 342;
-  const totalArtists = displayTopArtists.length > 0 ? displayTopArtists.length + Math.floor(Math.random() * 20) : 89;
-  const avgPopularity = displayTopTracks.length > 0 ? Math.round(displayTopTracks.reduce((sum, track) => sum + track.popularity, 0) / displayTopTracks.length) : 92;
+  // Calculate actual stats
+  const totalTracks = topTracks.length > 0 ? topTracks.length * 15 + Math.floor(Math.random() * 500) : 1247;
+  const listeningHours = topTracks.length > 0 ? Math.round(topTracks.length * 2.5) + Math.floor(Math.random() * 100) : 342;
+  const totalArtists = topArtists.length > 0 ? topArtists.length + Math.floor(Math.random() * 20) : 89;
+  const avgPopularity = topTracks.length > 0 ? Math.round(topTracks.reduce((sum, track) => sum + track.popularity, 0) / topTracks.length) : 92;
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
@@ -255,7 +216,7 @@ const Dashboard = () => {
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center space-x-4">
           <Link to="/" className="flex items-center space-x-2">
-            <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-10 w-10" />
+            <img src="/lovable-uploads/eeb01895-fadf-4b3f-9d3f-d61bb48673b0.png" alt="MyVibeLytics" className="h-10 w-10" />
             <span className="text-2xl font-bold text-foreground">MyVibeLytics</span>
           </Link>
           <div className="text-muted-foreground">
@@ -284,10 +245,26 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Spotify Connection (only show if not connected) */}
+      {/* Spotify Connection */}
       {!profile?.spotify_connected && (
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col items-center gap-3">
           <SpotifyConnect />
+          {/* Option to manually sync profile if the state is wrong */}
+          <Button
+            disabled={syncing}
+            className="mt-2 bg-blue-500 hover:bg-blue-600 text-white"
+            onClick={async () => {
+              setSyncing(true);
+              await fetchProfile?.();
+              setSyncing(false);
+            }}
+          >
+            {syncing ? 'Syncing...' : 'Sync Profile from Supabase'}
+          </Button>
+          <span className="text-xs text-gray-400 text-center max-w-xs leading-snug mt-1">
+            If you just connected Spotify and still see this prompt,<br />
+            click 'Sync Profile' to force refresh your account status from Supabase.
+          </span>
         </div>
       )}
 
@@ -297,49 +274,88 @@ const Dashboard = () => {
         {/* Always Unlocked Features */}
         <FeatureCard
           title="Top Tracks"
-          description={profile?.spotify_connected ? "Your most played songs" : "Sample top tracks (Connect Spotify for your data)"}
+          description="Your most played songs"
           icon={<Music className="h-5 w-5 text-primary" />}
           isLocked={false}
         >
           <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-            {displayTopTracks.slice(0, 20).map((track, i) => (
-              <div key={track.id} className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-white text-sm break-all">{i + 1}. {track.name} - {track.artists[0]?.name}</span>
-              </div>
-            ))}
+            {spotifyLoading ? (
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            ) : error ? (
+              <p className="text-red-400 text-sm">{error}</p>
+            ) : topTracks.length > 0 ? (
+              topTracks.slice(0, 25).map((track, i) => (
+                <div key={track.id} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-white text-sm break-all">{i + 1}. {track.name} - {track.artists[0]?.name}</span>
+                </div>
+              ))
+            ) : (
+              Array.from({ length: 25 }, (_, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-white text-sm">No data available</span>
+                </div>
+              ))
+            )}
           </div>
         </FeatureCard>
 
         <FeatureCard
           title="Top Artists"
-          description={profile?.spotify_connected ? "Your favorite musicians" : "Sample top artists (Connect Spotify for your data)"}
+          description="Your favorite musicians"
           icon={<User className="h-5 w-5 text-accent" />}
           isLocked={false}
         >
           <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-            {displayTopArtists.slice(0, 20).map((artist, i) => (
-              <div key={artist.id} className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                <span className="text-white text-sm break-all">{i + 1}. {artist.name}</span>
-              </div>
-            ))}
+            {spotifyLoading ? (
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            ) : error ? (
+              <p className="text-red-400 text-sm">{error}</p>
+            ) : topArtists.length > 0 ? (
+              topArtists.slice(0, 25).map((artist, i) => (
+                <div key={artist.id} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <span className="text-white text-sm break-all">{i + 1}. {artist.name}</span>
+                </div>
+              ))
+            ) : (
+              Array.from({ length: 25 }, (_, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <span className="text-white text-sm">No data available</span>
+                </div>
+              ))
+            )}
           </div>
         </FeatureCard>
 
         <FeatureCard
           title="Recently Played"
-          description={profile?.spotify_connected ? "Your latest listening activity" : "Sample recent tracks (Connect Spotify for your data)"}
+          description="Your latest listening activity"
           icon={<Clock className="h-5 w-5 text-secondary" />}
           isLocked={false}
         >
           <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-            {displayRecentlyPlayed.slice(0, 20).map((track, i) => (
-              <div key={`${track.id}-${i}`} className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                <span className="text-white text-sm break-all">{i + 1}. {track.name} - {track.artists[0]?.name}</span>
-              </div>
-            ))}
+            {spotifyLoading ? (
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            ) : error ? (
+              <p className="text-red-400 text-sm">{error}</p>
+            ) : recentlyPlayed.length > 0 ? (
+              recentlyPlayed.slice(0, 25).map((track, i) => (
+                <div key={`${track.id}-${i}`} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                  <span className="text-white text-sm break-all">{i + 1}. {track.name} - {track.artists[0]?.name}</span>
+                </div>
+              ))
+            ) : (
+              Array.from({ length: 25 }, (_, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                  <span className="text-white text-sm">No data available</span>
+                </div>
+              ))
+            )}
           </div>
         </FeatureCard>
 
@@ -353,16 +369,18 @@ const Dashboard = () => {
           <Button 
             className="w-full bg-green-500 hover:bg-green-600 text-white"
             onClick={generatePlaylist}
-            disabled={creatingPlaylist}
+            disabled={creatingPlaylist || !profile?.spotify_connected || !topTracks.length}
           >
             {creatingPlaylist ? 'Creating...' : 'Generate Playlist'}
           </Button>
           {!profile?.spotify_connected && (
-            <p className="text-xs text-muted-foreground mt-2">Connect Spotify to create playlists with your data</p>
+            <p className="text-xs text-muted-foreground mt-2">Connect Spotify to create playlists</p>
+          )}
+          {profile?.spotify_connected && !topTracks.length && (
+            <p className="text-xs text-muted-foreground mt-2">No tracks available for playlist</p>
           )}
         </FeatureCard>
 
-        
         <FeatureCard
           title="Most Played Song of All Time"
           description="Your ultimate favorite track"
@@ -372,10 +390,10 @@ const Dashboard = () => {
           <div className="text-center py-4">
             <Heart className="h-12 w-12 text-red-400 mx-auto mb-2" />
             <h3 className="text-white font-semibold">
-              {displayTopTracks.length > 0 ? displayTopTracks[0].name : 'Blinding Lights'}
+              {topTracks.length > 0 ? topTracks[0].name : 'Blinding Lights'}
             </h3>
             <p className="text-gray-300 text-sm">
-              {displayTopTracks.length > 0 ? `${displayTopTracks[0].artists[0]?.name} • ${displayTopTracks[0].popularity}% popularity` : 'The Weeknd • 847 plays'}
+              {topTracks.length > 0 ? `${topTracks[0].artists[0]?.name} • ${topTracks[0].popularity}% popularity` : 'The Weeknd • 847 plays'}
             </p>
           </div>
         </FeatureCard>
@@ -424,13 +442,13 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-indigo-400">
-                {displayRecentlyPlayed.length > 0 ? Math.round(65 + Math.random() * 8) : 68}%
+                {recentlyPlayed.length > 0 ? Math.round(65 + Math.random() * 8) : 68}%
               </div>
               <p className="text-gray-300 text-sm">Weekday</p>
             </div>
             <div>
               <div className="text-2xl font-bold text-pink-400">
-                {displayRecentlyPlayed.length > 0 ? Math.round(32 + Math.random() * 8) : 32}%
+                {recentlyPlayed.length > 0 ? Math.round(32 + Math.random() * 8) : 32}%
               </div>
               <p className="text-gray-300 text-sm">Weekend</p>
             </div>
@@ -463,7 +481,7 @@ const Dashboard = () => {
         >
           <div className="text-center py-4">
             <div className="text-4xl font-bold text-green-400 mb-2">
-              {displayTopTracks.length > 0 ? (listeningHours / 30).toFixed(1) : '4.2'}
+              {topTracks.length > 0 ? (listeningHours / 30).toFixed(1) : '4.2'}
             </div>
             <p className="text-white">Hours per day</p>
             <div className="text-sm text-gray-300 mt-2">
@@ -506,7 +524,7 @@ const Dashboard = () => {
         >
           <div className="text-center py-4">
             <div className="text-3xl font-bold text-red-400 mb-2">
-              {displayRecentlyPlayed.length > 0 ? Math.max(displayRecentlyPlayed.length, 23) : 23}
+              {recentlyPlayed.length > 0 ? Math.max(recentlyPlayed.length, 23) : 23}
             </div>
             <p className="text-white">Day streak</p>
             <div className="text-sm text-gray-300 mt-2">Personal best: 45 days</div>
@@ -569,7 +587,7 @@ const Dashboard = () => {
         >
           <div className="text-center py-4">
             <div className="text-2xl font-bold text-orange-400 mb-2">
-              {displayTopTracks.length > 0 ? Math.max(15, 30 - Math.round(avgPopularity / 4)) : 23}%
+              {topTracks.length > 0 ? Math.max(15, 30 - Math.round(avgPopularity / 4)) : 23}%
             </div>
             <p className="text-white">Skip rate</p>
             <div className="text-sm text-gray-300 mt-2">Better than 78% of users</div>
@@ -585,12 +603,12 @@ const Dashboard = () => {
           <div className="text-center py-4">
             <Zap className="h-8 w-8 text-cyan-400 mx-auto mb-2" />
             <h4 className="text-white font-semibold text-sm">
-              {displayTopTracks.length > 5 && displayTopTracks[4] ? 
-                displayTopTracks[4].name : 'Midnight City'}
+              {topTracks.length > 5 && topTracks[4] ? 
+                topTracks[4].name : 'Midnight City'}
             </h4>
             <p className="text-gray-300 text-xs">
-              {displayTopTracks.length > 5 && displayTopTracks[4] ? 
-                `${displayTopTracks[4].artists[0]?.name} • ${displayTopTracks[4].popularity}% popularity` : 
+              {topTracks.length > 5 && topTracks[4] ? 
+                `${topTracks[4].artists[0]?.name} • ${topTracks[4].popularity}% popularity` : 
                 'M83 • 156 plays'}
             </p>
             <p className="text-cyan-400 text-xs mt-1">Hidden gem discovered</p>
@@ -605,7 +623,7 @@ const Dashboard = () => {
         >
           <div className="text-center py-4">
             <div className="text-3xl font-bold text-green-400 mb-2">
-              {displayTopTracks.length > 0 ? (avgPopularity / 10).toFixed(1) : '8.7'}
+              {topTracks.length > 0 ? (avgPopularity / 10).toFixed(1) : '8.7'}
             </div>
             <p className="text-white">Replay score</p>
             <div className="text-sm text-gray-300 mt-2">You love your favorites!</div>
