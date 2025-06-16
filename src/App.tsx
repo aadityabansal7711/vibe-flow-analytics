@@ -25,6 +25,10 @@ import About from "./pages/About";
 import Demo from "./pages/Demo";
 import Error from "./pages/Error";
 import ForgotPassword from "./pages/ForgotPassword";
+import WeeklyGiveaway from '@/pages/weeklygiveaway'; // adjust path as needed
+
+<Route path="/weekly-giveaway" element={<WeeklyGiveaway />} />
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
