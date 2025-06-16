@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Music, Zap, Moon, Award, TrendingUp } from 'lucide-react';
+import { Music, Zap, Moon, TrendingUp } from 'lucide-react';
 import FeatureCard from '@/components/FeatureCard';
 
 interface SpotifyTrack {
@@ -33,7 +33,7 @@ interface SpecialHighlightsProps {
   recentlyPlayed: SpotifyTrack[];
   isLocked: boolean;
   hasActiveSubscription: boolean;
-  onGeneratePlaylist: () => void;
+  onGeneratePlaylist: (tracks: SpotifyTrack[]) => void;
 }
 
 const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({ 
@@ -44,50 +44,33 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
   hasActiveSubscription,
   onGeneratePlaylist
 }) => {
+  // Hidden Gem: Least popular but highly ranked
   const getHiddenGem = () => {
     const hiddenGems = topTracks.filter(track => track.popularity < 50);
     return hiddenGems[0] || topTracks[Math.floor(Math.random() * topTracks.length)];
   };
 
+  // Late night tracks (played between 10PM–4AM)
   const getLateNightTracks = () => {
-    const lateNightMap: { [key: string]: number } = {};
-    recentlyPlayed.forEach(track => {
-      if (!track.played_at) return;
+    const tracks = recentlyPlayed.filter(track => {
+      if (!track.played_at) return false;
       const hour = new Date(track.played_at).getHours();
-      if (hour >= 22 || hour <= 4) {
-        lateNightMap[track.name] = (lateNightMap[track.name] || 0) + 1;
-      }
+      return hour >= 22 || hour <= 4;
     });
-
-    return Object.entries(lateNightMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([trackName]) => recentlyPlayed.find(t => t.name === trackName)!);
+    const unique = Array.from(new Map(tracks.map(t => [t.id, t])).values());
+    return unique.slice(0, 3);
   };
 
-  const getListeningMilestones = () => {
-    const allTracks = [...topTracks, ...recentlyPlayed]
-      .filter(track => track.played_at)
-      .sort((a, b) => new Date(a.played_at!).getTime() - new Date(b.played_at!).getTime());
-
-    const getDate = (index: number) =>
-      allTracks[index]?.played_at
-        ? new Date(allTracks[index].played_at!).toLocaleDateString('en-IN', {
-            month: 'short', year: 'numeric'
-          })
-        : '—';
-
-    return [
-      { milestone: 'First Track', date: getDate(0), achieved: allTracks.length >= 1 },
-      { milestone: '100th Song', date: getDate(99), achieved: allTracks.length >= 100 },
-      { milestone: '500th Song', date: getDate(499), achieved: allTracks.length >= 500 },
-      { milestone: '1000th Song', date: getDate(999), achieved: allTracks.length >= 1000 },
-    ];
+  // AI playlist (top unique or most loved tracks)
+  const generateAiPlaylist = () => {
+    const uniqueTracks = Array.from(new Map(topTracks.map(t => [t.name + t.artists[0]?.name, t])).values());
+    const sorted = uniqueTracks.sort((a, b) => b.popularity - a.popularity);
+    const selected = sorted.slice(0, 50);
+    onGeneratePlaylist(selected);
   };
 
   const hiddenGem = getHiddenGem();
   const lateNightTracks = getLateNightTracks();
-  const milestones = getListeningMilestones();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -100,7 +83,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
       >
         <div className="space-y-4">
           <Button 
-            onClick={onGeneratePlaylist}
+            onClick={generateAiPlaylist}
             className="w-full bg-green-500 hover:bg-green-600 text-white"
             disabled={!hasActiveSubscription}
           >
@@ -114,7 +97,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         </div>
       </FeatureCard>
 
-      {/* Hidden Gem */}
+      {/* Hidden Gem Discovery */}
       <FeatureCard
         title="Hidden Gem Discovery"
         description="Most played underrated track"
@@ -142,7 +125,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
       >
         <div className="space-y-2">
           {lateNightTracks.length > 0 ? (
-            lateNightTracks.map((track) => (
+            lateNightTracks.map(track => (
               <div key={track.id} className="text-center">
                 <p className="text-sm font-medium text-foreground truncate">{track.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{track.artists[0]?.name}</p>
@@ -157,30 +140,6 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         </div>
       </FeatureCard>
 
-      {/* Listening Milestones Timeline */}
-      <FeatureCard
-        title="Listening Milestones Timeline"
-        description="Your musical journey markers"
-        icon={<Award className="h-5 w-5 text-yellow-400" />}
-        isLocked={isLocked}
-        className="md:col-span-2"
-      >
-        <div className="space-y-3">
-          {milestones.map((milestone, index) => (
-            <div key={index} className="flex items-center justify-between p-2 bg-background/30 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${milestone.achieved ? 'bg-yellow-400' : 'bg-gray-500'}`} />
-                <span className="text-sm font-medium text-foreground">{milestone.milestone}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-muted-foreground">{milestone.date}</span>
-                {milestone.achieved && <Award className="h-3 w-3 text-yellow-400" />}
-              </div>
-            </div>
-          ))}
-        </div>
-      </FeatureCard>
-
       {/* Sleeper Hits */}
       <FeatureCard
         title="Sleeper Hits"
@@ -189,7 +148,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
         isLocked={isLocked}
       >
         <div className="space-y-3">
-          {topTracks.slice(3, 6).map((track) => (
+          {topTracks.slice(3, 6).map(track => (
             <div key={track.id} className="text-center">
               <p className="text-sm font-medium text-foreground truncate">{track.name}</p>
               <p className="text-xs text-muted-foreground truncate">{track.artists[0]?.name}</p>
