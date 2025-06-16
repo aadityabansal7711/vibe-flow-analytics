@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,17 +21,21 @@ import {
   Compass
 } from 'lucide-react';
 
+// Use the same interface as in useSpotifyData.ts
 interface SpotifyTrack {
   id: string;
   name: string;
-  artists: Array<{ name: string }>;
+  artists: { name: string }[];
   album: { name: string; images: { url: string }[] };
-  duration_ms: number;
-  played_at?: string;
   popularity: number;
   preview_url?: string;
   external_urls: { spotify: string };
   uri: string;
+}
+
+// Separate interface for recently played tracks that have played_at
+interface RecentlyPlayedTrack extends SpotifyTrack {
+  played_at?: string;
 }
 
 const Dashboard = () => {
@@ -50,23 +53,26 @@ const Dashboard = () => {
   // Get actual data or fallback to sample data
   const tracks = topTracks.length > 0 ? topTracks : recentlyPlayed;
 
-  // Time preference analysis with fallback
+  // Time preference analysis with fallback - only use recently played tracks
   const getTimePreference = () => {
     if (recentlyPlayed.length === 0) return 'Morning Listener';
     
-    const morningCount = recentlyPlayed.filter(track => {
+    // Cast to RecentlyPlayedTrack since we know recently played tracks have played_at
+    const recentTracks = recentlyPlayed as RecentlyPlayedTrack[];
+    
+    const morningCount = recentTracks.filter(track => {
       if (!track.played_at) return false;
       const hour = new Date(track.played_at).getHours();
       return hour >= 6 && hour < 12;
     }).length;
     
-    const afternoonCount = recentlyPlayed.filter(track => {
+    const afternoonCount = recentTracks.filter(track => {
       if (!track.played_at) return false;
       const hour = new Date(track.played_at).getHours();
       return hour >= 12 && hour < 18;
     }).length;
     
-    const eveningCount = recentlyPlayed.filter(track => {
+    const eveningCount = recentTracks.filter(track => {
       if (!track.played_at) return false;
       const hour = new Date(track.played_at).getHours();
       return hour >= 18 || hour < 6;
@@ -77,17 +83,20 @@ const Dashboard = () => {
     return 'Morning Listener';
   };
 
-  // Weekday vs Weekend analysis with fallback
+  // Weekday vs Weekend analysis with fallback - only use recently played tracks
   const getWeekdayPreference = () => {
     if (recentlyPlayed.length === 0) return 'Weekday Warrior';
     
-    const weekdayTracks = recentlyPlayed.filter(track => {
+    // Cast to RecentlyPlayedTrack since we know recently played tracks have played_at
+    const recentTracks = recentlyPlayed as RecentlyPlayedTrack[];
+    
+    const weekdayTracks = recentTracks.filter(track => {
       if (!track.played_at) return false;
       const day = new Date(track.played_at).getDay();
       return day >= 1 && day <= 5;
     }).length;
     
-    const weekendTracks = recentlyPlayed.filter(track => {
+    const weekendTracks = recentTracks.filter(track => {
       if (!track.played_at) return false;
       const day = new Date(track.played_at).getDay();
       return day === 0 || day === 6;
@@ -96,10 +105,12 @@ const Dashboard = () => {
     return weekendTracks > weekdayTracks ? 'Weekend Warrior' : 'Weekday Warrior';
   };
 
-  // Calculate listening streak with fallback
+  // Calculate listening streak with fallback - only use recently played tracks
   const getListeningStreak = () => {
     if (recentlyPlayed.length === 0) return 7;
     
+    // Cast to RecentlyPlayedTrack since we know recently played tracks have played_at
+    const recentTracks = recentlyPlayed as RecentlyPlayedTrack[];
     const today = new Date();
     let streak = 0;
     
@@ -107,7 +118,7 @@ const Dashboard = () => {
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
       
-      const hasListenedOnDay = recentlyPlayed.some(track => {
+      const hasListenedOnDay = recentTracks.some(track => {
         if (!track.played_at) return false;
         const trackDate = new Date(track.played_at);
         return trackDate.toDateString() === checkDate.toDateString();
@@ -123,16 +134,15 @@ const Dashboard = () => {
     return streak || 1;
   };
 
-  // Calculate skip rate with fallback
+  // Calculate skip rate with fallback - use track popularity as a proxy
   const getSkipRate = () => {
     if (tracks.length === 0) return 15;
     
-    // Estimate based on track duration vs average listening time
-    const avgDuration = tracks.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / tracks.length;
-    const estimatedListenTime = avgDuration * 0.7; // Assume 70% listen rate
-    const skipRate = ((avgDuration - estimatedListenTime) / avgDuration) * 100;
+    // Use popularity score to estimate skip rate (lower popularity = higher skip rate)
+    const avgPopularity = tracks.reduce((sum, track) => sum + (track.popularity || 50), 0) / tracks.length;
+    const skipRate = Math.max(5, Math.min(50, 100 - avgPopularity));
     
-    return Math.max(5, Math.min(50, Math.round(skipRate)));
+    return Math.round(skipRate);
   };
 
   // Calculate replay score with fallback
