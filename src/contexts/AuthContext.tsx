@@ -327,7 +327,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('🔄 Updating profile for user:', user.id, updates);
 
     try {
-      const { data, error } = await supabase
+      // First try to fetch the current profile to ensure it exists
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('❌ Error fetching existing profile:', fetchError);
+        throw fetchError;
+      }
+
+      if (!existingProfile) {
+        console.log('📝 No existing profile found, creating new one...');
+        // Create a new profile if none exists
+        const newProfileData = {
+          user_id: user.id,
+          email: user.email!,
+          full_name: user.user_metadata?.full_name || null,
+          plan_tier: 'free',
+          has_active_subscription: false,
+          plan_id: 'free_tier',
+          spotify_connected: false,
+          ...updates,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert(newProfileData)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('❌ Error creating new profile:', insertError);
+          throw insertError;
+        }
+
+        console.log('✅ New profile created:', newProfile);
+        setProfile(newProfile);
+        return;
+      }
+
+      // Update existing profile
+      const { data: updatedProfile, error: updateError } = await supabase
         .from('profiles')
         .update({
           ...updates,
@@ -335,16 +380,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .eq('user_id', user.id)
         .select()
-        .maybeSingle();
+        .single();
 
-      if (error) {
-        console.error('❌ Error updating profile:', error);
-        throw error;
+      if (updateError) {
+        console.error('❌ Error updating profile:', updateError);
+        throw updateError;
       }
 
-      if (data) {
-        setProfile(data);
-        console.log('✅ Profile updated successfully:', data);
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        console.log('✅ Profile updated successfully:', updatedProfile);
       }
     } catch (error) {
       console.error('❌ Update profile error:', error);

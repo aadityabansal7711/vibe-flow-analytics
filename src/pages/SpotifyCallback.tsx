@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +14,7 @@ const SpotifyCallback: React.FC = () => {
       try {
         if (loading) return;
         if (!user) {
+          console.error('❌ No user found during callback');
           navigate('/auth?error=no_user');
           return;
         }
@@ -22,18 +24,25 @@ const SpotifyCallback: React.FC = () => {
         const error = urlParams.get('error');
         const state = urlParams.get('state');
 
+        console.log('🎵 Spotify callback params:', { code: !!code, error, state, userId: user.id });
+
         if (error) {
+          console.error('❌ Spotify auth error:', error);
           navigate('/error?reason=spotify_auth_error&details=' + encodeURIComponent(error));
           return;
         }
         if (!code) {
+          console.error('❌ No authorization code received');
           navigate('/error?reason=no_auth_code');
           return;
         }
         if (state !== user.id) {
+          console.error('❌ State mismatch:', { expected: user.id, received: state });
           navigate('/error?reason=state_mismatch');
           return;
         }
+
+        console.log('🔄 Exchanging code for tokens...');
 
         // Call supabase edge function for secure token exchange
         const { data: tokenData, error: tokenError } = await supabase.functions.invoke('spotify-exchange', {
@@ -44,25 +53,32 @@ const SpotifyCallback: React.FC = () => {
         });
 
         if (tokenError) {
+          console.error('❌ Token exchange failed:', tokenError);
           navigate('/error?reason=token_exchange_failed&details=' + encodeURIComponent(tokenError.message));
           return;
         }
         if (!tokenData || !tokenData.access_token) {
+          console.error('❌ No access token received');
           navigate('/error?reason=no_access_token');
           return;
         }
 
+        console.log('✅ Token exchange successful');
+
         // Fetch Spotify profile
+        console.log('📡 Fetching Spotify profile...');
         const profileResponse = await fetch('https://api.spotify.com/v1/me', {
           headers: { Authorization: `Bearer ${tokenData.access_token}` }
         });
 
         if (!profileResponse.ok) {
-          const errorText = await profileResponse.text();
+          console.error('❌ Profile fetch failed:', profileResponse.status);
           navigate('/error?reason=profile_fetch_failed&status=' + profileResponse.status);
           return;
         }
         const profileData = await profileResponse.json();
+
+        console.log('✅ Spotify profile fetched:', profileData.id);
 
         // Calculate token expiry time
         const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
@@ -76,21 +92,53 @@ const SpotifyCallback: React.FC = () => {
           spotify_avatar_url: profileData.images?.[0]?.url || null,
         };
 
-        // Update the profile and wait for it to finish before navigating
-        await updateProfile(updateData);
+        console.log('🔄 Updating profile with Spotify data...');
 
-        // Always refresh the profile right after update for reliability
-        await fetchProfile?.();
+        // Try updating the profile directly with Supabase client
+        const { data: updatedProfile, error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            ...updateData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id)
+          .select()
+          .single();
 
+        if (updateError) {
+          console.error('❌ Direct profile update failed:', updateError);
+          // Fallback to AuthContext update method
+          try {
+            await updateProfile(updateData);
+            console.log('✅ Profile updated via AuthContext');
+          } catch (fallbackError) {
+            console.error('❌ Fallback profile update failed:', fallbackError);
+            navigate('/error?reason=profile_update_failed&details=' + encodeURIComponent(updateError.message));
+            return;
+          }
+        } else {
+          console.log('✅ Profile updated directly:', updatedProfile);
+        }
+
+        // Fetch updated profile to ensure state is current
+        if (fetchProfile) {
+          await fetchProfile();
+        }
+
+        console.log('🎉 Spotify connection completed successfully');
+        
+        // Clear URL and redirect to dashboard
         window.history.replaceState({}, document.title, '/spotify-callback');
         setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
 
       } catch (err: any) {
+        console.error('❌ Unexpected error in Spotify callback:', err);
         navigate('/error?reason=unexpected_error&details=' + encodeURIComponent(err.message));
       }
     };
 
     const timeoutId = setTimeout(() => {
+      console.error('❌ Spotify callback timeout');
       navigate('/error?reason=timeout');
     }, 30000);
 
@@ -110,4 +158,5 @@ const SpotifyCallback: React.FC = () => {
     </div>
   );
 };
+
 export default SpotifyCallback;
