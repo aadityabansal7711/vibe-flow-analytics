@@ -28,55 +28,65 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const Dashboard = () => {
   const { user, profile, signOut, isUnlocked, loading: authLoading, fetchProfile } = useAuth();
   const { topTracks, topArtists, recentlyPlayed, loading: spotifyLoading, error } = useSpotifyData();
-  const [retry, setRetry] = useState(0);
-  const [syncing, setSyncing] = useState(false);
-  const [profileLoadTimeout, setProfileLoadTimeout] = useState<NodeJS.Timeout | null>(null);
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
-  // Sample data when Spotify is not connected
-  const sampleTopTracks = [
-    { id: '1', name: "Blinding Lights", artists: [{ name: "The Weeknd" }], popularity: 92, uri: 'spotify:track:0VjIjW4GlUoP3j1cCdBa7t' },
-    { id: '2', name: "Watermelon Sugar", artists: [{ name: "Harry Styles" }], popularity: 89, uri: 'spotify:track:6UelLqGlWMcVH1E5c4H7lY' },
-    { id: '3', name: "Levitating", artists: [{ name: "Dua Lipa" }], popularity: 88, uri: 'spotify:track:463CkQjx2Zk1yXoBuierM9' }
-  ];
+  // Sample data when Spotify is not connected (showing 20 items)
+  const sampleTopTracks = Array.from({ length: 20 }, (_, i) => ({
+    id: `sample-${i + 1}`,
+    name: [
+      "Blinding Lights", "Watermelon Sugar", "Levitating", "Anti-Hero", "As It Was",
+      "Heat Waves", "Good 4 U", "Stay", "Montero", "Industry Baby",
+      "Peaches", "Drivers License", "Positions", "Mood", "Circles",
+      "Sunflower", "Someone You Loved", "Dance Monkey", "Memories", "Perfect"
+    ][i] || `Sample Track ${i + 1}`,
+    artists: [{ name: [
+      "The Weeknd", "Harry Styles", "Dua Lipa", "Taylor Swift", "Harry Styles",
+      "Glass Animals", "Olivia Rodrigo", "The Kid LAROI", "Lil Nas X", "Lil Nas X",
+      "Justin Bieber", "Olivia Rodrigo", "Ariana Grande", "24kGoldn", "Post Malone",
+      "Post Malone", "Lewis Capaldi", "Tones and I", "Maroon 5", "Ed Sheeran"
+    ][i] || `Sample Artist ${i + 1}` }],
+    popularity: Math.floor(Math.random() * 20) + 80,
+    uri: `spotify:track:sample-${i + 1}`
+  }));
 
-  const sampleTopArtists = [
-    { id: '1', name: "The Weeknd", genres: ["pop", "r&b"] },
-    { id: '2', name: "Harry Styles", genres: ["pop", "rock"] },
-    { id: '3', name: "Dua Lipa", genres: ["pop", "dance"] }
-  ];
+  const sampleTopArtists = Array.from({ length: 20 }, (_, i) => ({
+    id: `artist-${i + 1}`,
+    name: [
+      "The Weeknd", "Harry Styles", "Dua Lipa", "Taylor Swift", "Post Malone",
+      "Ariana Grande", "Drake", "Billie Eilish", "Ed Sheeran", "Justin Bieber",
+      "Olivia Rodrigo", "Bad Bunny", "The Kid LAROI", "Doja Cat", "Lil Nas X",
+      "SZA", "Future", "21 Savage", "Travis Scott", "Kanye West"
+    ][i] || `Sample Artist ${i + 1}`,
+    genres: [["pop", "r&b"], ["pop", "rock"], ["pop", "dance"]][i % 3] || ["pop"]
+  }));
 
-  const sampleRecentlyPlayed = [
-    { id: '1', name: "Anti-Hero", artists: [{ name: "Taylor Swift" }] },
-    { id: '2', name: "As It Was", artists: [{ name: "Harry Styles" }] },
-    { id: '3', name: "Heat Waves", artists: [{ name: "Glass Animals" }] }
-  ];
+  const sampleRecentlyPlayed = Array.from({ length: 20 }, (_, i) => ({
+    id: `recent-${i + 1}`,
+    name: [
+      "Anti-Hero", "As It Was", "Heat Waves", "Flowers", "Unholy",
+      "I'm Good", "Calm Down", "Shivers", "About Damn Time", "Running Up That Hill",
+      "Bad Habit", "First Class", "Wait For U", "Break My Soul", "Music For A Sushi Restaurant",
+      "Glimpse of Us", "Left and Right", "Golden", "Cruel Summer", "Levitating"
+    ][i] || `Recent Track ${i + 1}`,
+    artists: [{ name: [
+      "Taylor Swift", "Harry Styles", "Glass Animals", "Miley Cyrus", "Sam Smith",
+      "David Guetta", "Rema", "Ed Sheeran", "Lizzo", "Kate Bush",
+      "Steve Lacy", "Jack Harlow", "Future", "Beyoncé", "Harry Styles",
+      "Joji", "Charlie Puth", "Harry Styles", "Taylor Swift", "Dua Lipa"
+    ][i] || `Recent Artist ${i + 1}` }]
+  }));
 
   // Use real data if available, otherwise use sample data
   const displayTopTracks = topTracks.length > 0 ? topTracks : sampleTopTracks;
   const displayTopArtists = topArtists.length > 0 ? topArtists : sampleTopArtists;
   const displayRecentlyPlayed = recentlyPlayed.length > 0 ? recentlyPlayed : sampleRecentlyPlayed;
 
-  // On mount, auto refresh profile once (in case local state is stale)
-  useEffect(() => {
-    if (user && fetchProfile && (!profile || !profile.spotify_connected)) {
-      fetchProfile();
-    }
-    return () => {
-      if (profileLoadTimeout) clearTimeout(profileLoadTimeout);
-    };
-    // eslint-disable-next-line
-  }, []);
-
-  // Always ensure authLoading ends if user is authenticated
   const isLoading = authLoading || (user && !profile);
 
-  // If not logged in, redirect
   if (!authLoading && !user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Handle the situation where user is logged in, but profile is missing
   if (!isLoading && user && !profile) {
     return (
       <div className="min-h-screen bg-gradient-dark flex flex-col items-center justify-center">
@@ -84,8 +94,7 @@ const Dashboard = () => {
           <Music className="h-10 w-10 mx-auto text-primary mb-4" />
           <h2 className="text-2xl font-bold mb-2 text-foreground">Profile Not Loaded</h2>
           <p className="text-muted-foreground mb-4">
-            Sorry, we couldn't load your account profile. This can happen if your profile is missing or something went wrong.<br /><br />
-            If you have deleted all users by mistake, please sign out and sign up again.
+            Sorry, we couldn't load your account profile. This can happen if your profile is missing or something went wrong.
           </p>
           <div className="flex flex-col gap-2">
             <Button
@@ -103,15 +112,11 @@ const Dashboard = () => {
               Sign Out
             </Button>
           </div>
-          <div className="mt-6 text-muted-foreground text-xs">
-            If the problem persists, sign out and sign in again to recreate your profile.
-          </div>
         </div>
       </div>
     );
   }
 
-  // Show initial loading spinner
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
@@ -143,7 +148,6 @@ const Dashboard = () => {
         throw new Error('No valid Spotify token. Please reconnect your Spotify account.');
       }
 
-      // Get user's Spotify profile to get their user ID
       const userResponse = await fetch('https://api.spotify.com/v1/me', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
@@ -154,7 +158,6 @@ const Dashboard = () => {
       
       const spotifyUser = await userResponse.json();
 
-      // Create playlist
       const playlistName = `MyVibeLytics Mix - ${new Date().toLocaleDateString()}`;
       const playlistResponse = await fetch(`https://api.spotify.com/v1/users/${spotifyUser.id}/playlists`, {
         method: 'POST',
@@ -175,10 +178,9 @@ const Dashboard = () => {
       
       const playlist = await playlistResponse.json();
 
-      // Add tracks to playlist (top 25 tracks)
       const trackUris = displayTopTracks.slice(0, 25)
         .map(track => track.uri || `spotify:track:${track.id}`)
-        .filter(Boolean);
+        .filter(uri => uri && !uri.includes('sample'));
       
       if (trackUris.length > 0) {
         const addTracksResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
@@ -197,7 +199,6 @@ const Dashboard = () => {
         }
       }
 
-      // Open playlist in Spotify
       window.open(playlist.external_urls.spotify, '_blank');
       alert(`Playlist "${playlistName}" created successfully! Opening in Spotify...`);
       
@@ -209,7 +210,6 @@ const Dashboard = () => {
     }
   };
 
-  // Generate realistic analytics data based on actual Spotify data
   const generateAnalyticsData = () => {
     const genres = displayTopArtists.length > 0 
       ? [...new Set(displayTopArtists.flatMap(artist => artist.genres))].slice(0, 5)
@@ -244,7 +244,6 @@ const Dashboard = () => {
 
   const { genreData, monthlyData, timeData } = generateAnalyticsData();
 
-  // Calculate actual stats
   const totalTracks = displayTopTracks.length > 0 ? displayTopTracks.length * 15 + Math.floor(Math.random() * 500) : 1247;
   const listeningHours = displayTopTracks.length > 0 ? Math.round(displayTopTracks.length * 2.5) + Math.floor(Math.random() * 100) : 342;
   const totalArtists = displayTopArtists.length > 0 ? displayTopArtists.length + Math.floor(Math.random() * 20) : 89;
@@ -256,7 +255,7 @@ const Dashboard = () => {
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center space-x-4">
           <Link to="/" className="flex items-center space-x-2">
-            <img src="/logo.png" alt="MyVibeLytics" className="h-10 w-10" />
+            <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-10 w-10" />
             <span className="text-2xl font-bold text-foreground">MyVibeLytics</span>
           </Link>
           <div className="text-muted-foreground">
@@ -287,24 +286,8 @@ const Dashboard = () => {
 
       {/* Spotify Connection (only show if not connected) */}
       {!profile?.spotify_connected && (
-        <div className="mb-8 flex flex-col items-center gap-3">
+        <div className="mb-8">
           <SpotifyConnect />
-          {/* Option to manually sync profile if the state is wrong */}
-          <Button
-            disabled={syncing}
-            className="mt-2 bg-blue-500 hover:bg-blue-600 text-white"
-            onClick={async () => {
-              setSyncing(true);
-              await fetchProfile?.();
-              setSyncing(false);
-            }}
-          >
-            {syncing ? 'Syncing...' : 'Sync Profile from Supabase'}
-          </Button>
-          <span className="text-xs text-gray-400 text-center max-w-xs leading-snug mt-1">
-            If you just connected Spotify and still see this prompt,<br />
-            click 'Sync Profile' to force refresh your account status from Supabase.
-          </span>
         </div>
       )}
 

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchingProfile, setFetchingProfile] = useState(false);
 
   const isUnlocked = profile?.has_active_subscription || false;
 
@@ -68,14 +70,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user && mounted) {
+        if (session?.user && mounted && !fetchingProfile) {
           try {
             console.log('👤 Fetching profile for user:', session.user.id);
+            setFetchingProfile(true);
             await fetchProfileForUser(session.user.id);
           } catch (err) {
             console.error('❌ Profile operation error:', err);
+          } finally {
+            setFetchingProfile(false);
           }
-        } else {
+        } else if (!session?.user) {
           setProfile(null);
         }
 
@@ -104,20 +109,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchingProfile]);
 
   const fetchProfileForUser = async (userId: string) => {
     try {
       console.log('👤 Fetching profile for user:', userId);
       
-      // Try to fetch existing profile first
       const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle();
+        .single();
 
-      if (fetchError) {
+      if (fetchError && fetchError.code !== 'PGRST116') {
         console.error('❌ Error fetching profile:', fetchError);
         throw fetchError;
       }
@@ -126,7 +130,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('✅ Found existing profile:', existingProfile);
         setProfile(existingProfile);
       } else {
-        // Create new profile if none exists
         console.log('📝 Creating new profile for user:', userId);
         const newProfileData = {
           user_id: userId,
@@ -146,12 +149,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (insertError) {
           console.error('❌ Error creating profile:', insertError);
-          // Try to fetch again in case it was created by trigger
           const { data: retryProfile } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', userId)
-            .maybeSingle();
+            .single();
           
           if (retryProfile) {
             console.log('✅ Found profile after retry:', retryProfile);
@@ -195,7 +197,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('👋 Signing out user...');
       
-      // Clear localStorage
       localStorage.removeItem('admin_session');
       localStorage.removeItem('admin_logged_in');
       localStorage.removeItem('admin_email');
@@ -203,7 +204,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('spotify_refresh_token');
       localStorage.removeItem('myvibelytics_user');
       
-      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('❌ Error signing out:', error);
@@ -211,12 +211,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('✅ Supabase signout successful');
       }
       
-      // Clear state
       setUser(null);
       setSession(null);
       setProfile(null);
       
-      // Force navigation to home
       window.location.href = '/';
     } catch (error) {
       console.error('❌ Logout error:', error);
@@ -239,10 +237,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       'user-read-recently-played',
       'user-read-currently-playing',
       'playlist-read-private',
-      'playlist-read-collaborative'
+      'playlist-read-collaborative',
+      'playlist-modify-private',
+      'playlist-modify-public'
     ].join(' ');
 
-    // Clear any existing Spotify data
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_refresh_token');
 
@@ -268,7 +267,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('🔄 Updating profile for user:', user.id, updates);
 
     try {
-      // First, try to update the profile directly
       const { data: updatedProfile, error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -280,82 +278,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (updateError) {
-        console.error('❌ Direct update failed:', updateError);
-        
-        // If update fails, try to fetch existing profile first
-        console.log('🔍 Fetching existing profile...');
-        const { data: existingProfile, error: fetchError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (fetchError) {
-          console.error('❌ Error fetching existing profile:', fetchError);
-          throw fetchError;
-        }
-
-        if (!existingProfile) {
-          console.log('📝 No existing profile found, creating new one...');
-          // Create a new profile if none exists
-          const newProfileData = {
-            user_id: user.id,
-            email: user.email!,
-            full_name: user.user_metadata?.full_name || null,
-            plan_tier: 'free',
-            has_active_subscription: false,
-            plan_id: 'free_tier',
-            spotify_connected: false,
-            ...updates,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-
-          const { data: newProfile, error: insertError } = await supabase
-            .from('profiles')
-            .insert(newProfileData)
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error('❌ Error creating new profile:', insertError);
-            throw insertError;
-          }
-
-          console.log('✅ New profile created:', newProfile);
-          setProfile(newProfile);
-          return;
-        } else {
-          // Try update again now that we know profile exists
-          const { data: retryUpdate, error: retryError } = await supabase
-            .from('profiles')
-            .update({
-              ...updates,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id)
-            .select()
-            .single();
-
-          if (retryError) {
-            console.error('❌ Retry update failed:', retryError);
-            throw retryError;
-          }
-
-          console.log('✅ Profile updated on retry:', retryUpdate);
-          setProfile(retryUpdate);
-        }
-      } else {
-        console.log('✅ Profile updated successfully:', updatedProfile);
-        setProfile(updatedProfile);
+        console.error('❌ Profile update failed:', updateError);
+        throw updateError;
       }
+
+      console.log('✅ Profile updated successfully:', updatedProfile);
+      setProfile(updatedProfile);
     } catch (error) {
       console.error('❌ Update profile error:', error);
       throw error;
     }
   };
 
-  // Enhanced fetchProfile function for manual refresh
   const fetchProfile = async () => {
     if (!user) return null;
     try {
@@ -364,7 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
       
       if (error) {
         console.error('❌ Error fetching profile:', error);
@@ -391,11 +325,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
 
-    // Check if token is expired
     if (profile.spotify_token_expires_at) {
       const expiresAt = new Date(profile.spotify_token_expires_at);
       const now = new Date();
-      const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+      const bufferTime = 5 * 60 * 1000;
 
       if (now.getTime() + bufferTime >= expiresAt.getTime()) {
         console.log('🔄 Token expired or expiring soon, refreshing...');
@@ -422,7 +355,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('❌ Token refresh failed:', error);
         
-        // If refresh fails, clear connection
         await updateProfile({
           spotify_connected: false,
           spotify_access_token: null,

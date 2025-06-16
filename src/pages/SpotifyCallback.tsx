@@ -44,7 +44,6 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('🔄 Exchanging code for tokens...');
 
-        // Call supabase edge function for secure token exchange
         const { data: tokenData, error: tokenError } = await supabase.functions.invoke('spotify-exchange', {
           body: { 
             code,
@@ -65,7 +64,6 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('✅ Token exchange successful');
 
-        // Fetch Spotify profile
         console.log('📡 Fetching Spotify profile...');
         const profileResponse = await fetch('https://api.spotify.com/v1/me', {
           headers: { Authorization: `Bearer ${tokenData.access_token}` }
@@ -80,7 +78,6 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('✅ Spotify profile fetched:', profileData.id);
 
-        // Calculate token expiry time
         const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
         const updateData = {
           spotify_connected: true,
@@ -94,40 +91,17 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('🔄 Updating profile with Spotify data...');
 
-        // Try updating the profile directly with Supabase client
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            ...updateData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('❌ Direct profile update failed:', updateError);
-          // Fallback to AuthContext update method
-          try {
-            await updateProfile(updateData);
-            console.log('✅ Profile updated via AuthContext');
-          } catch (fallbackError) {
-            console.error('❌ Fallback profile update failed:', fallbackError);
-            navigate('/error?reason=profile_update_failed&details=' + encodeURIComponent(updateError.message));
-            return;
-          }
-        } else {
-          console.log('✅ Profile updated directly:', updatedProfile);
-        }
-
-        // Fetch updated profile to ensure state is current
-        if (fetchProfile) {
-          await fetchProfile();
+        try {
+          await updateProfile(updateData);
+          console.log('✅ Profile updated successfully');
+        } catch (updateError) {
+          console.error('❌ Profile update failed:', updateError);
+          navigate('/error?reason=profile_update_failed&details=' + encodeURIComponent(updateError.message));
+          return;
         }
 
         console.log('🎉 Spotify connection completed successfully');
         
-        // Clear URL and redirect to dashboard
         window.history.replaceState({}, document.title, '/spotify-callback');
         setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
 
