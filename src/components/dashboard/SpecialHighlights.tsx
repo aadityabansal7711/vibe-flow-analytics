@@ -51,25 +51,54 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
     return hiddenGems[0] || topTracks[Math.floor(Math.random() * topTracks.length)];
   };
 
-  // Get late night tracks
   const getLateNightTracks = () => {
-    return recentlyPlayed.filter(track => {
-      if (!track.played_at) return false;
-      const hour = new Date(track.played_at).getHours();
-      return hour >= 22 || hour <= 4;
-    }).slice(0, 3);
+  const lateNightMap: Record<string, { count: number; track: SpotifyTrack }> = {};
+
+  recentlyPlayed.forEach((track) => {
+    if (!track.played_at) return;
+    const hour = new Date(track.played_at).getHours();
+    if (hour >= 22 || hour <= 4) {
+      const key = track.name + ' - ' + track.artists[0]?.name;
+      if (lateNightMap[key]) {
+        lateNightMap[key].count += 1;
+      } else {
+        lateNightMap[key] = { count: 1, track };
+      }
+    }
+  });
+
+  const sortedTracks = Object.values(lateNightMap)
+    .sort((a, b) => b.count - a.count)
+    .map((entry) => entry.track);
+
+  return sortedTracks.slice(0, 3);
+};
+
+
+ const getListeningMilestones = () => {
+  const allTracks = [...recentlyPlayed, ...topTracks];
+  const trackCount = allTracks.length;
+
+  const getDateForMilestone = (index: number) => {
+    const sorted = allTracks
+      .filter(t => t.played_at)
+      .sort((a, b) => new Date(a.played_at!).getTime() - new Date(b.played_at!).getTime());
+
+    if (sorted[index]) {
+      const date = new Date(sorted[index].played_at!);
+      return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    }
+    return '—';
   };
 
-  // Calculate listening milestones
-  const getListeningMilestones = () => {
-    const totalTracks = recentlyPlayed.length + topTracks.length;
-    return [
-      { milestone: 'First Track', date: '2024', achieved: true },
-      { milestone: '100th Song', date: 'March 2024', achieved: totalTracks >= 100 },
-      { milestone: '500th Song', date: 'August 2024', achieved: totalTracks >= 500 },
-      { milestone: '1000th Song', date: 'December 2024', achieved: totalTracks >= 1000 },
-    ];
-  };
+  return [
+    { milestone: 'First Track', date: getDateForMilestone(0), achieved: trackCount >= 1 },
+    { milestone: '100th Song', date: getDateForMilestone(99), achieved: trackCount >= 100 },
+    { milestone: '500th Song', date: getDateForMilestone(499), achieved: trackCount >= 500 },
+    { milestone: '1000th Song', date: getDateForMilestone(999), achieved: trackCount >= 1000 },
+  ];
+};
+
 
   const hiddenGem = getHiddenGem();
   const lateNightTracks = getLateNightTracks();
