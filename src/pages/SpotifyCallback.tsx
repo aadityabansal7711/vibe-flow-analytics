@@ -16,9 +16,18 @@ const SpotifyCallback: React.FC = () => {
         console.log('🎵 Starting Spotify callback handling...');
         setStatus('Verifying authentication...');
         
-        // Wait for auth to be ready
+        // Wait for auth to be ready with timeout
+        let authTimeout = 0;
+        while (loading && authTimeout < 50) { // 5 second timeout
+          await new Promise(resolve => setTimeout(resolve, 100));
+          authTimeout++;
+        }
+        
         if (loading) {
-          console.log('⏳ Auth still loading, waiting...');
+          console.error('❌ Auth timeout - still loading after 5 seconds');
+          setError('Authentication timeout');
+          setStatus('Authentication timeout...');
+          setTimeout(() => navigate('/auth?error=auth_timeout'), 2000);
           return;
         }
         
@@ -26,7 +35,7 @@ const SpotifyCallback: React.FC = () => {
           console.error('❌ No user found during callback');
           setError('Authentication required');
           setStatus('Authentication required...');
-          setTimeout(() => navigate('/auth?error=no_user'), 3000);
+          setTimeout(() => navigate('/auth?error=no_user'), 2000);
           return;
         }
 
@@ -37,10 +46,12 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('🔍 URL params:', { 
           hasCode: !!code, 
+          codeLength: code?.length,
           error: error_param, 
           state,
           userId: user.id,
-          stateMatch: state === user.id 
+          stateMatch: state === user.id,
+          currentUrl: window.location.href
         });
 
         // Check for Spotify authorization errors
@@ -48,16 +59,16 @@ const SpotifyCallback: React.FC = () => {
           console.error('❌ Spotify auth error:', error_param);
           setError(`Spotify authorization failed: ${error_param}`);
           setStatus('Authorization failed...');
-          setTimeout(() => navigate('/dashboard?spotify_error=' + encodeURIComponent(error_param)), 3000);
+          setTimeout(() => navigate('/dashboard?spotify_error=' + encodeURIComponent(error_param)), 2000);
           return;
         }
 
         // Check for authorization code
-        if (!code) {
-          console.error('❌ No authorization code received');
-          setError('No authorization code received');
-          setStatus('No authorization code received...');
-          setTimeout(() => navigate('/dashboard?spotify_error=no_code'), 3000);
+        if (!code || code.length < 10) {
+          console.error('❌ Invalid or missing authorization code', { code: code?.substring(0, 10) + '...' });
+          setError('Invalid authorization code received');
+          setStatus('Invalid authorization code...');
+          setTimeout(() => navigate('/dashboard?spotify_error=invalid_code'), 2000);
           return;
         }
 
@@ -66,33 +77,37 @@ const SpotifyCallback: React.FC = () => {
           console.error('❌ State mismatch - possible security issue', { expected: user.id, received: state });
           setError('Security verification failed');
           setStatus('Security verification failed...');
-          setTimeout(() => navigate('/dashboard?spotify_error=state_mismatch'), 3000);
+          setTimeout(() => navigate('/dashboard?spotify_error=state_mismatch'), 2000);
           return;
         }
 
         setStatus('Exchanging authorization code...');
         console.log('🔄 Calling Supabase Edge Function for token exchange...');
 
+        // Use proper redirect URI that matches exactly what was sent to Spotify
+        const redirectUri = `${window.location.origin}/spotify-callback`;
+        
         // Call the Supabase Edge Function with proper error handling
         const { data: tokenData, error: tokenError } = await supabase.functions.invoke('spotify-exchange', {
           body: { 
             code,
-            redirect_uri: 'https://my-vibe-lytics.lovable.app/spotify-callback'
+            redirect_uri: redirectUri
           }
         });
 
         console.log('📊 Token exchange result:', { 
           hasData: !!tokenData, 
           hasToken: !!tokenData?.access_token,
+          hasRefreshToken: !!tokenData?.refresh_token,
           errorMessage: tokenError?.message,
-          errorDetails: tokenError 
+          tokenDataKeys: tokenData ? Object.keys(tokenData) : null
         });
 
         if (tokenError) {
           console.error('❌ Token exchange failed:', tokenError);
           setError(`Token exchange failed: ${tokenError.message}`);
           setStatus('Token exchange failed...');
-          setTimeout(() => navigate('/dashboard?spotify_error=token_exchange_failed'), 3000);
+          setTimeout(() => navigate('/dashboard?spotify_error=token_exchange_failed'), 2000);
           return;
         }
 
@@ -100,7 +115,7 @@ const SpotifyCallback: React.FC = () => {
           console.error('❌ No access token received from exchange', tokenData);
           setError('No access token received');
           setStatus('No access token received...');
-          setTimeout(() => navigate('/dashboard?spotify_error=no_access_token'), 3000);
+          setTimeout(() => navigate('/dashboard?spotify_error=no_access_token'), 2000);
           return;
         }
 
@@ -131,7 +146,7 @@ const SpotifyCallback: React.FC = () => {
           });
           setError(`Failed to fetch Spotify profile (${profileResponse.status})`);
           setStatus('Failed to fetch profile...');
-          setTimeout(() => navigate('/dashboard?spotify_error=profile_fetch_failed&status=' + profileResponse.status), 3000);
+          setTimeout(() => navigate('/dashboard?spotify_error=profile_fetch_failed&status=' + profileResponse.status), 2000);
           return;
         }
 
@@ -143,7 +158,7 @@ const SpotifyCallback: React.FC = () => {
           images: profileData.images?.length || 0
         });
 
-        setStatus('Updating your account...');
+        setStatus('Saving your Spotify connection...');
 
         // Calculate token expiry (default to 1 hour if not provided)
         const expiresInSeconds = tokenData.expires_in || 3600;
@@ -169,17 +184,27 @@ const SpotifyCallback: React.FC = () => {
           token_expires: updateData.spotify_token_expires_at
         });
 
-        await updateProfile(updateData);
+        try {
+          await updateProfile(updateData);
+          console.log('✅ Profile updated successfully');
+        } catch (updateError: any) {
+          console.error('❌ Profile update failed:', updateError);
+          setError(`Failed to save connection: ${updateError.message}`);
+          setStatus('Failed to save connection...');
+          setTimeout(() => navigate('/dashboard?spotify_error=profile_update_failed'), 2000);
+          return;
+        }
         
-        console.log('✅ Profile updated successfully');
         setStatus('Success! Redirecting...');
         
         // Clear URL parameters and redirect to dashboard
         window.history.replaceState({}, '', '/spotify-callback');
         
+        // Verify the connection was saved by checking if it's accessible
+        console.log('🔍 Verifying connection was saved...');
         setTimeout(() => {
           navigate('/dashboard?spotify_connected=true', { replace: true });
-        }, 1500);
+        }, 1000);
 
       } catch (err: any) {
         console.error('❌ Unexpected error in Spotify callback:', err);
@@ -187,17 +212,17 @@ const SpotifyCallback: React.FC = () => {
         setStatus('Connection failed...');
         setTimeout(() => {
           navigate('/dashboard?spotify_error=' + encodeURIComponent(err.message || 'unexpected_error'));
-        }, 3000);
+        }, 2000);
       }
     };
 
-    // Set up timeout protection (30 seconds)
+    // Set up timeout protection (20 seconds)
     const timeoutId = setTimeout(() => {
-      console.error('⏰ Callback handler timed out after 30 seconds');
+      console.error('⏰ Callback handler timed out after 20 seconds');
       setError('Connection timed out');
       setStatus('Connection timed out...');
       navigate('/dashboard?spotify_error=timeout');
-    }, 30000);
+    }, 20000);
 
     // Start the callback handling
     handleCallback().finally(() => {
@@ -240,7 +265,7 @@ const SpotifyCallback: React.FC = () => {
                        status.includes('Verifying') ? '20%' :
                        status.includes('Exchanging') ? '40%' :
                        status.includes('Fetching') ? '60%' :
-                       status.includes('Updating') ? '80%' :
+                       status.includes('Saving') ? '80%' :
                        status.includes('Success') ? '100%' : '30%'
               }}
             ></div>
@@ -250,6 +275,7 @@ const SpotifyCallback: React.FC = () => {
           <div className="text-xs text-muted-foreground mt-4 space-y-1">
             <div>Check browser console for detailed logs</div>
             {user && <div>User ID: {user.id.slice(0, 8)}...</div>}
+            <div>Device: {navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'}</div>
           </div>
         </div>
       </div>

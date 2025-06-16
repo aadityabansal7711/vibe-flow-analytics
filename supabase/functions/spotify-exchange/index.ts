@@ -38,7 +38,8 @@ serve(async (req) => {
     console.log('🔄 Exchanging code for tokens...', {
       clientId: SPOTIFY_CLIENT_ID,
       redirectUri: redirect_uri,
-      hasCode: !!code
+      codeLength: code.length,
+      codePreview: code.substring(0, 10) + '...'
     })
 
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
@@ -61,7 +62,12 @@ serve(async (req) => {
       console.error('❌ Token exchange failed:', {
         status: tokenResponse.status,
         statusText: tokenResponse.statusText,
-        error: errorText
+        error: errorText,
+        requestBody: {
+          grant_type: 'authorization_code',
+          code: code.substring(0, 10) + '...',
+          redirect_uri
+        }
       })
       throw new Error(`Token exchange failed: ${tokenResponse.status} ${errorText}`)
     }
@@ -71,7 +77,8 @@ serve(async (req) => {
     console.log('✅ Token exchange successful', {
       hasAccessToken: !!tokenData.access_token,
       hasRefreshToken: !!tokenData.refresh_token,
-      expiresIn: tokenData.expires_in
+      expiresIn: tokenData.expires_in,
+      tokenType: tokenData.token_type
     })
 
     return new Response(

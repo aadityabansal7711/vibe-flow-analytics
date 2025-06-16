@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isUnlocked = profile?.has_active_subscription || false;
 
   const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
-  const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
+  const SPOTIFY_REDIRECT_URI = `${window.location.origin}/spotify-callback`;
 
   useEffect(() => {
     let mounted = true;
@@ -128,7 +128,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (existingProfile) {
-        console.log('✅ Found existing profile');
+        console.log('✅ Found existing profile', {
+          spotifyConnected: existingProfile.spotify_connected,
+          hasSpotifyToken: !!existingProfile.spotify_access_token,
+          tokenExpires: existingProfile.spotify_token_expires_at
+        });
         setProfile(existingProfile);
       } else {
         // Create new profile if none exists
@@ -238,7 +242,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       `state=${user.id}&` +
       `show_dialog=true`;
 
-    console.log('🔗 Redirecting to Spotify auth URL');
+    console.log('🔗 Redirecting to Spotify auth URL', {
+      redirectUri: SPOTIFY_REDIRECT_URI,
+      state: user.id
+    });
     window.location.href = authUrl;
   };
 
@@ -271,7 +278,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No profile returned from update');
       }
 
-      console.log('✅ Profile updated successfully');
+      console.log('✅ Profile updated successfully', {
+        spotifyConnected: updatedProfile.spotify_connected,
+        hasToken: !!updatedProfile.spotify_access_token
+      });
       setProfile(updatedProfile);
       return updatedProfile;
     } catch (error) {
@@ -298,6 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    console.log('✅ Using existing valid token');
     return profile.spotify_access_token;
   };
 
