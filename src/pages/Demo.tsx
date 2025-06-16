@@ -19,7 +19,7 @@ const Demo = () => {
           <Link to="/" className="flex items-center space-x-3">
             <ArrowLeft className="h-6 w-6 text-primary" />
             <div className="flex items-center space-x-2">
-              <img src="/lovable-uploads/eeb01895-fadf-4b3f-9d3f-d61bb48673b0.png" alt="MyVibeLytics" className="h-8 w-8" />
+              <img src="/lovable-uploads/8563991f-3de0-4c8c-a013-8421fc670873.png" alt="MyVibeLytics" className="h-8 w-8" />
               <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
             </div>
           </Link>
