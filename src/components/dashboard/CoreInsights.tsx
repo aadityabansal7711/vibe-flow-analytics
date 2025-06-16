@@ -38,27 +38,22 @@ interface CoreInsightsProps {
 const CoreInsights: React.FC<CoreInsightsProps> = ({ topTracks, topArtists, recentlyPlayed, isLocked }) => {
   // Find most played song of all time (using play count proxy via recently played frequency)
   const getMostPlayedSong = () => {
-  if (topTracks.length === 0 && recentlyPlayed.length === 0) return null;
+    if (topTracks.length === 0 && recentlyPlayed.length === 0) return null;
 
-  // Use topTracks[0] if available (Spotify's long-term ranking)
-  const mostPlayedTopTrack = topTracks[0];
+    // Use topTracks[0] if available (Spotify's long-term ranking)
+    const mostPlayedTopTrack = topTracks[0];
 
-  // Estimate recent play count from recentlyPlayed
-  const recentCount = recentlyPlayed.filter(
-    t => t.name === mostPlayedTopTrack.name && t.artists[0]?.name === mostPlayedTopTrack.artists[0]?.name
-  ).length;
+    if (!mostPlayedTopTrack) return null;
 
-  return {
-    track: mostPlayedTopTrack,
-    playCount: `${recentCount}+ plays (recent only)`,
-  };
-};
+    // Estimate recent play count from recentlyPlayed
+    const recentCount = recentlyPlayed.filter(
+      t => t.name === mostPlayedTopTrack.name && t.artists[0]?.name === mostPlayedTopTrack.artists[0]?.name
+    ).length;
 
-    
-    const mostPlayed = Object.entries(songCounts).sort(([,a], [,b]) => b - a)[0];
-    const track = recentlyPlayed.find(t => `${t.name}-${t.artists[0]?.name}` === mostPlayed[0]);
-    
-    return { track, playCount: mostPlayed[1] };
+    return {
+      track: mostPlayedTopTrack,
+      playCount: `${recentCount}+ plays (recent only)`,
+    };
   };
 
   // Get top albums from top tracks
@@ -167,7 +162,7 @@ const CoreInsights: React.FC<CoreInsightsProps> = ({ topTracks, topArtists, rece
             <Heart className="h-12 w-12 text-red-400 mx-auto mb-2" />
             <h3 className="text-white font-semibold">{mostPlayedSong.track?.name}</h3>
             <p className="text-gray-300 text-sm">{mostPlayedSong.track?.artists[0]?.name}</p>
-            <p className="text-red-400 text-xs mt-1">{mostPlayedSong.playCount} plays detected</p>
+            <p className="text-red-400 text-xs mt-1">{mostPlayedSong.playCount}</p>
           </div>
         )}
       </FeatureCard>
