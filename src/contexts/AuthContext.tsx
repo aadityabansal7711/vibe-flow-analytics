@@ -32,7 +32,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   connectSpotify: () => void;
-  updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<Profile>;
   getValidSpotifyToken: () => Promise<string | null>;
   fetchProfile: () => Promise<Profile | null>;
 }
