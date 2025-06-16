@@ -33,71 +33,60 @@ interface PersonalityAnalyticsProps {
   isLocked: boolean;
 }
 
-const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
-  topTracks,
-  topArtists,
-  recentlyPlayed,
-  isLocked,
+const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({ 
+  topTracks, 
+  topArtists, 
+  recentlyPlayed, 
+  isLocked 
 }) => {
   const getMusicPersonality = () => {
-    if (topArtists.length === 0) return 'The Explorer';
-    const genres = topArtists.flatMap(artist => artist.genres);
-    const uniqueGenres = new Set(genres).size;
+    const genres = topArtists.flatMap(a => a.genres);
+    const uniqueGenreCount = new Set(genres).size;
 
-    if (uniqueGenres > genres.length * 0.8) return 'The Explorer';
-    if (uniqueGenres < genres.length * 0.3) return 'The Loyalist';
+    if (uniqueGenreCount > genres.length * 0.7) return 'The Explorer';
+    if (uniqueGenreCount < genres.length * 0.3) return 'The Loyalist';
     return 'The Balanced Listener';
   };
 
   const getMoodAnalysis = () => {
-    const genres = topArtists.flatMap(artist => artist.genres.map(g => g.toLowerCase()));
+    const genres = topArtists.flatMap(a => a.genres);
     const moodMap: Record<string, string[]> = {
-      'Happy': ['pop', 'dance', 'bollywood', 'funk'],
-      'Energetic': ['rock', 'metal', 'punjabi', 'rap'],
-      'Chill': ['indie', 'folk', 'ambient', 'lo-fi', 'acoustic'],
-      'Melancholic': ['sad', 'blues', 'emotional'],
+      'Happy': ['pop', 'dance', 'disco'],
+      'Energetic': ['rock', 'metal', 'electro'],
+      'Chill': ['lo-fi', 'indie', 'folk'],
+      'Melancholic': ['blues', 'sad', 'emo'],
+      'Romantic': ['r&b', 'soul', 'love'],
     };
 
-    const moodScores: Record<string, number> = {};
-    Object.entries(moodMap).forEach(([mood, keywords]) => {
-      moodScores[mood] = genres.filter(genre =>
-        keywords.some(keyword => genre.includes(keyword))
-      ).length;
+    const moodCounts: Record<string, number> = {};
+    genres.forEach(genre => {
+      for (const mood in moodMap) {
+        if (moodMap[mood].some(tag => genre.toLowerCase().includes(tag))) {
+          moodCounts[mood] = (moodCounts[mood] || 0) + 1;
+        }
+      }
     });
 
-    const totalScore = Object.values(moodScores).reduce((a, b) => a + b, 0);
-    const moodPercents: Record<string, number> = {};
-    Object.entries(moodScores).forEach(([mood, count]) => {
-      moodPercents[mood] = totalScore ? Math.round((count / totalScore) * 100) : 0;
-    });
+    const total = Object.values(moodCounts).reduce((a, b) => a + b, 0) || 1;
+    const moodScores = Object.fromEntries(
+      Object.entries(moodCounts).map(([mood, count]) => [mood, Math.round((count / total) * 100)])
+    );
 
-    const dominantMood = Object.entries(moodScores).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Eclectic';
-
-    return { dominantMood, moodPercents };
+    const dominantMood = Object.entries(moodScores).sort(([, a], [, b]) => b - a)[0]?.[0] || 'Eclectic';
+    return { dominantMood, moodScores };
   };
 
   const getGenreBreakdown = () => {
-    const genres = topArtists.flatMap(artist => artist.genres.map(g => g.toLowerCase()));
-    const genreCounts: Record<string, number> = {};
-    genres.forEach(genre => {
-      genreCounts[genre] = (genreCounts[genre] || 0) + 1;
-    });
+    const genres = topArtists.flatMap(a => a.genres.map(g => g.toLowerCase()));
+    const counts: Record<string, number> = {};
+    genres.forEach(g => (counts[g] = (counts[g] || 0) + 1));
+    const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a).slice(0, 5);
+    const total = sorted.reduce((sum, [, count]) => sum + count, 0) || 1;
 
-    const sortedGenres = Object.entries(genreCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-
-    const total = sortedGenres.reduce((sum, [, count]) => sum + count, 0);
-    const percentages = sortedGenres.map(([genre, count]) => ({
+    return sorted.map(([genre, count]) => ({
       genre,
-      percentage: Math.round((count / total) * 100),
+      percentage: Math.round((count / total) * 100)
     }));
-
-    const actualTotal = percentages.reduce((sum, g) => sum + g.percentage, 0);
-    const diff = 100 - actualTotal;
-    if (percentages.length > 0) percentages[0].percentage += diff;
-
-    return percentages;
   };
 
   const musicPersonality = getMusicPersonality();
@@ -106,7 +95,6 @@ const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {/* Music Personality */}
       <FeatureCard
         title="Music Personality Profile"
         description="Your musical character type"
@@ -117,23 +105,13 @@ const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
           <Star className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-foreground mb-2">{musicPersonality}</h3>
           <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Adventurous</span>
-              <span className="text-yellow-400 text-sm">{musicPersonality === 'The Explorer' ? '85%' : '45%'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Loyal</span>
-              <span className="text-blue-400 text-sm">{musicPersonality === 'The Loyalist' ? '85%' : '45%'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Balanced</span>
-              <span className="text-purple-400 text-sm">{musicPersonality === 'The Balanced Listener' ? '85%' : '45%'}</span>
-            </div>
+            <div className="flex justify-between"><span>Adventurous</span><span>{musicPersonality === 'The Explorer' ? '85%' : '40%'}</span></div>
+            <div className="flex justify-between"><span>Loyal</span><span>{musicPersonality === 'The Loyalist' ? '85%' : '45%'}</span></div>
+            <div className="flex justify-between"><span>Balanced</span><span>{musicPersonality === 'The Balanced Listener' ? '80%' : '50%'}</span></div>
           </div>
         </div>
       </FeatureCard>
 
-      {/* Mood in Music */}
       <FeatureCard
         title="Your Mood in Music 2025"
         description="Emotional analysis of your listening"
@@ -145,21 +123,15 @@ const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
           <Badge variant="outline" className="text-pink-400 border-pink-400 mb-4">
             {moodAnalysis.dominantMood}
           </Badge>
-          <div className="space-y-2">
-            {Object.entries(moodAnalysis.moodPercents)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 3)
-              .map(([mood, percent]) => (
-                <div className="flex justify-between" key={mood}>
-                  <span className="text-sm text-muted-foreground">{mood}</span>
-                  <span className="text-pink-400 text-sm">{percent}%</span>
-                </div>
-              ))}
-          </div>
+          {Object.entries(moodAnalysis.moodScores).slice(0, 3).map(([mood, score]) => (
+            <div key={mood} className="flex justify-between text-sm">
+              <span>{mood}</span>
+              <span>{score}%</span>
+            </div>
+          ))}
         </div>
       </FeatureCard>
 
-      {/* Genre Mood Map */}
       <FeatureCard
         title="Genre Mood Map"
         description="Your genre preferences breakdown"
@@ -167,24 +139,62 @@ const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
         isLocked={isLocked}
       >
         <div className="py-4">
-          <div className="space-y-3">
-            {genreBreakdown.map((item, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span className="text-sm text-foreground capitalize truncate">
-                  {item.genre.replace(/[-_]/g, ' ')}
-                </span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-16 h-2 bg-gray-600 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-purple-400"
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-purple-400 w-8">{item.percentage}%</span>
+          {genreBreakdown.map(({ genre, percentage }, index) => (
+            <div key={index} className="flex justify-between items-center">
+              <span className="text-sm capitalize">{genre.replace(/[-_]/g, ' ')}</span>
+              <div className="flex items-center space-x-2">
+                <div className="w-16 h-2 bg-gray-600 rounded-full overflow-hidden">
+                  <div className="h-full bg-purple-400" style={{ width: `${percentage}%` }} />
                 </div>
+                <span className="text-xs">{percentage}%</span>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
+      </FeatureCard>
+
+      <FeatureCard
+        title="Vibe of the Month"
+        description="Current month's music summary"
+        icon={<TrendingUp className="h-5 w-5 text-green-400" />}
+        isLocked={isLocked}
+      >
+        <div className="text-center py-4">
+          <TrendingUp className="h-12 w-12 text-green-400 mx-auto mb-4" />
+          <h3 className="text-lg font-bold">June Vibes</h3>
+          <Badge variant="outline" className="text-green-400 border-green-400 mb-2">
+            {(genreBreakdown[0]?.genre || 'Mixed').replace(/[-_]/g, ' ')} + {moodAnalysis.dominantMood}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            This month’s vibe has been {moodAnalysis.dominantMood.toLowerCase()}.
+          </p>
+        </div>
+      </FeatureCard>
+
+      <FeatureCard
+        title="Top 3 Mood-Altering Tracks"
+        description="Songs that shift your emotions"
+        icon={<Heart className="h-5 w-5 text-red-400" />}
+        isLocked={isLocked}
+        className="md:col-span-2"
+      >
+        <div className="space-y-3">
+          {topTracks.slice(0, 3).map((track, index) => (
+            <div key={track.id} className="flex items-center space-x-3 p-3 bg-background/30 rounded-lg">
+              <div className="w-8 h-8 bg-red-400/20 rounded-full flex items-center justify-center">
+                <span className="text-sm font-bold text-red-400">#{index + 1}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{track.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {track.artists.map(artist => artist.name).join(', ')}
+                </p>
+              </div>
+              <Badge variant="outline" className="text-red-400 border-red-400 text-xs">
+                {index === 0 ? 'Uplifting' : index === 1 ? 'Energizing' : 'Calming'}
+              </Badge>
+            </div>
+          ))}
         </div>
       </FeatureCard>
     </div>
