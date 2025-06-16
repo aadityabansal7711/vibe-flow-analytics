@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const SpotifyCallback: React.FC = () => {
   const navigate = useNavigate();
-  const { user, updateProfile, loading, fetchProfile } = useAuth();
+  const { user, updateProfile, loading } = useAuth();
   const SPOTIFY_REDIRECT_URI = 'https://my-vibe-lytics.lovable.app/spotify-callback';
 
   useEffect(() => {
@@ -28,17 +28,17 @@ const SpotifyCallback: React.FC = () => {
 
         if (error) {
           console.error('❌ Spotify auth error:', error);
-          navigate('/error?reason=spotify_auth_error&details=' + encodeURIComponent(error));
+          navigate('/dashboard?spotify_error=' + encodeURIComponent(error));
           return;
         }
         if (!code) {
           console.error('❌ No authorization code received');
-          navigate('/error?reason=no_auth_code');
+          navigate('/dashboard?spotify_error=no_code');
           return;
         }
         if (state !== user.id) {
           console.error('❌ State mismatch:', { expected: user.id, received: state });
-          navigate('/error?reason=state_mismatch');
+          navigate('/dashboard?spotify_error=state_mismatch');
           return;
         }
 
@@ -54,12 +54,12 @@ const SpotifyCallback: React.FC = () => {
 
         if (tokenError) {
           console.error('❌ Token exchange failed:', tokenError);
-          navigate('/error?reason=token_exchange_failed&details=' + encodeURIComponent(tokenError.message));
+          navigate('/dashboard?spotify_error=' + encodeURIComponent(tokenError.message));
           return;
         }
         if (!tokenData || !tokenData.access_token) {
           console.error('❌ No access token received');
-          navigate('/error?reason=no_access_token');
+          navigate('/dashboard?spotify_error=no_access_token');
           return;
         }
 
@@ -73,7 +73,7 @@ const SpotifyCallback: React.FC = () => {
 
         if (!profileResponse.ok) {
           console.error('❌ Profile fetch failed:', profileResponse.status);
-          navigate('/error?reason=profile_fetch_failed&status=' + profileResponse.status);
+          navigate('/dashboard?spotify_error=profile_fetch_failed');
           return;
         }
         const profileData = await profileResponse.json();
@@ -94,59 +94,47 @@ const SpotifyCallback: React.FC = () => {
 
         console.log('🔄 Updating profile with Spotify data...');
 
-        // Try updating the profile directly with Supabase client
-        const { data: updatedProfile, error: updateError } = await supabase
+        // Update profile directly with Supabase client first
+        const { error: directUpdateError } = await supabase
           .from('profiles')
           .update({
             ...updateData,
             updated_at: new Date().toISOString()
           })
-          .eq('user_id', user.id)
-          .select()
-          .single();
+          .eq('user_id', user.id);
 
-        if (updateError) {
-          console.error('❌ Direct profile update failed:', updateError);
-          // Fallback to AuthContext update method
-          try {
-            await updateProfile(updateData);
-            console.log('✅ Profile updated via AuthContext');
-          } catch (fallbackError) {
-            console.error('❌ Fallback profile update failed:', fallbackError);
-            navigate('/error?reason=profile_update_failed&details=' + encodeURIComponent(updateError.message));
-            return;
-          }
-        } else {
-          console.log('✅ Profile updated directly:', updatedProfile);
+        if (directUpdateError) {
+          console.error('❌ Direct profile update failed:', directUpdateError);
+          navigate('/dashboard?spotify_error=' + encodeURIComponent(directUpdateError.message));
+          return;
         }
 
-        // Fetch updated profile to ensure state is current
-        if (fetchProfile) {
-          await fetchProfile();
+        console.log('✅ Profile updated directly in database');
+
+        // Also update the context state
+        try {
+          await updateProfile(updateData);
+          console.log('✅ Profile context updated');
+        } catch (contextError) {
+          console.warn('⚠️ Context update failed but database was updated:', contextError);
         }
 
         console.log('🎉 Spotify connection completed successfully');
         
         // Clear URL and redirect to dashboard
         window.history.replaceState({}, document.title, '/spotify-callback');
-        setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
+        setTimeout(() => navigate('/dashboard?spotify_connected=true', { replace: true }), 500);
 
       } catch (err: any) {
         console.error('❌ Unexpected error in Spotify callback:', err);
-        navigate('/error?reason=unexpected_error&details=' + encodeURIComponent(err.message));
+        navigate('/dashboard?spotify_error=' + encodeURIComponent(err.message));
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      console.error('❌ Spotify callback timeout');
-      navigate('/error?reason=timeout');
-    }, 30000);
-
-    if (!loading) {
-      handleCallback().finally(() => clearTimeout(timeoutId));
+    if (!loading && user) {
+      handleCallback();
     }
-    return () => clearTimeout(timeoutId);
-  }, [user, loading, navigate, updateProfile, fetchProfile]);
+  }, [user, loading, navigate, updateProfile]);
 
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center">

@@ -1,13 +1,37 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Music, User, Crown, AlertTriangle } from 'lucide-react';
+import { Music, User, Crown, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 const SpotifyConnect = () => {
-  const { user, profile, connectSpotify, loading, isUnlocked } = useAuth();
+  const { user, profile, connectSpotify, loading, isUnlocked, fetchProfile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [justConnected, setJustConnected] = useState(false);
+
+  // Check for connection success or error in URL params
+  useEffect(() => {
+    const spotifyConnected = searchParams.get('spotify_connected');
+    const spotifyError = searchParams.get('spotify_error');
+
+    if (spotifyConnected === 'true') {
+      setJustConnected(true);
+      // Clear the URL parameter
+      window.history.replaceState({}, '', '/dashboard');
+      // Fetch fresh profile data
+      if (fetchProfile) {
+        fetchProfile();
+      }
+    }
+
+    if (spotifyError) {
+      console.error('Spotify connection error:', spotifyError);
+      // Clear the error parameter
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, [searchParams, fetchProfile]);
 
   if (loading) {
     return (
@@ -42,21 +66,24 @@ const SpotifyConnect = () => {
     );
   }
 
-  if (profile?.spotify_connected) {
+  if (profile?.spotify_connected || justConnected) {
     return (
       <Card className="glass-effect border-border/50">
         <CardHeader className="text-center">
           <CardTitle className="text-foreground flex items-center justify-center">
-            <Music className="mr-2 h-6 w-6 text-green-400" />
-            Spotify Connected
+            <CheckCircle className="mr-2 h-6 w-6 text-green-400" />
+            Spotify Connected Successfully!
           </CardTitle>
           <CardDescription>
-            Connected as {profile.spotify_display_name || 'Unknown User'}
+            {profile?.spotify_display_name ? 
+              `Connected as ${profile.spotify_display_name}` : 
+              'Your Spotify account is connected'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center text-sm text-muted-foreground">
-            Your Spotify account is successfully connected. Enjoy your personalized music insights!
+            You can now view your personalized music insights below!
           </div>
           {isUnlocked && (
             <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
