@@ -37,14 +37,23 @@ const PromoCodeManager = () => {
 
   const fetchPromoCodes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('promo_codes')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPromoCodes(data || []);
+      // Use raw SQL query since types aren't updated yet
+      const { data, error } = await supabase.rpc('get_promo_codes');
+      
+      if (error) {
+        // Fallback to direct query
+        const result = await supabase
+          .from('promo_codes' as any)
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (result.error) throw result.error;
+        setPromoCodes(result.data || []);
+      } else {
+        setPromoCodes(data || []);
+      }
     } catch (error: any) {
+      console.error('Error fetching promo codes:', error);
       setMessage('Error fetching promo codes: ' + error.message);
     }
   };
@@ -53,7 +62,7 @@ const PromoCodeManager = () => {
     e.preventDefault();
     try {
       const { error } = await supabase
-        .from('promo_codes')
+        .from('promo_codes' as any)
         .insert({
           code: formData.code.toUpperCase(),
           discount_percentage: parseInt(formData.discount_percentage),
@@ -75,7 +84,7 @@ const PromoCodeManager = () => {
   const togglePromoCode = async (id: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
-        .from('promo_codes')
+        .from('promo_codes' as any)
         .update({ is_active: !currentStatus })
         .eq('id', id);
 
@@ -91,7 +100,7 @@ const PromoCodeManager = () => {
 
     try {
       const { error } = await supabase
-        .from('promo_codes')
+        .from('promo_codes' as any)
         .delete()
         .eq('id', id);
 

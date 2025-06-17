@@ -3,14 +3,14 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useSpotifyData } from '@/hooks/useSpotifyData';
+import useSpotifyData from '@/hooks/useSpotifyData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Download, Share2, Music, User, Calendar, TrendingUp, Sparkles } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const ShareableCards = () => {
   const { user } = useAuth();
-  const { topTracks, topArtists, isLoading } = useSpotifyData('medium_term');
+  const { topTracks, topArtists, loading } = useSpotifyData();
   const [downloading, setDownloading] = useState<string | null>(null);
 
   const downloadCard = async (cardId: string) => {
@@ -54,7 +54,7 @@ const ShareableCards = () => {
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -204,66 +204,6 @@ const ShareableCards = () => {
           </div>
         </div>
 
-        {/* Listening Streak Card */}
-        <div className="space-y-4">
-          <div 
-            id="listening-streak-card" 
-            className="relative p-8 rounded-2xl overflow-hidden"
-            style={{
-              background: 'linear-gradient(135deg, #dc2626 0%, #ea580c 50%, #facc15 100%)',
-              minHeight: '400px'
-            }}
-          >
-            <div className="absolute inset-0 bg-black/20"></div>
-            <div className="relative z-10 text-white h-full flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-2">
-                  <Music className="h-6 w-6" />
-                  <span className="font-bold">MyVibeLytics</span>
-                </div>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  Streak
-                </Badge>
-              </div>
-              
-              <div className="flex-1 flex flex-col justify-center text-center">
-                <h3 className="text-2xl font-bold mb-4">My Listening Streak</h3>
-                <div className="text-6xl font-black mb-2">7</div>
-                <p className="text-xl mb-4">Days in a row</p>
-                <div className="flex justify-center">
-                  <Badge variant="outline" className="bg-white/10 border-white/30 text-white">
-                    <Calendar className="mr-1 h-3 w-3" />
-                    Daily Listener
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <p className="text-sm opacity-75">@{user?.email?.split('@')[0] || 'user'}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => downloadCard('listening-streak-card')}
-              disabled={downloading === 'listening-streak-card'}
-              className="flex-1"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              {downloading === 'listening-streak-card' ? 'Downloading...' : 'Download'}
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => shareCard('listening-streak-card')}
-              className="flex-1"
-            >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-          </div>
-        </div>
-
         {/* Music Discovery Card */}
         <div className="space-y-4">
           <div 
@@ -316,6 +256,66 @@ const ShareableCards = () => {
             <Button 
               variant="outline" 
               onClick={() => shareCard('music-discovery-card')}
+              className="flex-1"
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
+
+        {/* Listening Streak Card */}
+        <div className="space-y-4">
+          <div 
+            id="listening-streak-card" 
+            className="relative p-8 rounded-2xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #dc2626 0%, #ea580c 50%, #facc15 100%)',
+              minHeight: '400px'
+            }}
+          >
+            <div className="absolute inset-0 bg-black/20"></div>
+            <div className="relative z-10 text-white h-full flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-2">
+                  <Music className="h-6 w-6" />
+                  <span className="font-bold">MyVibeLytics</span>
+                </div>
+                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                  Streak
+                </Badge>
+              </div>
+              
+              <div className="flex-1 flex flex-col justify-center text-center">
+                <h3 className="text-2xl font-bold mb-4">My Listening Streak</h3>
+                <div className="text-6xl font-black mb-2">7</div>
+                <p className="text-xl mb-4">Days in a row</p>
+                <div className="flex justify-center">
+                  <Badge variant="outline" className="bg-white/10 border-white/30 text-white">
+                    <Calendar className="mr-1 h-3 w-3" />
+                    Daily Listener
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <p className="text-sm opacity-75">@{user?.email?.split('@')[0] || 'user'}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => downloadCard('listening-streak-card')}
+              disabled={downloading === 'listening-streak-card'}
+              className="flex-1"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {downloading === 'listening-streak-card' ? 'Downloading...' : 'Download'}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => shareCard('listening-streak-card')}
               className="flex-1"
             >
               <Share2 className="mr-2 h-4 w-4" />

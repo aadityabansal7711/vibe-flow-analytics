@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSpotifyData } from '@/hooks/useSpotifyData';
+import useSpotifyData from '@/hooks/useSpotifyData';
 import SpotifyConnect from '@/components/SpotifyConnect';
 import CoreInsights from '@/components/dashboard/CoreInsights';
 import ListeningBehavior from '@/components/dashboard/ListeningBehavior';
@@ -26,7 +26,7 @@ import {
 
 const Dashboard = () => {
   const { user, profile, isUnlocked } = useAuth();
-  const { topTracks, topArtists, isLoading } = useSpotifyData('medium_term');
+  const { topTracks, topArtists, loading } = useSpotifyData();
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
   const createAIPlaylist = async () => {

@@ -10,7 +10,7 @@ interface SpotifyTrack {
   popularity: number;
   preview_url?: string;
   external_urls: { spotify: string };
-  uri: string; // Added uri property
+  uri: string;
 }
 
 interface SpotifyArtist {

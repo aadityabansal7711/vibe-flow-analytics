@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,12 +54,18 @@ const Buy = () => {
 
       if (error) throw error;
 
-      if (data.valid) {
-        setDiscount(data.discount_percentage);
-        setPromoMessage(`✅ ${data.message} - ${data.discount_percentage}% off applied!`);
+      if (data && data.length > 0) {
+        const result = data[0];
+        if (result.valid) {
+          setDiscount(result.discount_percentage);
+          setPromoMessage(`✅ ${result.message} - ${result.discount_percentage}% off applied!`);
+        } else {
+          setDiscount(0);
+          setPromoMessage(`❌ ${result.message}`);
+        }
       } else {
         setDiscount(0);
-        setPromoMessage(`❌ ${data.message}`);
+        setPromoMessage('❌ Invalid promo code');
       }
     } catch (error: any) {
       setDiscount(0);
@@ -88,10 +95,10 @@ const Buy = () => {
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.onload = () => {
         const options = {
-          key: data.key,
-          amount: data.amount * 100,
-          currency: data.currency,
-          order_id: data.order_id,
+          key: data?.key,
+          amount: data?.amount * 100,
+          currency: data?.currency,
+          order_id: data?.order_id,
           name: 'MyVibeLytics',
           description: 'Premium Subscription',
           handler: async (response: any) => {
@@ -344,7 +351,7 @@ const Buy = () => {
               <CardContent className="space-y-6">
                 <div>
                   <h4 className="text-foreground font-semibold mb-2 text-lg">What payment methods do you accept?</h4>
-                  <p className="text-muted-foreground leading-relaxed">We accept all major credit cards, debit cards, and digital payment methods through Stripe.</p>
+                  <p className="text-muted-foreground leading-relaxed">We accept all major credit cards, debit cards, and digital payment methods through Razorpay.</p>
                 </div>
                 <div>
                   <h4 className="text-foreground font-semibold mb-2 text-lg">Can I cancel anytime?</h4>
