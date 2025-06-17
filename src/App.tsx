@@ -21,6 +21,8 @@ import SpotifyCallback from "./pages/SpotifyCallback";
 import Profile from "./pages/Profile";
 import RefundPolicy from "./pages/RefundPolicy";
 import CancellationPolicy from "./pages/CancellationPolicy";
+import CancellationRefund from "./pages/CancellationRefund";
+import ShippingDelivery from "./pages/ShippingDelivery";
 import About from "./pages/About";
 import Demo from "./pages/Demo";
 import Error from "./pages/Error";
@@ -54,6 +56,8 @@ const App = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+            <Route path="/cancellation-refund" element={<CancellationRefund />} />
+            <Route path="/shipping-delivery" element={<ShippingDelivery />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/callback" element={<Callback />} />
