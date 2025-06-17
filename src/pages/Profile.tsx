@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const Profile = () => {
-  const { user, profile, logout } = useAuth();
+  const { user, profile } = useAuth();
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -31,7 +30,11 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Redirect to home page after logout
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -188,10 +191,18 @@ const Profile = () => {
           </Card>
 
           {/* Profile Information */}
-          <ProfileInfo />
+          <ProfileInfo profile={profile} />
 
           {/* Edit Name */}
-          <EditName />
+          <EditName 
+            isEditing={false}
+            setIsEditing={() => {}}
+            fullName={profile?.full_name || ''}
+            setFullName={() => {}}
+            updating={false}
+            handleUpdateName={() => {}}
+            handleCancel={() => {}}
+          />
 
           {/* Account Actions */}
           <Card className="glass-effect border-border/50">

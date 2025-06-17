@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,9 +7,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 
 const DangerZone = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState('');
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Redirect to home page after logout
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     const confirmed = confirm(
@@ -32,7 +43,7 @@ const DangerZone = () => {
       if (error) throw error;
 
       alert('Account deleted successfully.');
-      await logout();
+      await handleLogout();
     } catch (error: any) {
       setMessage('Error deleting account: ' + error.message);
       console.error('Delete account error:', error);

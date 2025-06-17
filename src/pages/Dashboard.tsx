@@ -223,19 +223,41 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="insights" className="space-y-6">
-            <CoreInsights />
+            <CoreInsights 
+              topTracks={topTracks || []}
+              topArtists={topArtists || []}
+              recentlyPlayed={[]}
+              isLocked={!isUnlocked}
+            />
           </TabsContent>
 
           <TabsContent value="behavior" className="space-y-6">
-            <ListeningBehavior />
+            <ListeningBehavior 
+              topTracks={topTracks || []}
+              recentlyPlayed={[]}
+              isLocked={!isUnlocked}
+            />
           </TabsContent>
 
           <TabsContent value="personality" className="space-y-6">
-            <PersonalityAnalytics />
+            <PersonalityAnalytics 
+              topTracks={topTracks || []}
+              topArtists={topArtists || []}
+              recentlyPlayed={[]}
+              isLocked={!isUnlocked}
+            />
           </TabsContent>
 
           <TabsContent value="highlights" className="space-y-6">
-            <SpecialHighlights />
+            <SpecialHighlights 
+              spotifyAccessToken={profile?.spotify_access_token || ''}
+              spotifyUserId={profile?.spotify_user_id || ''}
+              topTracks={topTracks || []}
+              topArtists={topArtists || []}
+              recentlyPlayed={[]}
+              isLocked={!isUnlocked}
+              profile={profile}
+            />
           </TabsContent>
 
           <TabsContent value="cards" className="space-y-6">

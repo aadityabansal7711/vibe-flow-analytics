@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,8 +53,8 @@ const Buy = () => {
 
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const result = data[0];
+      if (data && Array.isArray(data) && data.length > 0) {
+        const result = data[0] as any;
         if (result.valid) {
           setDiscount(result.discount_percentage);
           setPromoMessage(`✅ ${result.message} - ${result.discount_percentage}% off applied!`);
