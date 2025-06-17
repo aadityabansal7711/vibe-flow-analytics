@@ -14,7 +14,10 @@ import {
   CheckCircle,
   XCircle,
   Music,
-  User
+  User,
+  LogOut,
+  AlertTriangle,
+  Unlink
 } from 'lucide-react';
 
 import ProfileInfo from "./profile/ProfileInfo";
@@ -27,6 +30,7 @@ const Profile: React.FC = () => {
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDisconnectWarning, setShowDisconnectWarning] = useState(false);
 
   // Show loading while authentication is being resolved
   if (loading) {
@@ -59,6 +63,49 @@ const Profile: React.FC = () => {
       console.error('Error updating name:', error);
       setMessage('Failed to update name: ' + error.message);
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDisconnectSpotify = async () => {
+    if (profile.has_active_subscription && !showDisconnectWarning) {
+      setShowDisconnectWarning(true);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await updateProfile({
+        spotify_connected: false,
+        spotify_user_id: null,
+        spotify_display_name: null,
+        spotify_avatar_url: null,
+        spotify_access_token: null,
+        spotify_refresh_token: null,
+        spotify_token_expires_at: null,
+        // If they had premium, remove it when disconnecting
+        ...(profile.has_active_subscription && {
+          has_active_subscription: false,
+          plan_tier: 'free'
+        })
+      });
+      setMessage('Spotify account disconnected successfully!');
+      setShowDisconnectWarning(false);
+    } catch (error: any) {
+      console.error('Error disconnecting Spotify:', error);
+      setMessage('Failed to disconnect Spotify: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setMessage('Failed to sign out. Please try again.');
       setIsLoading(false);
     }
   };
@@ -139,11 +186,46 @@ const Profile: React.FC = () => {
             </Link>
             <h1 className="text-3xl font-bold text-gradient">Profile Settings</h1>
           </div>
+          <Button 
+            onClick={handleSignOut}
+            disabled={isLoading}
+            variant="outline"
+            className="border-red-500 text-red-400 hover:bg-red-500/10"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {isLoading ? 'Signing out...' : 'Sign Out'}
+          </Button>
         </div>
         
         {/* Message Alert */}
         {message && (
           <Alert className="mb-6"><AlertDescription>{message}</AlertDescription></Alert>
+        )}
+
+        {/* Disconnect Warning */}
+        {showDisconnectWarning && (
+          <Alert className="mb-6 border-yellow-500/20 bg-yellow-500/5">
+            <AlertTriangle className="h-4 w-4 text-yellow-400" />
+            <AlertDescription className="text-yellow-200">
+              <strong>Warning:</strong> You have an active premium subscription. Disconnecting Spotify will cancel your premium subscription and you'll lose access to premium features. Are you sure you want to continue?
+              <div className="flex gap-2 mt-3">
+                <Button 
+                  onClick={handleDisconnectSpotify}
+                  size="sm"
+                  variant="destructive"
+                >
+                  Yes, Disconnect & Cancel Premium
+                </Button>
+                <Button 
+                  onClick={() => setShowDisconnectWarning(false)}
+                  size="sm"
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -212,11 +294,6 @@ const Profile: React.FC = () => {
                         : 'Connect your Spotify account for personalized insights'
                       }
                     </p>
-                    {profile.spotify_connected && isPremium && (
-                      <p className="text-xs text-yellow-400 mt-1">
-                        Premium users cannot disconnect Spotify accounts for data integrity
-                      </p>
-                    )}
                   </div>
                   {profile.spotify_connected ? (
                     <CheckCircle className="h-5 w-5 text-green-400" />
@@ -225,13 +302,23 @@ const Profile: React.FC = () => {
                   )}
                 </div>
                 
-                {!profile.spotify_connected && (
+                {!profile.spotify_connected ? (
                   <Button 
                     onClick={connectSpotify}
                     className="w-full bg-green-500 hover:bg-green-600 text-white"
                   >
                     <Music className="mr-2 h-4 w-4" />
                     Connect Spotify
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleDisconnectSpotify}
+                    disabled={isLoading}
+                    variant="outline"
+                    className="w-full border-red-500 text-red-400 hover:bg-red-500/10"
+                  >
+                    <Unlink className="mr-2 h-4 w-4" />
+                    {isLoading ? 'Disconnecting...' : 'Disconnect Spotify'}
                   </Button>
                 )}
               </div>

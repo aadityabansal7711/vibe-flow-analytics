@@ -59,56 +59,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    let authSubscription: any = null;
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-
-        console.log('🔄 Auth state changed:', event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user && mounted) {
-          // Fetch profile when user is authenticated
-          setTimeout(() => {
-            if (mounted) {
-              fetchUserProfile(session.user.id);
-            }
-          }, 0);
-        } else {
-          setProfile(null);
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          
+          if (initialSession?.user) {
+            await fetchUserProfile(initialSession.user.id);
+          }
         }
 
-        if (mounted) setLoading(false);
-      }
-    );
+        // Set up auth state listener
+        authSubscription = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (!mounted) return;
 
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            await fetchUserProfile(session.user.id);
+            console.log('🔄 Auth state changed:', event, session?.user?.email);
+            setSession(session);
+            setUser(session?.user ?? null);
+
+            if (session?.user && event !== 'TOKEN_REFRESHED') {
+              // Small delay to ensure profile data is ready
+              setTimeout(() => {
+                if (mounted) {
+                  fetchUserProfile(session.user.id);
+                }
+              }, 100);
+            } else if (!session?.user) {
+              setProfile(null);
+            }
           }
-          
+        );
+
+      } catch (error) {
+        console.error('❌ Error initializing auth:', error);
+      } finally {
+        if (mounted) {
           setLoading(false);
         }
-      } catch (error) {
-        console.error('❌ Error getting initial session:', error);
-        if (mounted) setLoading(false);
       }
     };
 
-    getInitialSession();
+    initializeAuth();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (authSubscription?.subscription) {
+        authSubscription.subscription.unsubscribe();
+      }
     };
   }, []);
 
@@ -191,9 +195,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       console.log('👋 Signing out user...');
+      setLoading(true);
       
-      // Clear localStorage
-      localStorage.clear();
+      // Clear state immediately to prevent flashing
+      setUser(null);
+      setSession(null);
+      setProfile(null);
       
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
@@ -203,10 +210,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('✅ Supabase signout successful');
       }
       
-      // Clear state
-      setUser(null);
-      setSession(null);
-      setProfile(null);
+      // Clear localStorage
+      localStorage.clear();
       
       // Force navigation to home
       window.location.href = '/';
@@ -231,7 +236,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       'user-read-recently-played',
       'user-read-currently-playing',
       'playlist-read-private',
-      'playlist-read-collaborative'
+      'playlist-read-collaborative',
+      'playlist-modify-private',
+      'playlist-modify-public'
     ].join(' ');
 
     const authUrl = `https://accounts.spotify.com/authorize?` +

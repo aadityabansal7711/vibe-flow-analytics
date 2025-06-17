@@ -14,8 +14,9 @@ import {
   Clock, 
   Heart, 
   Sparkles,
-  Lock
+  Share2
 } from 'lucide-react';
+import ShareableCards from '@/components/dashboard/ShareableCards';
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
@@ -31,27 +32,6 @@ const Dashboard = () => {
   }
 
   const isLocked = !profile?.has_active_subscription;
-
-  const generateAIPlaylist = async () => {
-    try {
-      if (!profile?.has_active_subscription) {
-        alert('Premium subscription required for AI playlist generation');
-        return;
-      }
-
-      if (topTracks.length === 0) {
-        alert('Not enough listening data to generate playlist');
-        return;
-      }
-
-      const playlistTracks = topTracks.slice(0, 20).map(track => track.uri);
-      console.log('Generated playlist with tracks:', playlistTracks);
-      alert(`AI Playlist generated with ${playlistTracks.length} tracks based on your listening history!`);
-    } catch (error) {
-      console.error('Error generating playlist:', error);
-      alert('Failed to generate playlist. Please try again.');
-    }
-  };
 
   if (loading) {
     return (
@@ -127,6 +107,14 @@ const Dashboard = () => {
             <Sparkles className="mr-2 h-4 w-4" />
             Special Highlights
           </Button>
+          <Button
+            variant={activeTab === 'cards' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('cards')}
+            className="text-sm"
+          >
+            <Share2 className="mr-2 h-4 w-4" />
+            Shareable Cards
+          </Button>
         </div>
 
         {/* Tab Content */}
@@ -169,12 +157,26 @@ const Dashboard = () => {
           <div className="space-y-8">
             <h2 className="text-2xl font-bold text-foreground mb-6">🌟 Special Highlights</h2>
             <SpecialHighlights
+              spotifyAccessToken={profile?.spotify_access_token || ''}
+              spotifyUserId={profile?.spotify_user_id || ''}
               topTracks={topTracks}
               topArtists={topArtists}
               recentlyPlayed={recentlyPlayed}
               isLocked={isLocked}
               hasActiveSubscription={!!profile?.has_active_subscription}
-              onGeneratePlaylist={generateAIPlaylist}
+            />
+          </div>
+        )}
+
+        {activeTab === 'cards' && (
+          <div className="space-y-8">
+            <h2 className="text-2xl font-bold text-foreground mb-6">📱 Shareable Cards</h2>
+            <ShareableCards
+              topTracks={topTracks}
+              topArtists={topArtists}
+              recentlyPlayed={recentlyPlayed}
+              isLocked={isLocked}
+              profile={profile}
             />
           </div>
         )}
