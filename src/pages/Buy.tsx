@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { detectUserRegion, getPricingForRegion } from '@/utils/pricing';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   Music, 
   Check, 
@@ -28,114 +25,12 @@ const Buy = () => {
   const { user, isUnlocked } = useAuth();
   const [pricing, setPricing] = useState(getPricingForRegion('OTHER'));
   const [region, setRegion] = useState('OTHER');
-  const [promoCode, setPromoCode] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [finalPrice, setFinalPrice] = useState(0);
-  const [promoMessage, setPromoMessage] = useState('');
 
   useEffect(() => {
     const detectedRegion = detectUserRegion();
     setRegion(detectedRegion);
     setPricing(getPricingForRegion(detectedRegion));
   }, []);
-
-  useEffect(() => {
-    setFinalPrice(pricing.price - (pricing.price * discount / 100));
-  }, [pricing.price, discount]);
-
-  const applyPromoCode = async () => {
-    if (!promoCode.trim()) return;
-
-    try {
-      const { data, error } = await supabase.rpc('apply_promo_code', {
-        promo_code_text: promoCode.toUpperCase()
-      });
-
-      if (error) throw error;
-
-      if (data && Array.isArray(data) && data.length > 0) {
-        const result = data[0] as any;
-        if (result.valid) {
-          setDiscount(result.discount_percentage);
-          setPromoMessage(`✅ ${result.message} - ${result.discount_percentage}% off applied!`);
-        } else {
-          setDiscount(0);
-          setPromoMessage(`❌ ${result.message}`);
-        }
-      } else {
-        setDiscount(0);
-        setPromoMessage('❌ Invalid promo code');
-      }
-    } catch (error: any) {
-      setDiscount(0);
-      setPromoMessage('❌ Error validating promo code');
-    }
-  };
-
-  const handlePurchase = async () => {
-    if (!user) {
-      alert('Please sign in to purchase premium');
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          amount: finalPrice,
-          currency: pricing.symbol === '₹' ? 'INR' : 'USD',
-          promo_code: promoCode || null
-        }
-      });
-
-      if (error) throw error;
-
-      // Initialize Razorpay
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => {
-        const options = {
-          key: data?.key,
-          amount: data?.amount * 100,
-          currency: data?.currency,
-          order_id: data?.order_id,
-          name: 'MyVibeLytics',
-          description: 'Premium Subscription',
-          handler: async (response: any) => {
-            try {
-              const { error: verifyError } = await supabase.functions.invoke('verify-payment', {
-                body: {
-                  payment_id: response.razorpay_payment_id,
-                  order_id: response.razorpay_order_id,
-                  signature: response.razorpay_signature
-                }
-              });
-
-              if (verifyError) throw verifyError;
-
-              alert('Payment successful! Welcome to Premium!');
-              window.location.href = '/dashboard';
-            } catch (error) {
-              alert('Payment verification failed. Please contact support.');
-            }
-          },
-          prefill: {
-            email: user.email,
-            name: user.user_metadata?.full_name || ''
-          },
-          theme: {
-            color: '#7c3aed'
-          }
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      };
-      document.body.appendChild(script);
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      alert('Failed to initiate payment. Please try again.');
-    }
-  };
 
   const features = [
     { name: 'Top Tracks & Artists', included: true, icon: <Music className="h-4 w-4" /> },
@@ -152,6 +47,12 @@ const Buy = () => {
     { name: 'Hidden Gems Discovery', included: false, icon: <Zap className="h-4 w-4" /> }
   ];
 
+  const handlePurchase = () => {
+    // Simulate Stripe payment redirect
+    console.log('Redirecting to Stripe payment...');
+    alert('This would redirect to Stripe payment processing!');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-dark">
       {/* Navigation */}
@@ -164,17 +65,11 @@ const Buy = () => {
             </div>
             <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <Button className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Get Premium
+          <Link to={user ? "/dashboard" : "/"}>
+            <Button variant="outline" className="border-primary/50 text-foreground hover:bg-primary/10 hover:border-primary">
+              {user ? 'Dashboard' : 'Home'}
             </Button>
-            <Link to={user ? "/dashboard" : "/"}>
-              <Button variant="outline" className="border-primary/50 text-foreground hover:bg-primary/10 hover:border-primary">
-                {user ? 'Dashboard' : 'Home'}
-              </Button>
-            </Link>
-          </div>
+          </Link>
         </div>
       </nav>
 
@@ -240,39 +135,14 @@ const Buy = () => {
                 <CardHeader className="text-center pb-8">
                   <CardTitle className="text-foreground text-2xl mb-4">Premium</CardTitle>
                   <div className="text-5xl font-bold text-gradient mb-2">
-                    {pricing.symbol}{finalPrice}
+                    {pricing.symbol}{pricing.price}
                     <span className="text-lg font-normal text-muted-foreground">/{pricing.period}</span>
                   </div>
-                  {discount > 0 && (
-                    <div className="text-sm text-muted-foreground line-through">
-                      Original: {pricing.symbol}{pricing.price}
-                    </div>
-                  )}
                   <p className="text-primary text-sm font-semibold">
                     Everything in Free, plus all premium features
                   </p>
                 </CardHeader>
                 <CardContent>
-                  {/* Promo Code Input */}
-                  <div className="mb-6 p-4 bg-background/30 rounded-lg">
-                    <Label htmlFor="promo">Promo Code (Optional)</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        id="promo"
-                        placeholder="Enter promo code"
-                        value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button onClick={applyPromoCode} variant="outline">
-                        Apply
-                      </Button>
-                    </div>
-                    {promoMessage && (
-                      <p className="text-sm mt-2 text-muted-foreground">{promoMessage}</p>
-                    )}
-                  </div>
-
                   <div className="space-y-4 mb-8">
                     {features.map((feature, index) => (
                       <div key={index} className="flex items-center space-x-3">
@@ -298,7 +168,7 @@ const Buy = () => {
                       className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground font-semibold"
                     >
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Unlock Premium - {pricing.symbol}{finalPrice}
+                      Unlock Premium
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   )}
@@ -350,7 +220,7 @@ const Buy = () => {
               <CardContent className="space-y-6">
                 <div>
                   <h4 className="text-foreground font-semibold mb-2 text-lg">What payment methods do you accept?</h4>
-                  <p className="text-muted-foreground leading-relaxed">We accept all major credit cards, debit cards, and digital payment methods through Razorpay.</p>
+                  <p className="text-muted-foreground leading-relaxed">We accept all major credit cards, debit cards, and digital payment methods through Stripe.</p>
                 </div>
                 <div>
                   <h4 className="text-foreground font-semibold mb-2 text-lg">Can I cancel anytime?</h4>
@@ -377,9 +247,6 @@ const Buy = () => {
             <div className="flex space-x-8 text-muted-foreground">
               <Link to="/terms" className="hover:text-primary transition-colors duration-200 font-medium">Terms</Link>
               <Link to="/privacy" className="hover:text-primary transition-colors duration-200 font-medium">Privacy</Link>
-              <Link to="/refund-policy" className="hover:text-primary transition-colors duration-200 font-medium">Refund Policy</Link>
-              <Link to="/cancellation-refund" className="hover:text-primary transition-colors duration-200 font-medium">Cancellation</Link>
-              <Link to="/shipping-delivery" className="hover:text-primary transition-colors duration-200 font-medium">Shipping</Link>
               <Link to="/contact" className="hover:text-primary transition-colors duration-200 font-medium">Contact</Link>
             </div>
           </div>
