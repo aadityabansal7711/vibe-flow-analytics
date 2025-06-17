@@ -1,185 +1,247 @@
-import React, { useState, useEffect } from 'react';
-import { Navigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import useSpotifyData from '@/hooks/useSpotifyData';
+import { useSpotifyData } from '@/hooks/useSpotifyData';
+import SpotifyConnect from '@/components/SpotifyConnect';
 import CoreInsights from '@/components/dashboard/CoreInsights';
 import ListeningBehavior from '@/components/dashboard/ListeningBehavior';
 import PersonalityAnalytics from '@/components/dashboard/PersonalityAnalytics';
 import SpecialHighlights from '@/components/dashboard/SpecialHighlights';
-import { 
-  Music, 
-  Clock, 
-  Heart, 
-  Sparkles,
-  Share2
-} from 'lucide-react';
 import ShareableCards from '@/components/dashboard/ShareableCards';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  Music2, 
+  BarChart3, 
+  Brain, 
+  Sparkles, 
+  Crown, 
+  Calendar,
+  Share2,
+  Zap
+} from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, profile } = useAuth();
-  const { topTracks, topArtists, recentlyPlayed, loading } = useSpotifyData();
-  const [activeTab, setActiveTab] = useState('core');
+  const { user, profile, isUnlocked } = useAuth();
+  const { topTracks, topArtists, isLoading } = useSpotifyData('medium_term');
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  const createAIPlaylist = async () => {
+    if (!profile?.spotify_access_token || !isUnlocked) return;
+
+    setCreatingPlaylist(true);
+    try {
+      // Get user's top tracks for seeds
+      const seeds = topTracks?.slice(0, 5).map(track => track.id).join(',') || '';
+      
+      // Get recommendations (100 tracks in batches)
+      const recommendations = [];
+      for (let i = 0; i < 5; i++) {
+        const response = await fetch(`https://api.spotify.com/v1/recommendations?limit=20&seed_tracks=${seeds}&min_popularity=10&max_popularity=70`, {
+          headers: {
+            'Authorization': `Bearer ${profile.spotify_access_token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          recommendations.push(...data.tracks);
+        }
+      }
+
+      // Remove duplicates and filter out tracks user already listens to frequently
+      const uniqueTracks = recommendations.filter((track, index, arr) => 
+        arr.findIndex(t => t.id === track.id) === index &&
+        !topTracks?.some(topTrack => topTrack.id === track.id)
+      ).slice(0, 100);
+
+      // Create playlist
+      const userResponse = await fetch('https://api.spotify.com/v1/me', {
+        headers: { 'Authorization': `Bearer ${profile.spotify_access_token}` }
+      });
+      
+      if (!userResponse.ok) throw new Error('Failed to get user profile');
+      const userData = await userResponse.json();
+
+      const playlistResponse = await fetch(`https://api.spotify.com/v1/users/${userData.id}/playlists`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${profile.spotify_access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: `AI Discovery Mix - ${new Date().toLocaleDateString()}`,
+          description: 'Curated by MyVibeLytics AI based on your music taste - 100 hidden gems!',
+          public: false
+        })
+      });
+
+      if (!playlistResponse.ok) throw new Error('Failed to create playlist');
+      const playlist = await playlistResponse.json();
+
+      // Add tracks to playlist in batches
+      const trackUris = uniqueTracks.map(track => track.uri);
+      for (let i = 0; i < trackUris.length; i += 100) {
+        const batch = trackUris.slice(i, i + 100);
+        await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${profile.spotify_access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ uris: batch })
+        });
+      }
+
+      alert(`🎵 Created AI playlist with ${uniqueTracks.length} tracks! Check your Spotify app.`);
+    } catch (error) {
+      console.error('Error creating AI playlist:', error);
+      alert('Failed to create AI playlist. Please try again.');
+    } finally {
+      setCreatingPlaylist(false);
+    }
+  };
 
   if (!profile?.spotify_connected) {
-    return <Navigate to="/profile" replace />;
-  }
-
-  const isLocked = !profile?.has_active_subscription;
-
-  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-xl">Loading your music insights...</div>
-        </div>
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
+        <SpotifyConnect />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-dark p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-dark">
+      <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
-            <h1 className="text-3xl font-bold text-gradient">Music Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/profile">
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
-                Profile Settings
-              </Button>
-            </Link>
-            <Link to="/weekly-giveaway">
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
-                Weekly Giveaway
-              </Button>
-            </Link>
-            {profile?.has_active_subscription && (
-              <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-                <Sparkles className="mr-1 h-3 w-3" />
-                Premium
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 space-y-4 md:space-y-0">
+          <div>
+            <h1 className="text-4xl font-bold text-gradient mb-2">
+              Welcome back, {profile?.spotify_display_name || user?.email?.split('@')[0]}! 🎵
+            </h1>
+            <div className="flex items-center space-x-3">
+              <Badge variant={isUnlocked ? "default" : "secondary"} className="flex items-center space-x-1">
+                {isUnlocked ? <Crown className="h-3 w-3" /> : <Music2 className="h-3 w-3" />}
+                <span>{isUnlocked ? 'Premium Member' : 'Free Plan'}</span>
               </Badge>
+              {profile?.spotify_connected && (
+                <Badge variant="outline" className="text-green-400 border-green-400">
+                  <Music2 className="mr-1 h-3 w-3" />
+                  Spotify Connected
+                </Badge>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3">
+            {isUnlocked && (
+              <Button 
+                onClick={createAIPlaylist}
+                disabled={creatingPlaylist}
+                className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200"
+              >
+                <Zap className="mr-2 h-4 w-4" />
+                {creatingPlaylist ? 'Creating...' : 'AI Playlist (100 Songs)'}
+              </Button>
             )}
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          <Button
-            variant={activeTab === 'core' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('core')}
-            className="text-sm"
-          >
-            <Music className="mr-2 h-4 w-4" />
-            Core Insights
-          </Button>
-          <Button
-            variant={activeTab === 'behavior' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('behavior')}
-            className="text-sm"
-          >
-            <Clock className="mr-2 h-4 w-4" />
-            Listening Behavior
-          </Button>
-          <Button
-            variant={activeTab === 'personality' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('personality')}
-            className="text-sm"
-          >
-            <Heart className="mr-2 h-4 w-4" />
-            Personality & Mood
-          </Button>
-          <Button
-            variant={activeTab === 'highlights' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('highlights')}
-            className="text-sm"
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            Special Highlights
-          </Button>
-          <Button
-            variant={activeTab === 'cards' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('cards')}
-            className="text-sm"
-          >
-            <Share2 className="mr-2 h-4 w-4" />
-            Shareable Cards
-          </Button>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Top Tracks</CardTitle>
+              <Music2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{topTracks?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">Available in your data</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Top Artists</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{topArtists?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">In your music library</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Data Period</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">6M</div>
+              <p className="text-xs text-muted-foreground">Months of history</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-effect border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Features</CardTitle>
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{isUnlocked ? '12' : '3'}</div>
+              <p className="text-xs text-muted-foreground">Analytics available</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'core' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🎧 Core Listening Insights</h2>
-            <CoreInsights
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-            />
-          </div>
-        )}
+        {/* Main Content */}
+        <Tabs defaultValue="insights" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 glass-effect">
+            <TabsTrigger value="insights" className="flex items-center space-x-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Core Insights</span>
+            </TabsTrigger>
+            <TabsTrigger value="behavior" className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4" />
+              <span>Listening Behavior</span>
+            </TabsTrigger>
+            <TabsTrigger value="personality" className="flex items-center space-x-2">
+              <Brain className="h-4 w-4" />
+              <span>Music Personality</span>
+            </TabsTrigger>
+            <TabsTrigger value="highlights" className="flex items-center space-x-2">
+              <Sparkles className="h-4 w-4" />
+              <span>Special Highlights</span>
+            </TabsTrigger>
+            <TabsTrigger value="cards" className="flex items-center space-x-2">
+              <Share2 className="h-4 w-4" />
+              <span>Shareable Cards</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {activeTab === 'behavior' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🕒 Listening Behavior & Patterns</h2>
-            <ListeningBehavior
-              topTracks={topTracks}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-            />
-          </div>
-        )}
+          <TabsContent value="insights" className="space-y-6">
+            <CoreInsights />
+          </TabsContent>
 
-        {activeTab === 'personality' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🎭 Personality & Mood Analytics</h2>
-            <PersonalityAnalytics
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-            />
-          </div>
-        )}
+          <TabsContent value="behavior" className="space-y-6">
+            <ListeningBehavior />
+          </TabsContent>
 
-        {activeTab === 'highlights' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🌟 Special Highlights</h2>
-            <SpecialHighlights
-              spotifyAccessToken={profile?.spotify_access_token || ''}
-              spotifyUserId={profile?.spotify_user_id || ''}
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-              hasActiveSubscription={!!profile?.has_active_subscription}
-            />
-          </div>
-        )}
+          <TabsContent value="personality" className="space-y-6">
+            <PersonalityAnalytics />
+          </TabsContent>
 
-        {activeTab === 'cards' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">📱 Shareable Cards</h2>
-            <ShareableCards
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-              profile={profile}
-            />
-          </div>
-        )}
+          <TabsContent value="highlights" className="space-y-6">
+            <SpecialHighlights />
+          </TabsContent>
+
+          <TabsContent value="cards" className="space-y-6">
+            <ShareableCards />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

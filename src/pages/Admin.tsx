@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import PromoCodeManager from '@/components/PromoCodeManager';
 import { 
   Users, 
   UserCheck, 
@@ -173,7 +174,9 @@ const Admin = () => {
         .update({ 
           has_active_subscription: true, 
           plan_tier: 'premium',
-          plan_id: 'admin_granted_premium'
+          plan_id: 'admin_granted_premium',
+          plan_start_date: new Date().toISOString(),
+          plan_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
         })
         .eq('user_id', userId);
 
@@ -440,6 +443,11 @@ const Admin = () => {
               <p className="text-xs text-muted-foreground">Users registered today</p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Promo Code Management */}
+        <div className="mb-8">
+          <PromoCodeManager />
         </div>
 
         {/* Giveaway Management */}
