@@ -107,12 +107,12 @@ const Index = () => {
               <div className="text-muted-foreground">Songs Analyzed</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">100K+</div>
-              <div className="text-muted-foreground">Active Users</div>
+              
+              
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">99.9%</div>
-              <div className="text-muted-foreground">Accuracy Rate</div>
+              
+              
             </div>
           </div>
         </div>
