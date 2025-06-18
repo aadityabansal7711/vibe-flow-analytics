@@ -68,16 +68,10 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">MyVibeLytics</h1>
+              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
+              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">MyVibeLyrics</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Link to="/weekly-giveaway">
-                <Button variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950">
-                  <Gift className="mr-2 h-4 w-4" />
-                  Weekly Giveaway
-                </Button>
-              </Link>
               <Link to="/buy">
                 <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
                   Pricing
@@ -93,18 +87,18 @@ const Index = () => {
         </div>
       </nav>
 
-      {/* Weekly Giveaway Banner */}
+      {/* Premium Giveaway Banner */}
       <section className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 border-b border-amber-200/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-center space-x-4 text-center">
-            <Gift className="h-6 w-6 text-amber-500" />
+            <Crown className="h-6 w-6 text-amber-500" />
             <span className="text-lg font-semibold text-amber-700 dark:text-amber-300">
-              🎉 Weekly Premium Giveaway - Join now for a chance to win!
+              🎉 Weekly Premium Giveaway - Premium Users Only!
             </span>
             <Link to="/weekly-giveaway">
               <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white">
-                <Crown className="mr-2 h-4 w-4" />
-                Enter Now
+                <Gift className="mr-2 h-4 w-4" />
+                Premium Entry
               </Button>
             </Link>
           </div>
@@ -142,28 +136,12 @@ const Index = () => {
                 Start Your Analysis
               </Button>
             </Link>
-            <Link to="/weekly-giveaway">
-              <Button size="lg" variant="outline" className="border-2 border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950 px-10 py-4 text-lg rounded-full">
-                <Trophy className="mr-3 h-6 w-6" />
-                Join Giveaway
+            <Link to="/buy">
+              <Button size="lg" variant="outline" className="border-2 border-primary text-primary hover:bg-primary/10 px-10 py-4 text-lg rounded-full">
+                <Crown className="mr-3 h-6 w-6" />
+                Go Premium
               </Button>
             </Link>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-5xl mx-auto">
-            <div className="text-center p-6 rounded-2xl bg-primary/5 border border-primary/10">
-              <div className="text-4xl font-bold text-primary mb-2">10K+</div>
-              <div className="text-muted-foreground text-lg">Songs Analyzed</div>
-            </div>
-            <div className="text-center p-6 rounded-2xl bg-accent/5 border border-accent/10">
-              <div className="text-4xl font-bold text-accent mb-2">500+</div>
-              <div className="text-muted-foreground text-lg">Happy Users</div>
-            </div>
-            <div className="text-center p-6 rounded-2xl bg-green-500/5 border border-green-500/10">
-              <div className="text-4xl font-bold text-green-500 mb-2">100+</div>
-              <div className="text-muted-foreground text-lg">AI Playlists Created</div>
-            </div>
           </div>
         </div>
       </section>
@@ -189,20 +167,12 @@ const Index = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div
+              <FeatureCard
                 key={index}
-                className="group relative p-6 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1"
-              >
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground">{feature.title}</h3>
-                </div>
-                <p className="text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
+                icon={feature.icon}
+                title={feature.title}
+                description={feature.description}
+              />
             ))}
           </div>
         </div>
@@ -224,7 +194,7 @@ const Index = () => {
             </h2>
             <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
               Get access to premium features including AI playlists, detailed mood analysis, 
-              social comparisons, and unlimited shareable cards.
+              social comparisons, unlimited shareable cards, and exclusive weekly giveaways.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Link to="/buy">
@@ -236,7 +206,7 @@ const Index = () => {
               <Link to="/weekly-giveaway">
                 <Button size="lg" variant="outline" className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950 px-10 py-4 text-lg rounded-full">
                   <Gift className="mr-3 h-6 w-6" />
-                  Try Free - Enter Giveaway
+                  Premium Giveaway
                 </Button>
               </Link>
             </div>
@@ -252,7 +222,7 @@ const Index = () => {
               <h3 className="font-semibold text-foreground mb-6 text-lg">Product</h3>
               <ul className="space-y-3">
                 <li><Link to="/buy" className="text-muted-foreground hover:text-primary transition-colors">Pricing</Link></li>
-                <li><Link to="/weekly-giveaway" className="text-muted-foreground hover:text-primary transition-colors">Giveaways</Link></li>
+                <li><Link to="/weekly-giveaway" className="text-muted-foreground hover:text-primary transition-colors">Premium Giveaway</Link></li>
               </ul>
             </div>
             <div>
@@ -275,8 +245,8 @@ const Index = () => {
             <div>
               <h3 className="font-semibold text-foreground mb-6 text-lg">Connect</h3>
               <div className="flex items-center space-x-4 mb-4">
-                <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-10 w-10" />
-                <span className="text-muted-foreground font-medium">MyVibeLytics</span>
+                <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-10 w-10" />
+                <span className="text-muted-foreground font-medium">MyVibeLyrics</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Discover your music DNA with AI-powered insights
@@ -284,7 +254,7 @@ const Index = () => {
             </div>
           </div>
           <div className="border-t border-border/40 mt-12 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2024 MyVibeLytics. All rights reserved. Made with ❤️ for music lovers.</p>
+            <p>&copy; 2025 MyVibeLyrics. All rights reserved. Made with ❤️ for music lovers.</p>
           </div>
         </div>
       </footer>

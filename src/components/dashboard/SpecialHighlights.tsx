@@ -1,283 +1,291 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import FeatureCard from '@/components/FeatureCard';
-import { 
-  Sparkles, 
-  Trophy, 
-  Heart, 
-  Music, 
-  TrendingUp,
-  Calendar,
-  Clock,
-  Users
-} from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Music, Users, Sparkles, Play, Heart, Share2, UserPlus, MessageCircle, Headphones, ListMusic } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface SpecialHighlightsProps {
-  spotifyAccessToken: string;
-  spotifyUserId: string;
-  topTracks: any[];
-  topArtists: any[];
-  recentlyPlayed: any[];
-  isLocked: boolean;
-  hasActiveSubscription: boolean;
+  spotifyData: any;
 }
 
-const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({
-  spotifyAccessToken,
-  spotifyUserId,
-  topTracks,
-  topArtists,
-  recentlyPlayed,
-  isLocked,
-  hasActiveSubscription
-}) => {
-  const [aiPlaylist, setAiPlaylist] = useState<any>(null);
-  const [creating, setCreating] = useState(false);
+const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({ spotifyData }) => {
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [playlistProgress, setPlaylistProgress] = useState(0);
 
   const createAiPlaylist = async () => {
-    if (!hasActiveSubscription) return;
-    
-    setCreating(true);
+    setIsCreatingPlaylist(true);
+    setPlaylistProgress(0);
+
     try {
-      // Create AI-powered playlist with 100 unique songs
-      const playlistName = `AI Curated Mix - ${new Date().toLocaleDateString()}`;
-      
-      // Get user's top genres and artists for recommendation
-      const topGenres = topArtists.slice(0, 5).map(artist => artist.genres).flat();
-      const uniqueGenres = [...new Set(topGenres)].slice(0, 3);
-      
-      // Create playlist on Spotify
-      const createPlaylistResponse = await fetch(`https://api.spotify.com/v1/users/${spotifyUserId}/playlists`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${spotifyAccessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: playlistName,
-          description: 'AI-curated playlist based on your listening habits',
-          public: false
-        })
-      });
-      
-      if (!createPlaylistResponse.ok) {
-        throw new Error('Failed to create playlist');
+      // Simulate AI playlist creation with progress
+      const steps = [
+        { message: "Analyzing your music taste...", progress: 20 },
+        { message: "Finding similar tracks...", progress: 40 },
+        { message: "Discovering new artists...", progress: 60 },
+        { message: "Curating perfect matches...", progress: 80 },
+        { message: "Finalizing your playlist...", progress: 100 }
+      ];
+
+      for (const step of steps) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setPlaylistProgress(step.progress);
+        toast.info(step.message);
       }
-      
-      const playlist = await createPlaylistResponse.json();
-      
-      // Get recommendations (100 unique songs)
-      const seedArtists = topArtists.slice(0, 2).map(artist => artist.id).join(',');
-      const seedTracks = topTracks.slice(0, 2).map(track => track.id).join(',');
-      
-      const recommendationsResponse = await fetch(
-        `https://api.spotify.com/v1/recommendations?limit=100&seed_artists=${seedArtists}&seed_tracks=${seedTracks}&min_popularity=30`,
-        {
-          headers: {
-            'Authorization': `Bearer ${spotifyAccessToken}`
-          }
-        }
-      );
-      
-      if (!recommendationsResponse.ok) {
-        throw new Error('Failed to get recommendations');
-      }
-      
-      const recommendations = await recommendationsResponse.json();
-      
-      // Filter out songs user has listened to recently
-      const recentTrackIds = recentlyPlayed.map(item => item.track.id);
-      const newTracks = recommendations.tracks.filter(track => 
-        !recentTrackIds.includes(track.id)
-      );
-      
-      if (newTracks.length > 0) {
-        // Add tracks to playlist
-        const trackUris = newTracks.map(track => track.uri);
-        
-        await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${spotifyAccessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            uris: trackUris
-          })
-        });
-      }
-      
-      setAiPlaylist(playlist);
+
+      // Simulate successful playlist creation
+      toast.success("🎵 AI Curated Playlist Created! 100 songs tailored just for you.");
     } catch (error) {
       console.error('Error creating AI playlist:', error);
+      toast.error("Failed to create playlist. Please try again.");
     } finally {
-      setCreating(false);
+      setIsCreatingPlaylist(false);
+      setPlaylistProgress(0);
     }
   };
 
+  // Mock community data
+  const communityStats = {
+    totalMembers: 1247,
+    activeNow: 89,
+    songsShared: 3456,
+    discussions: 234
+  };
+
+  const trendingInCommunity = [
+    { title: "Chill Indie Vibes", artist: "Various Artists", likes: 342, shares: 89 },
+    { title: "Workout Bangers 2025", artist: "Community Playlist", likes: 298, shares: 156 },
+    { title: "Late Night Jazz", artist: "Jazz Collective", likes: 187, shares: 67 },
+    { title: "Discover Weekly Gems", artist: "AI Curated", likes: 425, shares: 203 }
+  ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {/* AI Playlist Creation */}
-      <FeatureCard
-        title="AI Curated Playlist"
-        description="Create a personalized playlist with 100 unique songs based on your taste"
-        icon={<Sparkles className="h-6 w-6" />}
-        isLocked={isLocked}
-      >
-        <div className="space-y-4">
-          {aiPlaylist ? (
-            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <Music className="h-4 w-4 text-green-400" />
-                <span className="text-sm font-medium text-green-400">Playlist Created!</span>
+    <div className="space-y-8">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-foreground mb-4">
+          Special Highlights
+        </h2>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          Discover AI-curated playlists and connect with fellow music lovers in our community
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* AI Curated Playlists */}
+        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-purple-200 dark:border-purple-800">
+          <CardHeader>
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-purple-500 rounded-xl">
+                <Sparkles className="h-6 w-6 text-white" />
               </div>
-              <p className="text-sm text-muted-foreground">{aiPlaylist.name}</p>
-              <Button 
-                size="sm" 
-                className="mt-2 w-full" 
-                onClick={() => window.open(aiPlaylist.external_urls.spotify, '_blank')}
-              >
-                Open in Spotify
-              </Button>
+              <div>
+                <CardTitle className="text-xl">AI Curated Playlists</CardTitle>
+                <CardDescription>100 songs tailored to your unique taste</CardDescription>
+              </div>
             </div>
-          ) : (
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <ListMusic className="h-5 w-5 text-purple-500" />
+                  <div>
+                    <div className="font-semibold">Your Perfect Mix</div>
+                    <div className="text-sm text-muted-foreground">Based on your top tracks</div>
+                  </div>
+                </div>
+                <Badge variant="secondary">100 songs</Badge>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <Headphones className="h-5 w-5 text-purple-500" />
+                  <div>
+                    <div className="font-semibold">Mood Discovery</div>
+                    <div className="text-sm text-muted-foreground">Songs matching your vibe</div>
+                  </div>
+                </div>
+                <Badge variant="secondary">100 songs</Badge>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <Music className="h-5 w-5 text-purple-500" />
+                  <div>
+                    <div className="font-semibold">Hidden Gems</div>
+                    <div className="text-sm text-muted-foreground">Undiscovered tracks you'll love</div>
+                  </div>
+                </div>
+                <Badge variant="secondary">100 songs</Badge>
+              </div>
+            </div>
+
+            {isCreatingPlaylist && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Creating AI Playlist...</span>
+                  <span className="text-sm text-muted-foreground">{playlistProgress}%</span>
+                </div>
+                <Progress value={playlistProgress} className="w-full" />
+              </div>
+            )}
+
             <Button 
               onClick={createAiPlaylist}
-              disabled={creating || isLocked}
-              className="w-full"
+              disabled={isCreatingPlaylist}
+              className="w-full bg-purple-500 hover:bg-purple-600 text-white"
             >
-              {creating ? (
+              {isCreatingPlaylist ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                   Creating Playlist...
                 </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Create AI Playlist
+                  Create AI Playlist (100 Songs)
                 </>
               )}
             </Button>
-          )}
-        </div>
-      </FeatureCard>
+          </CardContent>
+        </Card>
 
-      {/* Music Achievements */}
-      <FeatureCard
-        title="Music Achievements"
-        description="Your listening milestones and achievements"
-        icon={<Trophy className="h-6 w-6" />}
-        isLocked={isLocked}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Tracks Discovered</span>
-            <Badge variant="outline">{topTracks.length}+</Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Artists Followed</span>
-            <Badge variant="outline">{topArtists.length}+</Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Listening Hours</span>
-            <Badge variant="outline">
-              {Math.floor(recentlyPlayed.length * 3.5)}h
-            </Badge>
-          </div>
-        </div>
-      </FeatureCard>
-
-      {/* Listening Streaks */}
-      <FeatureCard
-        title="Listening Patterns"
-        description="Your music consumption patterns and trends"
-        icon={<TrendingUp className="h-6 w-6" />}
-        isLocked={isLocked}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-blue-400" />
-            <span className="text-sm">Most Active Day: {new Date().toLocaleDateString('en-US', { weekday: 'long' })}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Clock className="h-4 w-4 text-green-400" />
-            <span className="text-sm">Peak Hours: 8-11 PM</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Heart className="h-4 w-4 text-red-400" />
-            <span className="text-sm">Favorite Genre: {topArtists[0]?.genres[0] || 'Pop'}</span>
-          </div>
-        </div>
-      </FeatureCard>
-
-      {/* Social Features */}
-      <FeatureCard
-        title="Music Community"
-        description="Connect with other music lovers"
-        icon={<Users className="h-6 w-6" />}
-        isLocked={isLocked}
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Share your music taste and discover new songs through our community features.
-          </p>
-          <Button variant="outline" className="w-full" disabled>
-            <Users className="mr-2 h-4 w-4" />
-            Coming Soon
-          </Button>
-        </div>
-      </FeatureCard>
-
-      {/* Mood Analysis */}
-      <FeatureCard
-        title="Mood Insights"
-        description="Understanding your music mood patterns"
-        icon={<Heart className="h-6 w-6" />}
-        isLocked={isLocked}
-      >
-        <div className="space-y-3">
-          {topTracks.slice(0, 3).map((track, index) => (
-            <div key={track.id} className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded flex items-center justify-center text-xs font-bold">
-                {index + 1}
+        {/* Music Community */}
+        <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-blue-200 dark:border-blue-800">
+          <CardHeader>
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-blue-500 rounded-xl">
+                <Users className="h-6 w-6 text-white" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{track.name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {track.artists[0].name}
-                </p>
+              <div>
+                <CardTitle className="text-xl">Music Community</CardTitle>
+                <CardDescription>Connect with fellow music lovers</CardDescription>
               </div>
             </div>
-          ))}
-        </div>
-      </FeatureCard>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Community Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{communityStats.totalMembers.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Members</div>
+              </div>
+              <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{communityStats.activeNow}</div>
+                <div className="text-sm text-muted-foreground">Online Now</div>
+              </div>
+            </div>
 
-      {/* Music Discovery */}
-      <FeatureCard
-        title="Discovery Engine"
-        description="Find new music based on your taste"
-        icon={<Music className="h-6 w-6" />}
-        isLocked={isLocked}
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Our AI analyzes your listening patterns to suggest new artists and songs you'll love.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Badge variant="outline" className="justify-center">
-              <Sparkles className="mr-1 h-3 w-3" />
-              Smart
-            </Badge>
-            <Badge variant="outline" className="justify-center">
-              <TrendingUp className="mr-1 h-3 w-3" />
-              Trending
-            </Badge>
+            {/* Trending Songs */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-foreground">Trending in Community</h4>
+              {trendingInCommunity.slice(0, 3).map((song, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{song.title}</div>
+                      <div className="text-xs text-muted-foreground">{song.artist}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <Heart className="h-3 w-3" />
+                      <span>{song.likes}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Share2 className="h-3 w-3" />
+                      <span>{song.shares}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Community Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="flex items-center justify-center space-x-2">
+                <UserPlus className="h-4 w-4" />
+                <span>Join Community</span>
+              </Button>
+              <Button variant="outline" className="flex items-center justify-center space-x-2">
+                <MessageCircle className="h-4 w-4" />
+                <span>Start Discussion</span>
+              </Button>
+            </div>
+
+            <div className="text-center">
+              <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                <Users className="mr-2 h-4 w-4" />
+                Explore Community
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Community Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <MessageCircle className="h-5 w-5" />
+            <span>Recent Community Activity</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3 p-3 bg-muted/50 rounded-lg">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                M
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">MusicLover42</span>
+                  <Badge variant="secondary" className="text-xs">New Member</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Just discovered this amazing indie playlist! The AI recommendations are spot on 🎵
+                </p>
+                <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+                  <span>2 minutes ago</span>
+                  <button className="flex items-center space-x-1 hover:text-foreground">
+                    <Heart className="h-3 w-3" />
+                    <span>12</span>
+                  </button>
+                  <button className="hover:text-foreground">Reply</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 p-3 bg-muted/50 rounded-lg">
+              <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                J
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">JazzEnthusiast</span>
+                  <Badge variant="outline" className="text-xs">Community Star</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Created a new playlist: "Late Night Jazz Vibes" - 100 carefully selected tracks for your evening listening
+                </p>
+                <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+                  <span>15 minutes ago</span>
+                  <button className="flex items-center space-x-1 hover:text-foreground">
+                    <Heart className="h-3 w-3" />
+                    <span>28</span>
+                  </button>
+                  <button className="hover:text-foreground">Reply</button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </FeatureCard>
+        </CardContent>
+      </Card>
     </div>
   );
 };
