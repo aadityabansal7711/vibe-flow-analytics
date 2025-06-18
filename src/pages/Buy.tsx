@@ -1,265 +1,273 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { detectUserRegion, getPricingForRegion } from '@/utils/pricing';
+import { supabase } from '@/integrations/supabase/client';
 import { 
-  Music, 
   Check, 
+  Crown, 
   Sparkles, 
-  TrendingUp, 
-  Heart, 
-  Calendar, 
-  BarChart3,
-  Clock,
-  Star,
-  Zap,
-  MapPin,
-  ArrowRight,
-  Crown,
-  Shield
+  Music, 
+  BarChart3, 
+  Users, 
+  ArrowLeft,
+  Percent,
+  Tag
 } from 'lucide-react';
 
 const Buy = () => {
-  const { user, isUnlocked } = useAuth();
-  const [pricing, setPricing] = useState(getPricingForRegion('OTHER'));
-  const [region, setRegion] = useState('OTHER');
+  const { user, profile } = useAuth();
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoMessage, setPromoMessage] = useState('');
+  const [checkingPromo, setCheckingPromo] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const detectedRegion = detectUserRegion();
-    setRegion(detectedRegion);
-    setPricing(getPricingForRegion(detectedRegion));
-  }, []);
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
-  const features = [
-    { name: 'Top Tracks & Artists', included: true, icon: <Music className="h-4 w-4" /> },
-    { name: 'Top Albums', included: true, icon: <Music className="h-4 w-4" /> },
-    { name: 'Most Played Song of All Time', included: false, icon: <Heart className="h-4 w-4" /> },
-    { name: 'Your Year in Music', included: false, icon: <Sparkles className="h-4 w-4" /> },
-    { name: 'AI Playlist Generation', included: false, icon: <Zap className="h-4 w-4" /> },
-    { name: 'Time Preference Analysis', included: false, icon: <Clock className="h-4 w-4" /> },
-    { name: 'Monthly Listening Trends', included: false, icon: <TrendingUp className="h-4 w-4" /> },
-    { name: 'Music Personality Profile', included: false, icon: <Star className="h-4 w-4" /> },
-    { name: 'Mood Analysis', included: false, icon: <Heart className="h-4 w-4" /> },
-    { name: 'Listening Streaks & Milestones', included: false, icon: <Calendar className="h-4 w-4" /> },
-    { name: 'Advanced Analytics Dashboard', included: false, icon: <BarChart3 className="h-4 w-4" /> },
-    { name: 'Hidden Gems Discovery', included: false, icon: <Zap className="h-4 w-4" /> }
-  ];
+  const basePrice = 499; // INR
+  const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
 
-  const handlePurchase = () => {
-    // Simulate Stripe payment redirect
-    console.log('Redirecting to Stripe payment...');
-    alert('This would redirect to Stripe payment processing!');
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) {
+      setPromoMessage('');
+      setPromoDiscount(0);
+      return;
+    }
+
+    setCheckingPromo(true);
+    try {
+      const { data, error } = await supabase.rpc('validate_promo_code', {
+        promo_code: promoCode.trim().toUpperCase()
+      });
+
+      if (error) {
+        console.error('Error validating promo code:', error);
+        setPromoMessage('Error validating promo code');
+        setPromoDiscount(0);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const result = data[0];
+        if (result.valid) {
+          setPromoDiscount(result.discount_percentage);
+          setPromoMessage(`${result.message} - ${result.discount_percentage}% off applied!`);
+        } else {
+          setPromoDiscount(0);
+          setPromoMessage(result.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setPromoMessage('Error validating promo code');
+      setPromoDiscount(0);
+    } finally {
+      setCheckingPromo(false);
+    }
   };
 
+  const handlePayment = async () => {
+    setLoading(true);
+    try {
+      // In a real implementation, you would integrate with Razorpay here
+      console.log('Processing payment for:', discountedPrice, 'INR');
+      
+      // For demo purposes, we'll simulate a successful payment
+      // In production, you'd handle the actual Razorpay integration
+      
+      // Use promo code if valid
+      if (promoDiscount > 0 && promoCode) {
+        await supabase.rpc('use_promo_code', {
+          promo_code: promoCode.trim().toUpperCase()
+        });
+      }
+
+      // Update user subscription (in real app, this would be done after payment confirmation)
+      // This is just for demo purposes
+      alert(`Payment simulation: ₹${discountedPrice} - Razorpay integration needed for actual payments`);
+      
+    } catch (error) {
+      console.error('Payment error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const features = [
+    "Unlimited music analytics",
+    "Advanced mood analysis", 
+    "Social music comparisons",
+    "AI-powered insights",
+    "Unlimited shareable cards",
+    "Weekly giveaway entries",
+    "Premium support",
+    "Early access to new features"
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-dark">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 glass-effect-strong border-b border-border/50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between p-6">
-          <Link to="/" className="flex items-center space-x-3">
-            <div className="relative">
-              <Music className="h-8 w-8 text-primary animate-pulse-slow" />
-              <div className="absolute inset-0 h-8 w-8 text-primary/30 animate-ping"></div>
+    <div className="min-h-screen bg-gradient-dark p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <Link to="/dashboard">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            </Link>
+            <div className="flex items-center space-x-2">
+              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
+              <h1 className="text-3xl font-bold text-gradient">Upgrade to Premium</h1>
             </div>
-            <span className="text-2xl font-bold text-gradient">MyVibeLytics</span>
-          </Link>
-          <Link to={user ? "/dashboard" : "/"}>
-            <Button variant="outline" className="border-primary/50 text-foreground hover:bg-primary/10 hover:border-primary">
-              {user ? 'Dashboard' : 'Home'}
-            </Button>
-          </Link>
+          </div>
         </div>
-      </nav>
 
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-hero"></div>
-        <div className="relative px-6 py-16">
-          <div className="max-w-6xl mx-auto">
-            {/* Header */}
-            <div className="text-center mb-16">
-              <h1 className="text-5xl md:text-7xl font-bold text-gradient mb-6 leading-tight">
-                Unlock Your Music DNA
-              </h1>
-              <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-4xl mx-auto leading-relaxed">
-                Get deep insights into your Spotify listening habits with premium analytics
-              </p>
-              
-              {/* Region Indicator */}
-              <div className="flex items-center justify-center space-x-2 text-muted-foreground mb-8">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm">
-                  Pricing for {region === 'IN' ? 'India' : region === 'US' ? 'United States' : region === 'EU' ? 'Europe' : 'your region'}
-                </span>
-              </div>
-            </div>
-
-            {/* Pricing Cards */}
-            <div className="grid md:grid-cols-2 gap-8 mb-16">
-              {/* Free Plan */}
-              <Card className="glass-effect card-hover border-border/50 relative">
-                <CardHeader className="text-center pb-8">
-                  <CardTitle className="text-foreground text-2xl mb-4">Free</CardTitle>
-                  <div className="text-4xl font-bold text-foreground mb-2">
-                    {pricing.symbol}0
-                    <span className="text-lg font-normal text-muted-foreground">/{pricing.period}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Premium Plan */}
+          <div className="lg:col-span-2">
+            <Card className="glass-effect border-primary/50 overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-primary/20 to-purple-600/20 border-b border-primary/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Crown className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-2xl text-foreground">Premium Plan</CardTitle>
                   </div>
-                  <p className="text-muted-foreground">Perfect to get started</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4 mb-8">
-                    {features.slice(0, 3).map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                        <div className="text-primary p-1 rounded-lg bg-primary/10">
-                          {feature.icon}
-                        </div>
-                        <span className="text-foreground">{feature.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <Button className="w-full" variant="outline" disabled>
-                    Current Plan
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Premium Plan */}
-              <Card className="glass-effect card-hover border-primary/50 relative overflow-hidden transform scale-105">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-spotify"></div>
-                <div className="absolute top-4 right-4 bg-gradient-spotify text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold flex items-center space-x-1">
-                  <Crown className="h-3 w-3" />
-                  <span>Popular</span>
+                  <Badge className="bg-primary text-primary-foreground">
+                    Most Popular
+                  </Badge>
                 </div>
-                <CardHeader className="text-center pb-8">
-                  <CardTitle className="text-foreground text-2xl mb-4">Premium</CardTitle>
-                  <div className="text-5xl font-bold text-gradient mb-2">
-                    {pricing.symbol}{pricing.price}
-                    <span className="text-lg font-normal text-muted-foreground">/{pricing.period}</span>
-                  </div>
-                  <p className="text-primary text-sm font-semibold">
-                    Everything in Free, plus all premium features
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4 mb-8">
-                    {features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <Check className={`h-5 w-5 flex-shrink-0 ${feature.included ? 'text-primary' : 'text-primary'}`} />
-                        <div className={`p-1 rounded-lg ${feature.included ? 'text-muted-foreground bg-muted' : 'text-primary bg-primary/10'}`}>
-                          {feature.icon}
-                        </div>
-                        <span className={`${feature.included ? 'text-muted-foreground' : 'text-foreground font-medium'}`}>
-                          {feature.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {isUnlocked ? (
-                    <Button className="w-full bg-muted text-muted-foreground" disabled>
-                      <Shield className="mr-2 h-4 w-4" />
-                      Already Unlocked
-                    </Button>
+                <div className="flex items-baseline space-x-2">
+                  {promoDiscount > 0 ? (
+                    <>
+                      <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice}</span>
+                      <span className="text-4xl font-bold text-primary">₹{discountedPrice}</span>
+                      <Badge variant="destructive" className="ml-2">
+                        {promoDiscount}% OFF
+                      </Badge>
+                    </>
                   ) : (
-                    <Button 
-                      onClick={handlePurchase}
-                      className="w-full bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground font-semibold"
-                    >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Unlock Premium
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    <span className="text-4xl font-bold text-primary">₹{basePrice}</span>
                   )}
-                </CardContent>
-              </Card>
-            </div>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              </CardHeader>
 
-            {/* Features Showcase */}
-            <div className="grid md:grid-cols-3 gap-6 mb-16">
-              <Card className="glass-effect card-hover border-border/50 text-center group">
-                <CardContent className="p-8">
-                  <div className="relative mb-6">
-                    <TrendingUp className="h-12 w-12 text-primary mx-auto group-hover:scale-110 transition-transform duration-200" />
-                    <div className="absolute inset-0 h-12 w-12 text-primary/20 animate-pulse rounded-full mx-auto"></div>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                  {features.map((feature, index) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
+                      <span className="text-foreground">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Promo Code Section */}
+                <div className="bg-background/30 rounded-lg p-4 mb-6">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Tag className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-foreground">Have a promo code?</span>
                   </div>
-                  <h3 className="text-foreground font-bold text-lg mb-3">Advanced Analytics</h3>
-                  <p className="text-muted-foreground leading-relaxed">Deep insights into your listening patterns and musical evolution over time</p>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-effect card-hover border-border/50 text-center group">
-                <CardContent className="p-8">
-                  <div className="relative mb-6">
-                    <Star className="h-12 w-12 text-primary mx-auto group-hover:scale-110 transition-transform duration-200" />
-                    <div className="absolute inset-0 h-12 w-12 text-primary/20 animate-pulse rounded-full mx-auto"></div>
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Enter promo code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={validatePromoCode}
+                      disabled={checkingPromo || !promoCode.trim()}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {checkingPromo ? 'Checking...' : 'Apply'}
+                    </Button>
                   </div>
-                  <h3 className="text-foreground font-bold text-lg mb-3">Music Personality</h3>
-                  <p className="text-muted-foreground leading-relaxed">Discover your unique musical identity and taste preferences</p>
-                </CardContent>
-              </Card>
+                  {promoMessage && (
+                    <Alert className={`mt-3 ${promoDiscount > 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                      <Percent className="h-4 w-4" />
+                      <AlertDescription className={promoDiscount > 0 ? 'text-green-400' : 'text-red-400'}>
+                        {promoMessage}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
 
-              <Card className="glass-effect card-hover border-border/50 text-center group">
-                <CardContent className="p-8">
-                  <div className="relative mb-6">
-                    <Zap className="h-12 w-12 text-primary mx-auto group-hover:scale-110 transition-transform duration-200" />
-                    <div className="absolute inset-0 h-12 w-12 text-primary/20 animate-pulse rounded-full mx-auto"></div>
-                  </div>
-                  <h3 className="text-foreground font-bold text-lg mb-3">AI-Powered Features</h3>
-                  <p className="text-muted-foreground leading-relaxed">Smart playlist generation and hidden gem discovery powered by AI</p>
-                </CardContent>
-              </Card>
-            </div>
+                <Button 
+                  onClick={handlePayment}
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg"
+                >
+                  {loading ? (
+                    'Processing...'
+                  ) : (
+                    <>
+                      <Crown className="mr-2 h-5 w-5" />
+                      Pay ₹{discountedPrice} - Upgrade Now
+                    </>
+                  )}
+                </Button>
 
-            {/* FAQ */}
+                <p className="text-center text-muted-foreground text-sm mt-4">
+                  Secure payment powered by Razorpay. Cancel anytime.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Benefits Section */}
+          <div className="space-y-6">
             <Card className="glass-effect border-border/50">
               <CardHeader>
-                <CardTitle className="text-foreground text-2xl text-center">Frequently Asked Questions</CardTitle>
+                <CardTitle className="text-foreground flex items-center">
+                  <Sparkles className="mr-2 h-5 w-5 text-primary" />
+                  Why Premium?
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h4 className="text-foreground font-semibold mb-2 text-lg">What payment methods do you accept?</h4>
-                  <p className="text-muted-foreground leading-relaxed">We accept all major credit cards, debit cards, and digital payment methods through Stripe.</p>
+              <CardContent className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <Music className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Unlimited Analytics</h4>
+                    <p className="text-sm text-muted-foreground">Access all advanced features without limits</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-foreground font-semibold mb-2 text-lg">Can I cancel anytime?</h4>
-                  <p className="text-muted-foreground leading-relaxed">Yes, you can cancel your subscription at any time. You'll continue to have access until the end of your billing period.</p>
+                <div className="flex items-start space-x-3">
+                  <BarChart3 className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">AI Insights</h4>
+                    <p className="text-sm text-muted-foreground">Get personalized AI-powered recommendations</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-foreground font-semibold mb-2 text-lg">Is my Spotify data safe?</h4>
-                  <p className="text-muted-foreground leading-relaxed">Absolutely. We only access your listening data with your permission and never store your Spotify login credentials.</p>
+                <div className="flex items-start space-x-3">
+                  <Users className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Giveaway Access</h4>
+                    <p className="text-sm text-muted-foreground">Enter weekly giveaways for amazing prizes</p>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-effect border-border/50">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-primary mb-2">30-Day</div>
+                <div className="text-muted-foreground">Money Back Guarantee</div>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="mt-20 border-t border-border/30 glass-effect-strong">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-3 mb-6 md:mb-0">
-              <Music className="h-6 w-6 text-primary" />
-              <span className="text-foreground font-bold text-lg">MyVibeLytics</span>
-            </div>
-            <div className="flex space-x-8 text-muted-foreground">
-              <Link to="/terms" className="hover:text-primary transition-colors duration-200 font-medium">Terms</Link>
-              <Link to="/privacy" className="hover:text-primary transition-colors duration-200 font-medium">Privacy</Link>
-              <Link to="/contact" className="hover:text-primary transition-colors duration-200 font-medium">Contact</Link>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-border/20 text-center">
-            <p className="text-muted-foreground text-sm">
-              © 2024 MyVibeLytics. Discover your music DNA with beautiful analytics.
-            </p>
-            <p className="text-muted-foreground text-xs mt-2">
-              Owned by Arnam Enterprises | GST: 09ABZFA4207B1ZG
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

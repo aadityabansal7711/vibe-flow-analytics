@@ -78,6 +78,8 @@ export type Database = {
           id: string
           is_active: boolean
           updated_at: string
+          winner_email: string | null
+          winner_name: string | null
           winner_user_id: string | null
           withdrawal_date: string
         }
@@ -89,6 +91,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           updated_at?: string
+          winner_email?: string | null
+          winner_name?: string | null
           winner_user_id?: string | null
           withdrawal_date: string
         }
@@ -100,6 +104,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           updated_at?: string
+          winner_email?: string | null
+          winner_name?: string | null
           winner_user_id?: string | null
           withdrawal_date?: string
         }
@@ -171,6 +177,42 @@ export type Database = {
           updated_at?: string | null
           used_promo_code?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          current_uses: number
+          discount_percentage: number
+          expires_at: string
+          id: string
+          is_active: boolean
+          max_uses: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_uses?: number
+          discount_percentage: number
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_uses?: number
+          discount_percentage?: number
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -300,7 +342,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      use_promo_code: {
+        Args: { promo_code: string }
+        Returns: boolean
+      }
+      validate_promo_code: {
+        Args: { promo_code: string }
+        Returns: {
+          valid: boolean
+          discount_percentage: number
+          message: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

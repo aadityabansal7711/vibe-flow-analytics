@@ -1,21 +1,23 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Gift, 
-  Calendar, 
-  Crown, 
   Clock, 
+  Users, 
+  Crown, 
+  Calendar,
   Trophy,
+  Star,
   ArrowLeft,
-  Sparkles,
-  Users,
-  AlertCircle
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 
 interface Giveaway {
@@ -26,6 +28,8 @@ interface Giveaway {
   withdrawal_date: string;
   is_active: boolean;
   winner_user_id: string | null;
+  winner_name: string | null;
+  winner_email: string | null;
   created_at: string;
 }
 
@@ -33,7 +37,11 @@ const WeeklyGiveaway = () => {
   const { user, profile } = useAuth();
   const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
   useEffect(() => {
     fetchGiveaways();
@@ -42,46 +50,62 @@ const WeeklyGiveaway = () => {
   const fetchGiveaways = async () => {
     try {
       setLoading(true);
-      setError(null);
-      
-      const { data, error: fetchError } = await supabase
+      const { data, error } = await supabase
         .from('giveaways')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (fetchError) {
-        console.error('Error fetching giveaways:', fetchError);
-        setError('Failed to load giveaways. Please try again later.');
+      if (error) {
+        console.error('Error fetching giveaways:', error);
+        setMessage('Error loading giveaways');
         return;
       }
-      
+
       setGiveaways(data || []);
     } catch (error) {
-      console.error('Error fetching giveaways:', error);
-      setError('Failed to load giveaways. Please try again later.');
+      console.error('Error:', error);
+      setMessage('Error loading giveaways');
     } finally {
       setLoading(false);
     }
   };
 
-  const activeGiveaways = giveaways.filter(g => g.is_active);
-  const pastGiveaways = giveaways.filter(g => !g.is_active);
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(price);
+  };
 
   const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      return 'Invalid date';
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getTimeRemaining = (withdrawalDate: string) => {
+    const now = new Date();
+    const deadline = new Date(withdrawalDate);
+    const timeDiff = deadline.getTime() - now.getTime();
+    
+    if (timeDiff <= 0) return 'Ended';
+    
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) {
+      return `${days}d ${hours}h remaining`;
+    } else {
+      return `${hours}h remaining`;
     }
   };
 
-  const isEligible = user && profile?.has_active_subscription;
+  const activeGiveaways = giveaways.filter(g => g.is_active);
+  const completedGiveaways = giveaways.filter(g => !g.is_active);
 
   if (loading) {
     return (
@@ -96,12 +120,12 @@ const WeeklyGiveaway = () => {
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Link to="/">
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
+            <Link to="/dashboard">
+              <Button variant="outline" size="sm">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Dashboard
               </Button>
@@ -111,190 +135,31 @@ const WeeklyGiveaway = () => {
               <h1 className="text-3xl font-bold text-gradient">Weekly Giveaways</h1>
             </div>
           </div>
-          {!isEligible && (
-            <Link to="/buy">
-              <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
-                <Crown className="mr-2 h-4 w-4" />
-                Upgrade to Enter
-              </Button>
-            </Link>
+          {profile?.has_active_subscription && (
+            <Badge variant="outline" className="text-yellow-400 border-yellow-400">
+              <Crown className="mr-1 h-3 w-3" />
+              Premium Member
+            </Badge>
           )}
         </div>
 
-        {/* Error Display */}
-        {error && (
-          <Card className="glass-effect border-red-500/50 mb-8">
+        {message && (
+          <Alert className="mb-6">
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Premium Status */}
+        {!profile?.has_active_subscription && (
+          <Card className="glass-effect border-border/50 mb-8">
             <CardContent className="p-6 text-center">
-              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-foreground mb-2">Error Loading Giveaways</h2>
-              <p className="text-muted-foreground mb-4">{error}</p>
-              <Button onClick={fetchGiveaways} variant="outline">
-                Try Again
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Eligibility Status */}
-        {!user ? (
-          <Card className="glass-effect border-border/50 mb-8">
-            <CardContent className="p-8 text-center">
-              <Gift className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-foreground mb-4">Sign In to Participate</h2>
-              <p className="text-muted-foreground mb-6">
-                Create an account and upgrade to premium to participate in our weekly giveaways!
-              </p>
-              <div className="flex gap-4 justify-center">
-                <Link to="/auth">
-                  <Button>Sign In</Button>
-                </Link>
-                <Link to="/buy">
-                  <Button variant="outline">View Premium</Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        ) : !profile?.has_active_subscription ? (
-          <Card className="glass-effect border-border/50 mb-8">
-            <CardContent className="p-8 text-center">
-              <Crown className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-foreground mb-4">Premium Required</h2>
-              <p className="text-muted-foreground mb-6">
-                Upgrade to premium to automatically enter all weekly giveaways and win amazing prizes!
-              </p>
-              <Link to="/buy">
-                <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
-                  <Crown className="mr-2 h-4 w-4" />
-                  Upgrade Now
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="glass-effect border-border/50 mb-8">
-            <CardContent className="p-8 text-center">
-              <Trophy className="h-16 w-16 text-green-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-foreground mb-4">You're Entered!</h2>
+              <XCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">Premium Required</h3>
               <p className="text-muted-foreground mb-4">
-                As a premium member, you're automatically entered into all active giveaways. Good luck!
-              </p>
-              <Badge variant="outline" className="text-green-400 border-green-400">
-                <Users className="mr-1 h-3 w-3" />
-                Premium Member
-              </Badge>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Active Giveaways */}
-        {activeGiveaways.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center">
-              <Sparkles className="mr-2 h-6 w-6 text-yellow-400" />
-              Active Giveaways
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {activeGiveaways.map((giveaway) => (
-                <Card key={giveaway.id} className="glass-effect border-border/50 hover:border-primary/50 transition-all duration-300">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-                        <Clock className="mr-1 h-3 w-3" />
-                        Active
-                      </Badge>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-yellow-400">${giveaway.gift_price}</div>
-                        <div className="text-xs text-muted-foreground">Value</div>
-                      </div>
-                    </div>
-                    <CardTitle className="text-foreground text-xl">{giveaway.gift_name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {giveaway.gift_image_url && (
-                      <img 
-                        src={giveaway.gift_image_url} 
-                        alt={giveaway.gift_name}
-                        className="w-full h-48 object-cover rounded-lg mb-4"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    )}
-                    <div className="flex items-center text-muted-foreground text-sm mb-4">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>Ends: {formatDate(giveaway.withdrawal_date)}</span>
-                    </div>
-                    <div className="text-center">
-                      {isEligible ? (
-                        <Badge variant="outline" className="text-green-400 border-green-400">
-                          ✓ You're Entered!
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground border-muted-foreground">
-                          Premium Required
-                        </Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Past Giveaways */}
-        {pastGiveaways.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center">
-              <Trophy className="mr-2 h-6 w-6 text-gray-400" />
-              Past Giveaways
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pastGiveaways.map((giveaway) => (
-                <Card key={giveaway.id} className="glass-effect border-border/50 opacity-75">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">
-                        Completed
-                      </Badge>
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-muted-foreground">${giveaway.gift_price}</div>
-                        <div className="text-xs text-muted-foreground">Value</div>
-                      </div>
-                    </div>
-                    <CardTitle className="text-foreground">{giveaway.gift_name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center text-muted-foreground text-sm">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>Ended: {formatDate(giveaway.withdrawal_date)}</span>
-                    </div>
-                    {giveaway.winner_user_id && (
-                      <div className="mt-2">
-                        <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-                          <Trophy className="mr-1 h-3 w-3" />
-                          Winner Selected
-                        </Badge>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* No Giveaways */}
-        {giveaways.length === 0 && !error && (
-          <Card className="glass-effect border-border/50">
-            <CardContent className="p-12 text-center">
-              <Gift className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-foreground mb-4">No Giveaways Yet</h2>
-              <p className="text-muted-foreground mb-6">
-                Check back soon! We'll be launching exciting weekly giveaways for our premium members.
+                Only Premium members are eligible for weekly giveaways. Upgrade now to participate!
               </p>
               <Link to="/buy">
-                <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
+                <Button className="bg-primary hover:bg-primary/90">
                   <Crown className="mr-2 h-4 w-4" />
                   Upgrade to Premium
                 </Button>
@@ -303,40 +168,153 @@ const WeeklyGiveaway = () => {
           </Card>
         )}
 
-        {/* How It Works */}
-        <Card className="glass-effect border-border/50 mt-12">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center">
-              <Gift className="mr-2 h-5 w-5" />
-              How It Works
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Crown className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">1. Upgrade to Premium</h3>
-                <p className="text-muted-foreground text-sm">Get premium access to unlock giveaway participation</p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Users className="h-6 w-6 text-green-500" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">2. Automatic Entry</h3>
-                <p className="text-muted-foreground text-sm">You're automatically entered into all active giveaways</p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Trophy className="h-6 w-6 text-yellow-500" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">3. Random Selection</h3>
-                <p className="text-muted-foreground text-sm">Winners are randomly selected from eligible premium users</p>
-              </div>
+        {profile?.has_active_subscription && (
+          <Card className="glass-effect border-green-500/20 mb-8">
+            <CardContent className="p-6 text-center">
+              <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">You're Eligible!</h3>
+              <p className="text-muted-foreground">
+                As a Premium member, you're automatically entered into all active giveaways. Good luck!
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Active Giveaways */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center">
+            <Gift className="mr-3 h-6 w-6 text-primary" />
+            Active Giveaways ({activeGiveaways.length})
+          </h2>
+          
+          {activeGiveaways.length === 0 ? (
+            <Card className="glass-effect border-border/50">
+              <CardContent className="p-8 text-center">
+                <Gift className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">No Active Giveaways</h3>
+                <p className="text-muted-foreground">
+                  Check back soon for new exciting giveaways!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {activeGiveaways.map((giveaway) => (
+                <Card key={giveaway.id} className="glass-effect border-border/50 overflow-hidden">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
+                        <Clock className="mr-1 h-3 w-3" />
+                        Active
+                      </Badge>
+                      <Badge variant="outline" className="text-primary border-primary">
+                        {formatPrice(giveaway.gift_price)}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-foreground text-xl">{giveaway.gift_name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {giveaway.gift_image_url && (
+                      <img 
+                        src={giveaway.gift_image_url} 
+                        alt={giveaway.gift_name}
+                        className="w-full h-40 object-cover rounded-lg"
+                      />
+                    )}
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center text-muted-foreground">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span className="text-sm">Ends: {formatDate(giveaway.withdrawal_date)}</span>
+                      </div>
+                      <div className="flex items-center text-primary">
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span className="font-medium">{getTimeRemaining(giveaway.withdrawal_date)}</span>
+                      </div>
+                    </div>
+
+                    {profile?.has_active_subscription ? (
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                        <div className="flex items-center text-green-400">
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          <span className="text-sm font-medium">You're entered!</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                        <div className="flex items-center text-red-400 mb-2">
+                          <XCircle className="mr-2 h-4 w-4" />
+                          <span className="text-sm font-medium">Premium Required</span>
+                        </div>
+                        <Link to="/buy">
+                          <Button size="sm" className="w-full">
+                            Upgrade to Enter
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+
+        {/* Past Winners */}
+        <div>
+          <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center">
+            <Trophy className="mr-3 h-6 w-6 text-yellow-400" />
+            Past Winners ({completedGiveaways.length})
+          </h2>
+          
+          {completedGiveaways.length === 0 ? (
+            <Card className="glass-effect border-border/50">
+              <CardContent className="p-8 text-center">
+                <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">No Past Winners Yet</h3>
+                <p className="text-muted-foreground">
+                  Be the first to win a giveaway!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {completedGiveaways.map((giveaway) => (
+                <Card key={giveaway.id} className="glass-effect border-border/50">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-foreground">{giveaway.gift_name}</h3>
+                          <Badge variant="outline" className="text-yellow-400 border-yellow-400">
+                            {formatPrice(giveaway.gift_price)}
+                          </Badge>
+                          <Badge variant="secondary">Completed</Badge>
+                        </div>
+                        <p className="text-muted-foreground text-sm mb-2">
+                          Ended: {formatDate(giveaway.withdrawal_date)}
+                        </p>
+                        {giveaway.winner_name && (
+                          <div className="flex items-center gap-2 text-primary">
+                            <Star className="h-4 w-4" />
+                            <span className="font-medium">Winner: {giveaway.winner_name}</span>
+                          </div>
+                        )}
+                      </div>
+                      {giveaway.gift_image_url && (
+                        <img 
+                          src={giveaway.gift_image_url} 
+                          alt={giveaway.gift_name}
+                          className="w-16 h-16 object-cover rounded-lg ml-4"
+                        />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

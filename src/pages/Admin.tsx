@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import PromoCodeManager from '@/components/PromoCodeManager';
 import { 
   Users, 
   UserCheck, 
@@ -24,7 +25,8 @@ import {
   RefreshCw,
   Music,
   Gift,
-  Plus
+  Plus,
+  Edit
 } from 'lucide-react';
 
 interface User {
@@ -46,6 +48,8 @@ interface Giveaway {
   withdrawal_date: string;
   is_active: boolean;
   winner_user_id: string | null;
+  winner_name: string | null;
+  winner_email: string | null;
   created_at: string;
 }
 
@@ -63,6 +67,7 @@ const Admin = () => {
   const [message, setMessage] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showGiveawayForm, setShowGiveawayForm] = useState(false);
+  const [editingGiveaway, setEditingGiveaway] = useState<Giveaway | null>(null);
   const [giveawayForm, setGiveawayForm] = useState({
     gift_name: '',
     gift_image_url: '',
@@ -266,29 +271,85 @@ const Admin = () => {
         return;
       }
 
-      const { error } = await supabase
-        .from('giveaways')
-        .insert({
-          gift_name: giveawayForm.gift_name,
-          gift_image_url: giveawayForm.gift_image_url || null,
-          gift_price: parseFloat(giveawayForm.gift_price),
-          withdrawal_date: giveawayForm.withdrawal_date,
-          is_active: true
-        });
+      const giveawayData = {
+        gift_name: giveawayForm.gift_name,
+        gift_image_url: giveawayForm.gift_image_url || null,
+        gift_price: parseFloat(giveawayForm.gift_price),
+        withdrawal_date: giveawayForm.withdrawal_date,
+        is_active: true
+      };
 
-      if (error) {
-        console.error('Error creating giveaway:', error);
-        setMessage('Error creating giveaway: ' + error.message);
-        return;
+      if (editingGiveaway) {
+        const { error } = await supabase
+          .from('giveaways')
+          .update(giveawayData)
+          .eq('id', editingGiveaway.id);
+
+        if (error) {
+          console.error('Error updating giveaway:', error);
+          setMessage('Error updating giveaway: ' + error.message);
+          return;
+        }
+        setMessage('Giveaway updated successfully!');
+      } else {
+        const { error } = await supabase
+          .from('giveaways')
+          .insert(giveawayData);
+
+        if (error) {
+          console.error('Error creating giveaway:', error);
+          setMessage('Error creating giveaway: ' + error.message);
+          return;
+        }
+        setMessage('Giveaway created successfully!');
       }
 
-      setMessage('Giveaway created successfully!');
       setShowGiveawayForm(false);
+      setEditingGiveaway(null);
       setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' });
       await fetchGiveaways();
     } catch (error: any) {
-      console.error('Error creating giveaway:', error);
-      setMessage('Error creating giveaway: ' + error.message);
+      console.error('Error with giveaway:', error);
+      setMessage('Error with giveaway: ' + error.message);
+    }
+  };
+
+  const editGiveaway = (giveaway: Giveaway) => {
+    setEditingGiveaway(giveaway);
+    setGiveawayForm({
+      gift_name: giveaway.gift_name,
+      gift_image_url: giveaway.gift_image_url || '',
+      gift_price: giveaway.gift_price.toString(),
+      withdrawal_date: new Date(giveaway.withdrawal_date).toISOString().slice(0, 16)
+    });
+    setShowGiveawayForm(true);
+  };
+
+  const deleteGiveaway = async (giveawayId: string, giftName: string) => {
+    if (!confirm(`Are you sure you want to delete the giveaway "${giftName}"?`)) {
+      return;
+    }
+
+    try {
+      setActionLoading(giveawayId);
+      const { error } = await supabase
+        .from('giveaways')
+        .delete()
+        .eq('id', giveawayId);
+
+      if (error) {
+        console.error('Error deleting giveaway:', error);
+        setMessage('Error deleting giveaway: ' + error.message);
+        return;
+      }
+
+      setMessage('Giveaway deleted successfully!');
+      await fetchGiveaways();
+    } catch (error: any) {
+      console.error('Error deleting giveaway:', error);
+      setMessage('Error deleting giveaway: ' + error.message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -319,6 +380,8 @@ const Admin = () => {
         .from('giveaways')
         .update({ 
           winner_user_id: randomWinner.user_id,
+          winner_name: randomWinner.full_name || randomWinner.email.split('@')[0],
+          winner_email: randomWinner.email,
           is_active: false 
         })
         .eq('id', giveawayId);
@@ -442,6 +505,11 @@ const Admin = () => {
           </Card>
         </div>
 
+        {/* Promo Code Management */}
+        <div className="mb-8">
+          <PromoCodeManager />
+        </div>
+
         {/* Giveaway Management */}
         <Card className="glass-effect border-border/50 mb-8">
           <CardHeader>
@@ -450,9 +518,9 @@ const Admin = () => {
                 <Gift className="mr-2 h-5 w-5" />
                 Weekly Giveaways ({giveaways.length})
               </div>
-              <Button onClick={() => setShowGiveawayForm(!showGiveawayForm)}>
+              <Button onClick={() => { setShowGiveawayForm(!showGiveawayForm); setEditingGiveaway(null); setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' }); }}>
                 <Plus className="mr-2 h-4 w-4" />
-                New Giveaway
+                {showGiveawayForm ? 'Cancel' : 'New Giveaway'}
               </Button>
             </CardTitle>
           </CardHeader>
@@ -471,7 +539,7 @@ const Admin = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="gift_price">Gift Price ($) *</Label>
+                    <Label htmlFor="gift_price">Gift Price (₹) *</Label>
                     <Input
                       id="gift_price"
                       type="number"
@@ -505,8 +573,10 @@ const Admin = () => {
                   </div>
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <Button type="submit">Create Giveaway</Button>
-                  <Button type="button" variant="outline" onClick={() => setShowGiveawayForm(false)}>
+                  <Button type="submit">
+                    {editingGiveaway ? 'Update' : 'Create'} Giveaway
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => { setShowGiveawayForm(false); setEditingGiveaway(null); }}>
                     Cancel
                   </Button>
                 </div>
@@ -524,13 +594,13 @@ const Admin = () => {
                   <div key={giveaway.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
                     <div className="flex-1">
                       <h3 className="text-foreground font-medium">{giveaway.gift_name}</h3>
-                      <p className="text-muted-foreground text-sm">${giveaway.gift_price}</p>
+                      <p className="text-muted-foreground text-sm">₹{giveaway.gift_price}</p>
                       <p className="text-muted-foreground text-xs">
                         Withdrawal: {formatDate(giveaway.withdrawal_date)}
                       </p>
-                      {giveaway.winner_user_id && (
+                      {giveaway.winner_name && (
                         <p className="text-green-400 text-xs">
-                          Winner: {users.find(u => u.user_id === giveaway.winner_user_id)?.email || 'Unknown user'}
+                          Winner: {giveaway.winner_name} ({giveaway.winner_email})
                         </p>
                       )}
                     </div>
@@ -538,6 +608,27 @@ const Admin = () => {
                       <Badge variant={giveaway.is_active ? "default" : "secondary"}>
                         {giveaway.is_active ? 'Active' : 'Completed'}
                       </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => editGiveaway(giveaway)}
+                        disabled={actionLoading === giveaway.id}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deleteGiveaway(giveaway.id, giveaway.gift_name)}
+                        disabled={actionLoading === giveaway.id}
+                        className="text-red-400 border-red-400 hover:bg-red-400/10"
+                      >
+                        {actionLoading === giveaway.id ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                      </Button>
                       {giveaway.is_active && !giveaway.winner_user_id && (
                         <Button
                           size="sm"

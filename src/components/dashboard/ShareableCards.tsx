@@ -1,10 +1,9 @@
 
 import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Share2, Download, Music, Trophy, Heart, Sparkles, Calendar, Crown } from 'lucide-react';
-import FeatureCard from '@/components/FeatureCard';
+import { Share2, Download, Lock, Crown } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 interface SpotifyTrack {
@@ -12,247 +11,320 @@ interface SpotifyTrack {
   name: string;
   artists: { name: string }[];
   album: { name: string; images: { url: string }[] };
-  popularity: number;
-  uri: string;
-  played_at?: string;
 }
 
 interface SpotifyArtist {
   id: string;
   name: string;
-  genres: string[];
-  followers: { total: number };
   images: { url: string }[];
-  popularity: number;
+  genres: string[];
 }
 
-interface ShareableCardsProps {
+interface Props {
   topTracks: SpotifyTrack[];
   topArtists: SpotifyArtist[];
   recentlyPlayed: SpotifyTrack[];
   isLocked: boolean;
-  profile: any;
+  profile?: any;
 }
 
-const ShareableCards: React.FC<ShareableCardsProps> = ({ 
-  topTracks, 
-  topArtists, 
-  recentlyPlayed, 
-  isLocked,
-  profile 
-}) => {
-  const [selectedCard, setSelectedCard] = useState<string | null>(null);
+const ShareableCards: React.FC<Props> = ({ topTracks, topArtists, recentlyPlayed, isLocked, profile }) => {
+  const [generating, setGenerating] = useState<string | null>(null);
 
-  const downloadCard = async (cardId: string) => {
+  const generateCard = async (cardId: string) => {
+    if (isLocked) return;
+    
+    setGenerating(cardId);
     const element = document.getElementById(cardId);
     if (element) {
-      const canvas = await html2canvas(element, {
-        backgroundColor: '#0F172A',
-        scale: 2,
-        width: 400,
-        height: 600
-      });
-      
-      const link = document.createElement('a');
-      link.download = `myvibelytics-${cardId}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
+      try {
+        const canvas = await html2canvas(element, {
+          backgroundColor: '#0a0a0f',
+          scale: 2,
+          width: 400,
+          height: 600
+        });
+        
+        const link = document.createElement('a');
+        link.download = `myvibelytics-${cardId}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      } catch (error) {
+        console.error('Error generating card:', error);
+      }
     }
+    setGenerating(null);
   };
 
-  const shareCard = async (cardId: string, title: string) => {
+  const shareCard = async (cardId: string) => {
+    if (isLocked) return;
+    
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `My ${title} - MyVibeLytics`,
-          text: `Check out my music stats from MyVibeLytics!`,
-          url: window.location.href
+          title: 'My Music Stats',
+          text: 'Check out my music analytics from MyVibeLytics!',
+          url: window.location.origin
         });
-      } catch (err) {
-        console.log('Error sharing:', err);
+      } catch (error) {
+        console.log('Error sharing:', error);
       }
-    } else {
-      // Fallback to copying link
-      navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
     }
   };
 
   const topTrack = topTracks[0];
   const topArtist = topArtists[0];
-  
-  const getListeningStreak = () => {
-    const dates = new Set(
-      recentlyPlayed.map(track => new Date(track.played_at || '').toDateString())
-    );
-    let streak = 0;
-    const today = new Date();
-    for (let i = 0; i < 30; i++) {
-      const check = new Date(today);
-      check.setDate(today.getDate() - i);
-      if (dates.has(check.toDateString())) streak++;
-      else break;
-    }
-    return streak || 1;
-  };
-
-  const cards = [
-    {
-      id: 'top-track-card',
-      title: 'Top Track',
-      subtitle: 'My #1 Song',
-      data: topTrack,
-      type: 'track' as const,
-      gradient: 'from-purple-600 to-pink-600'
-    },
-    {
-      id: 'top-artist-card',
-      title: 'Top Artist',
-      subtitle: 'Most Played',
-      data: topArtist,
-      type: 'artist' as const,
-      gradient: 'from-blue-600 to-cyan-600'
-    },
-    {
-      id: 'streak-card',
-      title: 'Listening Streak',
-      subtitle: 'Consecutive Days',
-      data: { streak: getListeningStreak() },
-      type: 'streak' as const,
-      gradient: 'from-green-600 to-emerald-600'
-    },
-    {
-      id: 'wrapped-card',
-      title: 'My 2024 Wrapped',
-      subtitle: 'Year in Music',
-      data: { tracks: topTracks.length, artists: topArtists.length },
-      type: 'wrapped' as const,
-      gradient: 'from-yellow-600 to-orange-600'
-    }
-  ];
-
-  const ShareableCard = ({ card }: { card: any }) => (
-    <div
-      id={card.id}
-      className={`w-80 h-96 bg-gradient-to-br ${card.gradient} rounded-2xl p-6 text-white relative overflow-hidden shadow-2xl`}
-      style={{ minWidth: '320px', minHeight: '384px' }}
-    >
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-white"></div>
-        <div className="absolute -bottom-20 -left-20 w-40 h-40 rounded-full bg-white"></div>
-      </div>
-      
-      {/* Header */}
-      <div className="relative z-10 mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-6 w-6" />
-          {profile?.has_active_subscription && (
-            <Crown className="h-5 w-5 text-yellow-300" />
-          )}
-        </div>
-        <h2 className="text-2xl font-bold">{card.title}</h2>
-        <p className="text-white/80 text-sm">{card.subtitle}</p>
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center">
-        {card.type === 'track' && card.data && (
-          <>
-            <Music className="h-16 w-16 mb-4 text-white/90" />
-            <h3 className="text-xl font-bold mb-2 line-clamp-2">{card.data.name}</h3>
-            <p className="text-white/80 mb-4">{card.data.artists[0]?.name}</p>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              #{1} Most Played
-            </Badge>
-          </>
-        )}
-        
-        {card.type === 'artist' && card.data && (
-          <>
-            <Sparkles className="h-16 w-16 mb-4 text-white/90" />
-            <h3 className="text-xl font-bold mb-2">{card.data.name}</h3>
-            <p className="text-white/80 mb-4">{card.data.followers?.total?.toLocaleString()} followers</p>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              Top Artist
-            </Badge>
-          </>
-        )}
-        
-        {card.type === 'streak' && (
-          <>
-            <Trophy className="h-16 w-16 mb-4 text-white/90" />
-            <div className="text-4xl font-bold mb-2">{card.data.streak}</div>
-            <p className="text-white/80 mb-4">Days in a row</p>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              Listening Streak
-            </Badge>
-          </>
-        )}
-        
-        {card.type === 'wrapped' && (
-          <>
-            <Calendar className="h-16 w-16 mb-4 text-white/90" />
-            <div className="text-3xl font-bold mb-1">{card.data.tracks}</div>
-            <p className="text-white/80 text-sm mb-2">Top Tracks</p>
-            <div className="text-2xl font-bold mb-1">{card.data.artists}</div>
-            <p className="text-white/80 text-sm mb-4">Artists</p>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              2024 Wrapped
-            </Badge>
-          </>
-        )}
-      </div>
-      
-      {/* Footer */}
-      <div className="relative z-10 mt-6 text-center">
-        <p className="text-white/60 text-xs">Generated by MyVibeLytics</p>
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-8">
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {cards.map((card) => (
-          <FeatureCard
-            key={card.id}
-            title={`${card.title} Card`}
-            description={`Share your ${card.title.toLowerCase()} with friends`}
-            icon={<Share2 className="h-5 w-5 text-primary" />}
-            isLocked={isLocked}
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-foreground mb-4">My Music Analytics</h2>
+        <p className="text-muted-foreground">
+          Create beautiful shareable cards showcasing your music taste
+        </p>
+        {isLocked && (
+          <div className="mt-4 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+            <div className="flex items-center justify-center gap-2 text-primary">
+              <Lock className="h-4 w-4" />
+              <span>Upgrade to Premium to create shareable cards</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Top Track Card */}
+        <div className="space-y-4">
+          <div 
+            id="top-track-card" 
+            className="w-80 h-96 mx-auto bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 rounded-2xl p-6 text-white relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            }}
           >
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                <ShareableCard card={card} />
+            <div className="absolute inset-0 bg-black/20"></div>
+            <div className="relative z-10 h-full flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-6 w-6" />
+                <span className="font-bold">MyVibeLytics</span>
               </div>
               
-              {!isLocked && (
-                <div className="flex gap-2 justify-center">
-                  <Button
-                    onClick={() => downloadCard(card.id)}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
-                  <Button
-                    onClick={() => shareCard(card.id, card.title)}
-                    size="sm"
-                    className="flex-1 bg-gradient-to-r from-primary to-accent"
-                  >
-                    <Share2 className="mr-2 h-4 w-4" />
-                    Share
-                  </Button>
-                </div>
-              )}
+              <div className="flex-1 flex flex-col justify-center items-center text-center">
+                <h3 className="text-lg font-bold mb-2">My Top Track</h3>
+                {topTrack && (
+                  <>
+                    {topTrack.album.images[0] && (
+                      <img 
+                        src={topTrack.album.images[0].url} 
+                        alt={topTrack.name}
+                        className="w-24 h-24 rounded-lg mb-4 shadow-lg"
+                      />
+                    )}
+                    <h4 className="font-bold text-lg mb-1 line-clamp-2">{topTrack.name}</h4>
+                    <p className="text-sm opacity-90 mb-4">{topTrack.artists[0]?.name}</p>
+                  </>
+                )}
+              </div>
+              
+              <div className="text-center">
+                <p className="text-xs opacity-75">Discover your music DNA</p>
+              </div>
             </div>
-          </FeatureCard>
-        ))}
+          </div>
+          
+          <div className="flex gap-2 justify-center">
+            <Button
+              onClick={() => generateCard('top-track-card')}
+              disabled={isLocked || generating === 'top-track-card'}
+              size="sm"
+              className="flex-1"
+            >
+              {generating === 'top-track-card' ? (
+                'Generating...'
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={() => shareCard('top-track-card')}
+              disabled={isLocked}
+              size="sm"
+              variant="outline"
+              className="flex-1"
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
+
+        {/* Top Artist Card */}
+        <div className="space-y-4">
+          <div 
+            id="top-artist-card" 
+            className="w-80 h-96 mx-auto bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 rounded-2xl p-6 text-white relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+            }}
+          >
+            <div className="absolute inset-0 bg-black/20"></div>
+            <div className="relative z-10 h-full flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-6 w-6" />
+                <span className="font-bold">MyVibeLytics</span>
+              </div>
+              
+              <div className="flex-1 flex flex-col justify-center items-center text-center">
+                <h3 className="text-lg font-bold mb-2">My Top Artist</h3>
+                {topArtist && (
+                  <>
+                    {topArtist.images[0] && (
+                      <img 
+                        src={topArtist.images[0].url} 
+                        alt={topArtist.name}
+                        className="w-24 h-24 rounded-full mb-4 shadow-lg"
+                      />
+                    )}
+                    <h4 className="font-bold text-xl mb-2">{topArtist.name}</h4>
+                    <div className="flex flex-wrap gap-1 justify-center mb-4">
+                      {topArtist.genres.slice(0, 2).map((genre, index) => (
+                        <span key={index} className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <div className="text-center">
+                <p className="text-xs opacity-75">Discover your music DNA</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 justify-center">
+            <Button
+              onClick={() => generateCard('top-artist-card')}
+              disabled={isLocked || generating === 'top-artist-card'}
+              size="sm"
+              className="flex-1"
+            >
+              {generating === 'top-artist-card' ? (
+                'Generating...'
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={() => shareCard('top-artist-card')}
+              disabled={isLocked}
+              size="sm"
+              variant="outline"
+              className="flex-1"
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Summary Card */}
+        <div className="space-y-4">
+          <div 
+            id="stats-summary-card" 
+            className="w-80 h-96 mx-auto bg-gradient-to-br from-red-500 via-yellow-500 to-pink-500 rounded-2xl p-6 text-white relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)',
+            }}
+          >
+            <div className="absolute inset-0 bg-black/20"></div>
+            <div className="relative z-10 h-full flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-6 w-6" />
+                <span className="font-bold">MyVibeLytics</span>
+              </div>
+              
+              <div className="flex-1 flex flex-col justify-center">
+                <h3 className="text-xl font-bold mb-6 text-center">My Music Stats</h3>
+                
+                <div className="space-y-4">
+                  <div className="bg-white/20 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold">{topTracks.length}</div>
+                    <div className="text-sm opacity-90">Top Tracks</div>
+                  </div>
+                  
+                  <div className="bg-white/20 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold">{topArtists.length}</div>
+                    <div className="text-sm opacity-90">Top Artists</div>
+                  </div>
+                  
+                  <div className="bg-white/20 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold">{recentlyPlayed.length}</div>
+                    <div className="text-sm opacity-90">Recent Plays</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-center">
+                <p className="text-xs opacity-75">Discover your music DNA</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 justify-center">
+            <Button
+              onClick={() => generateCard('stats-summary-card')}
+              disabled={isLocked || generating === 'stats-summary-card'}
+              size="sm"
+              className="flex-1"
+            >
+              {generating === 'stats-summary-card' ? (
+                'Generating...'
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={() => shareCard('stats-summary-card')}
+              disabled={isLocked}
+              size="sm"
+              variant="outline"
+              className="flex-1"
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
       </div>
+
+      {isLocked && (
+        <div className="text-center mt-8">
+          <Card className="glass-effect border-primary/20 max-w-md mx-auto">
+            <CardContent className="p-6 text-center">
+              <Crown className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">Unlock Shareable Cards</h3>
+              <p className="text-muted-foreground mb-4">
+                Upgrade to Premium to create and share beautiful music cards
+              </p>
+              <Button className="w-full">
+                <Crown className="mr-2 h-4 w-4" />
+                Upgrade to Premium
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
