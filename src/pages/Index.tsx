@@ -1,81 +1,53 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import FeatureCard from '@/components/FeatureCard';
 import { Link } from 'react-router-dom';
-import { 
-  Music, 
-  BarChart3, 
-  Heart, 
-  Users, 
-  Sparkles, 
-  TrendingUp,
-  Clock,
-  Headphones,
-  Target,
-  Zap,
-  Star,
-  Share2
-} from 'lucide-react';
-
+import { Music, BarChart3, Heart, Users, Sparkles, TrendingUp, Clock, Headphones, Target, Zap, Star, Share2 } from 'lucide-react';
 const Index = () => {
-  const features = [
-    {
-      icon: <Music className="h-6 w-6" />,
-      title: "Music DNA Analysis",
-      description: "Deep dive into your musical personality with AI-powered insights about your listening habits, mood patterns, and genre preferences.",
-    },
-    {
-      icon: <BarChart3 className="h-6 w-6" />,
-      title: "Advanced Analytics",
-      description: "Comprehensive charts and visualizations showing your listening trends, peak hours, and detailed breakdowns of your musical journey.",
-    },
-    {
-      icon: <Heart className="h-6 w-6" />,
-      title: "Mood & Emotion Tracking",
-      description: "Understand how your music reflects your emotions with sophisticated mood analysis and emotional pattern recognition.",
-    },
-    {
-      icon: <Users className="h-6 w-6" />,
-      title: "Social Music Insights",
-      description: "Compare your music taste with friends and discover how your listening habits align with different communities.",
-    },
-    {
-      icon: <TrendingUp className="h-6 w-6" />,
-      title: "Predictive Recommendations",
-      description: "Get AI-powered predictions about what you'll love next based on your evolving music taste and listening patterns.",
-    },
-    {
-      icon: <Clock className="h-6 w-6" />,
-      title: "Temporal Music Patterns",
-      description: "Discover how your music taste changes throughout the day, week, and seasons with detailed temporal analysis.",
-    },
-    {
-      icon: <Headphones className="h-6 w-6" />,
-      title: "Audio Feature Analysis",
-      description: "Deep technical analysis of your preferred audio characteristics like tempo, energy, danceability, and acoustics.",
-    },
-    {
-      icon: <Target className="h-6 w-6" />,
-      title: "Music Goals & Tracking",
-      description: "Set and track music discovery goals, listening targets, and personal challenges to expand your musical horizons.",
-    },
-    {
-      icon: <Zap className="h-6 w-6" />,
-      title: "Real-time Insights",
-      description: "Live updates and instant analysis as you listen, providing immediate feedback and insights about your current session.",
-    },
-    {
-      icon: <Share2 className="h-6 w-6" />,
-      title: "Shareable Music Cards",
-      description: "Create beautiful, shareable cards showcasing your music stats, top tracks, and listening achievements for social media.",
-    }
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-dark">
+  const features = [{
+    icon: <Music className="h-6 w-6" />,
+    title: "Music DNA Analysis",
+    description: "Deep dive into your musical personality with AI-powered insights about your listening habits, mood patterns, and genre preferences."
+  }, {
+    icon: <BarChart3 className="h-6 w-6" />,
+    title: "Advanced Analytics",
+    description: "Comprehensive charts and visualizations showing your listening trends, peak hours, and detailed breakdowns of your musical journey."
+  }, {
+    icon: <Heart className="h-6 w-6" />,
+    title: "Mood & Emotion Tracking",
+    description: "Understand how your music reflects your emotions with sophisticated mood analysis and emotional pattern recognition."
+  }, {
+    icon: <Users className="h-6 w-6" />,
+    title: "Social Music Insights",
+    description: "Compare your music taste with friends and discover how your listening habits align with different communities."
+  }, {
+    icon: <TrendingUp className="h-6 w-6" />,
+    title: "Predictive Recommendations",
+    description: "Get AI-powered predictions about what you'll love next based on your evolving music taste and listening patterns."
+  }, {
+    icon: <Clock className="h-6 w-6" />,
+    title: "Temporal Music Patterns",
+    description: "Discover how your music taste changes throughout the day, week, and seasons with detailed temporal analysis."
+  }, {
+    icon: <Headphones className="h-6 w-6" />,
+    title: "Audio Feature Analysis",
+    description: "Deep technical analysis of your preferred audio characteristics like tempo, energy, danceability, and acoustics."
+  }, {
+    icon: <Target className="h-6 w-6" />,
+    title: "Music Goals & Tracking",
+    description: "Set and track music discovery goals, listening targets, and personal challenges to expand your musical horizons."
+  }, {
+    icon: <Zap className="h-6 w-6" />,
+    title: "Real-time Insights",
+    description: "Live updates and instant analysis as you listen, providing immediate feedback and insights about your current session."
+  }, {
+    icon: <Share2 className="h-6 w-6" />,
+    title: "Shareable Music Cards",
+    description: "Create beautiful, shareable cards showcasing your music stats, top tracks, and listening achievements for social media."
+  }];
+  return <div className="min-h-screen bg-gradient-dark">
       {/* Navigation */}
       <nav className="border-b border-border/40 bg-background/5 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -131,7 +103,7 @@ const Index = () => {
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">50M+</div>
+              
               <div className="text-muted-foreground">Songs Analyzed</div>
             </div>
             <div className="text-center">
@@ -159,15 +131,7 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <FeatureCard
-                key={index}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-                isLocked={false}
-              />
-            ))}
+            {features.map((feature, index) => <FeatureCard key={index} icon={feature.icon} title={feature.title} description={feature.description} isLocked={false} />)}
           </div>
         </div>
       </section>
@@ -245,8 +209,6 @@ const Index = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
