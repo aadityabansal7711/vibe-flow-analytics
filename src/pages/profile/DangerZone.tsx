@@ -11,7 +11,7 @@ interface Props {
 }
 
 const DangerZone: React.FC<Props> = ({ profile }) => {
-  const { logout } = useAuth();
+  const { signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDeleteAccount = async () => {
@@ -36,8 +36,8 @@ const DangerZone: React.FC<Props> = ({ profile }) => {
         return;
       }
 
-      // Logout the user
-      await logout();
+      // Sign out the user
+      await signOut();
       
       // Redirect to home page
       window.location.href = '/';

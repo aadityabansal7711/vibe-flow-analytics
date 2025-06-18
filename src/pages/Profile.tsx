@@ -110,58 +110,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    const confirmDelete = confirm(
-      'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data including Spotify connections and analytics.'
-    );
-
-    if (!confirmDelete) return;
-
-    const userInput = prompt('Type "DELETE" to confirm account deletion:');
-    if (userInput !== 'DELETE') {
-      setMessage('Account deletion cancelled - confirmation text did not match.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      console.log('Initiating account deletion for user:', user.id);
-      
-      // Get the current session for authorization
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session found');
-      }
-
-      // Call the edge function to delete user
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: user.id },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
-      }
-
-      console.log('Delete response:', data);
-      setMessage('Account deleted successfully. Goodbye!');
-
-      // Sign out and redirect after a short delay
-      setTimeout(() => {
-        signOut();
-      }, 2000);
-
-    } catch (error: any) {
-      console.error('Account deletion error:', error);
-      setMessage('Failed to delete account: ' + (error.message || 'Unknown error'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -359,7 +307,7 @@ const Profile: React.FC = () => {
                 </div>
               )}
               
-              <DangerZone isLoading={isLoading} handleDeleteAccount={handleDeleteAccount} />
+              <DangerZone profile={profile} />
             </CardContent>
           </Card>
         </div>

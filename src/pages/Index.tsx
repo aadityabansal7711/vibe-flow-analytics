@@ -26,61 +26,51 @@ const Index = () => {
       icon: <Music className="h-6 w-6" />,
       title: "Music DNA Analysis",
       description: "Deep dive into your musical personality with AI-powered insights about your listening habits, mood patterns, and genre preferences.",
-      available: true
     },
     {
       icon: <BarChart3 className="h-6 w-6" />,
       title: "Advanced Analytics",
       description: "Comprehensive charts and visualizations showing your listening trends, peak hours, and detailed breakdowns of your musical journey.",
-      available: true
     },
     {
       icon: <Heart className="h-6 w-6" />,
       title: "Mood & Emotion Tracking",
       description: "Understand how your music reflects your emotions with sophisticated mood analysis and emotional pattern recognition.",
-      available: true
     },
     {
       icon: <Users className="h-6 w-6" />,
       title: "Social Music Insights",
       description: "Compare your music taste with friends and discover how your listening habits align with different communities.",
-      available: true
     },
     {
       icon: <TrendingUp className="h-6 w-6" />,
       title: "Predictive Recommendations",
       description: "Get AI-powered predictions about what you'll love next based on your evolving music taste and listening patterns.",
-      available: true
     },
     {
       icon: <Clock className="h-6 w-6" />,
       title: "Temporal Music Patterns",
       description: "Discover how your music taste changes throughout the day, week, and seasons with detailed temporal analysis.",
-      available: true
     },
     {
       icon: <Headphones className="h-6 w-6" />,
       title: "Audio Feature Analysis",
       description: "Deep technical analysis of your preferred audio characteristics like tempo, energy, danceability, and acoustics.",
-      available: true
     },
     {
       icon: <Target className="h-6 w-6" />,
       title: "Music Goals & Tracking",
       description: "Set and track music discovery goals, listening targets, and personal challenges to expand your musical horizons.",
-      available: true
     },
     {
       icon: <Zap className="h-6 w-6" />,
       title: "Real-time Insights",
       description: "Live updates and instant analysis as you listen, providing immediate feedback and insights about your current session.",
-      available: true
     },
     {
       icon: <Share2 className="h-6 w-6" />,
       title: "Shareable Music Cards",
       description: "Create beautiful, shareable cards showcasing your music stats, top tracks, and listening achievements for social media.",
-      available: true
     }
   ];
 
@@ -136,12 +126,6 @@ const Index = () => {
                 Start Your Analysis
               </Button>
             </Link>
-            <Link to="/demo">
-              <Button size="lg" variant="outline" className="border-border text-foreground hover:bg-muted px-8 py-3 text-lg">
-                <BarChart3 className="mr-2 h-5 w-5" />
-                Explore Features
-              </Button>
-            </Link>
           </div>
 
           {/* Stats */}
@@ -181,7 +165,6 @@ const Index = () => {
                 icon={feature.icon}
                 title={feature.title}
                 description={feature.description}
-                available={feature.available}
                 isLocked={false}
               />
             ))}
@@ -228,7 +211,6 @@ const Index = () => {
             <div>
               <h3 className="font-semibold text-foreground mb-4">Product</h3>
               <ul className="space-y-2">
-                <li><Link to="/demo" className="text-muted-foreground hover:text-primary">Features</Link></li>
                 <li><Link to="/buy" className="text-muted-foreground hover:text-primary">Pricing</Link></li>
                 <li><Link to="/weekly-giveaway" className="text-muted-foreground hover:text-primary">Giveaways</Link></li>
               </ul>
