@@ -1,4 +1,5 @@
-import React from 'react';
+// Enhanced PersonalityAnalytics with Functional Music Personality & Accurate Mood Breakdown
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Star, Heart, Activity, TrendingUp } from 'lucide-react';
 import FeatureCard from '@/components/FeatureCard';
@@ -40,12 +41,20 @@ const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
   isLocked 
 }) => {
   const getMusicPersonality = () => {
-    const genres = topArtists.flatMap(a => a.genres);
-    const uniqueGenreCount = new Set(genres).size;
+    const genres = topArtists.flatMap(a => a.genres.map(g => g.toLowerCase()));
+    const genreCount = new Set(genres).size;
 
-    if (uniqueGenreCount > genres.length * 0.7) return 'The Explorer';
-    if (uniqueGenreCount < genres.length * 0.3) return 'The Loyalist';
-    return 'The Balanced Listener';
+    const personalityScores = {
+      'The Explorer': Math.round((genreCount / Math.max(genres.length || 1, 1)) * 100),
+      'The Loyalist': Math.round(((1 - genreCount / Math.max(genres.length || 1, 1)) * 100)),
+      'The Balanced Listener': 100,
+    };
+
+    const total = personalityScores['The Explorer'] + personalityScores['The Loyalist'];
+    personalityScores['The Balanced Listener'] = 100 - Math.abs(personalityScores['The Explorer'] - personalityScores['The Loyalist']);
+
+    const bestMatch = Object.entries(personalityScores).sort(([, a], [, b]) => b - a)[0][0];
+    return { bestMatch, personalityScores };
   };
 
   const getMoodAnalysis = () => {
@@ -103,11 +112,14 @@ const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
       >
         <div className="text-center py-4">
           <Star className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-foreground mb-2">{musicPersonality}</h3>
+          <h3 className="text-xl font-bold text-foreground mb-2">{musicPersonality.bestMatch}</h3>
           <div className="space-y-2">
-            <div className="flex justify-between"><span>Adventurous</span><span>{musicPersonality === 'The Explorer' ? '85%' : '40%'}</span></div>
-            <div className="flex justify-between"><span>Loyal</span><span>{musicPersonality === 'The Loyalist' ? '85%' : '45%'}</span></div>
-            <div className="flex justify-between"><span>Balanced</span><span>{musicPersonality === 'The Balanced Listener' ? '80%' : '50%'}</span></div>
+            {Object.entries(musicPersonality.personalityScores).map(([label, val]) => (
+              <div className="flex justify-between text-sm" key={label}>
+                <span>{label.replace('The ', '')}</span>
+                <span>{val}%</span>
+              </div>
+            ))}
           </div>
         </div>
       </FeatureCard>
