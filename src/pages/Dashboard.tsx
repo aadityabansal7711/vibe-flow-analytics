@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -157,8 +158,6 @@ const Dashboard = () => {
           <div className="space-y-8">
             <h2 className="text-2xl font-bold text-foreground mb-6">🌟 Special Highlights</h2>
             <SpecialHighlights
-              spotifyAccessToken={profile?.spotify_access_token || ''}
-              spotifyUserId={profile?.spotify_user_id || ''}
               topTracks={topTracks}
               topArtists={topArtists}
               recentlyPlayed={recentlyPlayed}
@@ -172,9 +171,6 @@ const Dashboard = () => {
           <div className="space-y-8">
             <h2 className="text-2xl font-bold text-foreground mb-6">📱 Shareable Cards</h2>
             <ShareableCards
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
               isLocked={isLocked}
               profile={profile}
             />
