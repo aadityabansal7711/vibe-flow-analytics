@@ -1,4 +1,4 @@
-// Enhanced PersonalityAnalytics with Functional Music Personality & Accurate Mood Breakdown
+// Enhanced PersonalityAnalytics with corrected 100% Music Personality total
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Star, Heart, Activity, TrendingUp } from 'lucide-react';
@@ -42,16 +42,24 @@ const PersonalityAnalytics: React.FC<PersonalityAnalyticsProps> = ({
 }) => {
   const getMusicPersonality = () => {
     const genres = topArtists.flatMap(a => a.genres.map(g => g.toLowerCase()));
-    const genreCount = new Set(genres).size;
+    const uniqueGenreCount = new Set(genres).size;
+    const diversityRatio = genres.length > 0 ? uniqueGenreCount / genres.length : 0;
+
+    let explorer = Math.round(diversityRatio * 100);
+    let loyalist = Math.round((1 - diversityRatio) * 100);
+    let balanced = 100 - Math.abs(explorer - loyalist);
+
+    // Normalize to total 100
+    const total = explorer + loyalist + balanced;
+    explorer = Math.round((explorer / total) * 100);
+    loyalist = Math.round((loyalist / total) * 100);
+    balanced = 100 - explorer - loyalist;
 
     const personalityScores = {
-      'The Explorer': Math.round((genreCount / Math.max(genres.length || 1, 1)) * 100),
-      'The Loyalist': Math.round(((1 - genreCount / Math.max(genres.length || 1, 1)) * 100)),
-      'The Balanced Listener': 100,
+      'The Explorer': explorer,
+      'The Loyalist': loyalist,
+      'The Balanced Listener': balanced,
     };
-
-    const total = personalityScores['The Explorer'] + personalityScores['The Loyalist'];
-    personalityScores['The Balanced Listener'] = 100 - Math.abs(personalityScores['The Explorer'] - personalityScores['The Loyalist']);
 
     const bestMatch = Object.entries(personalityScores).sort(([, a], [, b]) => b - a)[0][0];
     return { bestMatch, personalityScores };
