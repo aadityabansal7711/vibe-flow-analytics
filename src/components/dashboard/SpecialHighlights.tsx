@@ -4,18 +4,58 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Music, Users, Sparkles, Play, Heart, Share2, UserPlus, MessageCircle, Headphones, ListMusic } from 'lucide-react';
+import { Music, Users, Sparkles, Heart, Share2, UserPlus, MessageCircle, Headphones, ListMusic } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface SpecialHighlightsProps {
-  spotifyData: any;
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists: { name: string }[];
+  album: { name: string; images: { url: string }[] };
+  popularity: number;
+  preview_url?: string;
+  external_urls: { spotify: string };
+  uri: string;
 }
 
-const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({ spotifyData }) => {
+interface SpotifyArtist {
+  id: string;
+  name: string;
+  genres: string[];
+  followers: { total: number };
+  images: { url: string }[];
+  popularity: number;
+  external_urls: { spotify: string };
+}
+
+interface SpecialHighlightsProps {
+  spotifyAccessToken: string;
+  spotifyUserId: string;
+  topTracks: SpotifyTrack[];
+  topArtists: SpotifyArtist[];
+  recentlyPlayed: SpotifyTrack[];
+  isLocked: boolean;
+  hasActiveSubscription: boolean;
+}
+
+const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({ 
+  spotifyAccessToken,
+  spotifyUserId,
+  topTracks,
+  topArtists,
+  recentlyPlayed,
+  isLocked,
+  hasActiveSubscription
+}) => {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlistProgress, setPlaylistProgress] = useState(0);
 
   const createAiPlaylist = async () => {
+    if (isLocked) {
+      toast.error("Premium subscription required for AI playlist creation");
+      return;
+    }
+
     setIsCreatingPlaylist(true);
     setPlaylistProgress(0);
 
@@ -134,7 +174,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({ spotifyData }) =>
 
             <Button 
               onClick={createAiPlaylist}
-              disabled={isCreatingPlaylist}
+              disabled={isCreatingPlaylist || isLocked}
               className="w-full bg-purple-500 hover:bg-purple-600 text-white"
             >
               {isCreatingPlaylist ? (
@@ -145,7 +185,7 @@ const SpecialHighlights: React.FC<SpecialHighlightsProps> = ({ spotifyData }) =>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Create AI Playlist (100 Songs)
+                  {isLocked ? 'Premium Required' : 'Create AI Playlist (100 Songs)'}
                 </>
               )}
             </Button>

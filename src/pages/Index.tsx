@@ -12,52 +12,62 @@ const Index = () => {
     {
       icon: <Music className="h-6 w-6" />,
       title: "AI Curated Playlists",
-      description: "Get personalized playlists with 100 unique songs tailored to your taste using advanced AI algorithms."
+      description: "Get personalized playlists with 100 unique songs tailored to your taste using advanced AI algorithms.",
+      isLocked: false
     },
     {
       icon: <BarChart3 className="h-6 w-6" />,
       title: "Advanced Analytics",
-      description: "Comprehensive charts and visualizations showing your listening trends, peak hours, and detailed musical journey insights."
+      description: "Comprehensive charts and visualizations showing your listening trends, peak hours, and detailed musical journey insights.",
+      isLocked: false
     },
     {
       icon: <Heart className="h-6 w-6" />,
       title: "Mood & Emotion Tracking",
-      description: "Understand how your music reflects your emotions with sophisticated mood analysis and emotional pattern recognition."
+      description: "Understand how your music reflects your emotions with sophisticated mood analysis and emotional pattern recognition.",
+      isLocked: true
     },
     {
       icon: <Users className="h-6 w-6" />,
       title: "Music Community",
-      description: "Connect with fellow music lovers, share your taste, and discover new songs through our vibrant community features."
+      description: "Connect with fellow music lovers, share your taste, and discover new songs through our vibrant community features.",
+      isLocked: false
     },
     {
       icon: <TrendingUp className="h-6 w-6" />,
       title: "Listening Streaks",
-      description: "Track your daily listening habits and maintain streaks to stay motivated in your musical journey."
+      description: "Track your daily listening habits and maintain streaks to stay motivated in your musical journey.",
+      isLocked: false
     },
     {
       icon: <Clock className="h-6 w-6" />,
       title: "Temporal Music Patterns",
-      description: "Discover how your music taste changes throughout the day, week, and seasons with detailed temporal analysis."
+      description: "Discover how your music taste changes throughout the day, week, and seasons with detailed temporal analysis.",
+      isLocked: true
     },
     {
       icon: <Headphones className="h-6 w-6" />,
       title: "Audio Feature Analysis",
-      description: "Deep technical analysis of your preferred audio characteristics like tempo, energy, danceability, and acoustics."
+      description: "Deep technical analysis of your preferred audio characteristics like tempo, energy, danceability, and acoustics.",
+      isLocked: true
     },
     {
       icon: <Target className="h-6 w-6" />,
       title: "Music Goals & Tracking",
-      description: "Set and track music discovery goals, listening targets, and personal challenges to expand your musical horizons."
+      description: "Set and track music discovery goals, listening targets, and personal challenges to expand your musical horizons.",
+      isLocked: true
     },
     {
       icon: <Zap className="h-6 w-6" />,
       title: "Real-time Insights",
-      description: "Live updates and instant analysis as you listen, providing immediate feedback and insights about your current session."
+      description: "Live updates and instant analysis as you listen, providing immediate feedback and insights about your current session.",
+      isLocked: true
     },
     {
       icon: <Share2 className="h-6 w-6" />,
       title: "Shareable Music Cards",
-      description: "Create beautiful, shareable cards showcasing your music stats, top tracks, and listening achievements for social media."
+      description: "Create beautiful, shareable cards showcasing your music stats, top tracks, and listening achievements for social media.",
+      isLocked: false
     }
   ];
 
@@ -172,6 +182,7 @@ const Index = () => {
                 icon={feature.icon}
                 title={feature.title}
                 description={feature.description}
+                isLocked={feature.isLocked}
               />
             ))}
           </div>

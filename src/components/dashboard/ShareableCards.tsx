@@ -6,11 +6,49 @@ import { Badge } from '@/components/ui/badge';
 import { Share2, Download, Calendar, Flame, Trophy, Target, Clock, TrendingUp } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
-interface ShareableCardsProps {
-  spotifyData: any;
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists: { name: string }[];
+  album: { name: string; images: { url: string }[] };
+  popularity: number;
+  preview_url?: string;
+  external_urls: { spotify: string };
+  uri: string;
 }
 
-const ShareableCards: React.FC<ShareableCardsProps> = ({ spotifyData }) => {
+interface SpotifyArtist {
+  id: string;
+  name: string;
+  genres: string[];
+  followers: { total: number };
+  images: { url: string }[];
+  popularity: number;
+  external_urls: { spotify: string };
+}
+
+interface Profile {
+  user_id: string;
+  email: string;
+  full_name: string;
+  has_active_subscription: boolean;
+}
+
+interface ShareableCardsProps {
+  topTracks: SpotifyTrack[];
+  topArtists: SpotifyArtist[];
+  recentlyPlayed: SpotifyTrack[];
+  isLocked: boolean;
+  profile: Profile;
+}
+
+const ShareableCards: React.FC<ShareableCardsProps> = ({ 
+  topTracks, 
+  topArtists, 
+  recentlyPlayed, 
+  isLocked, 
+  profile 
+}) => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateCard = async (cardId: string) => {
@@ -162,7 +200,7 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({ spotifyData }) => {
                 <div className="text-3xl">🎵</div>
               </div>
               <div className="text-2xl font-bold mb-2">
-                {spotifyData?.topArtists?.[0]?.name || 'Your Top Artist'}
+                {topArtists?.[0]?.name || 'Your Top Artist'}
               </div>
               <div className="text-white/80">
                 {Math.floor(Math.random() * 50) + 20} hours listened
