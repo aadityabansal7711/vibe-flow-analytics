@@ -28,24 +28,30 @@ interface SpotifyArtist {
 }
 
 interface Profile {
+  id: string;
   user_id: string;
   email: string;
-  full_name: string;
-  has_active_subscription: boolean;
+  full_name?: string;
+  plan_tier?: string;
+  has_active_subscription?: boolean;
+  plan_id?: string;
+  spotify_connected?: boolean;
+  spotify_user_id?: string;
+  spotify_display_name?: string;
+  spotify_avatar_url?: string;
+  spotify_access_token?: string;
+  spotify_refresh_token?: string;
+  spotify_token_expires_at?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ShareableCardsProps {
-  topTracks: SpotifyTrack[];
-  topArtists: SpotifyArtist[];
-  recentlyPlayed: SpotifyTrack[];
   isLocked: boolean;
-  profile: Profile;
+  profile: Profile | null;
 }
 
 const ShareableCards: React.FC<ShareableCardsProps> = ({ 
-  topTracks, 
-  topArtists, 
-  recentlyPlayed, 
   isLocked, 
   profile 
 }) => {
@@ -174,10 +180,10 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
           </div>
         </div>
 
-        {/* Top Artist Card */}
+        {/* Music Journey Card */}
         <div className="space-y-4">
           <div 
-            id="top-artist-card" 
+            id="music-journey-card" 
             className="bg-gradient-to-br from-purple-600 to-pink-600 p-8 rounded-2xl text-white shadow-2xl"
           >
             <div className="flex items-center justify-between mb-6">
@@ -186,21 +192,21 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
                   <Trophy className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Top Artist</h3>
+                  <h3 className="text-2xl font-bold">Music Journey</h3>
                   <p className="text-white/80">This Month</p>
                 </div>
               </div>
               <Badge className="bg-white/20 text-white border-white/30">
-                #1
+                🎵 Vibes
               </Badge>
             </div>
 
             <div className="text-center mb-6">
               <div className="w-24 h-24 bg-white/20 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <div className="text-3xl">🎵</div>
+                <div className="text-3xl">🎤</div>
               </div>
               <div className="text-2xl font-bold mb-2">
-                {topArtists?.[0]?.name || 'Your Top Artist'}
+                {profile?.full_name || profile?.spotify_display_name || 'Music Lover'}
               </div>
               <div className="text-white/80">
                 {Math.floor(Math.random() * 50) + 20} hours listened
@@ -209,23 +215,23 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
 
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-white/80">Popularity</span>
-                <div className="flex space-x-1">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="w-2 h-2 bg-white rounded-full"></div>
-                  ))}
-                </div>
+                <span className="text-white/80">Songs Discovered</span>
+                <span className="font-semibold">{Math.floor(Math.random() * 50) + 25}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-white/80">Play Count</span>
-                <span className="font-semibold">{Math.floor(Math.random() * 100) + 50} songs</span>
+                <span className="text-white/80">New Artists</span>
+                <span className="font-semibold">{Math.floor(Math.random() * 15) + 8}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/80">Top Genre</span>
+                <span className="font-semibold">Pop</span>
               </div>
             </div>
           </div>
 
           <div className="flex space-x-2">
             <Button
-              onClick={() => generateCard('top-artist-card')}
+              onClick={() => generateCard('music-journey-card')}
               disabled={isGenerating}
               className="flex-1 bg-purple-500 hover:bg-purple-600"
             >
@@ -233,7 +239,7 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
               Download
             </Button>
             <Button
-              onClick={() => shareCard('top-artist-card', 'My Top Artist')}
+              onClick={() => shareCard('music-journey-card', 'My Music Journey')}
               variant="outline"
               className="flex-1"
             >
