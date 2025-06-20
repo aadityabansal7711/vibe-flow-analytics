@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Search, Users, Send, X } from 'lucide-react';
+import { MessageCircle, Search, Users, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChatUser {
