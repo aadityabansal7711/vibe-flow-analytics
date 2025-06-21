@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,12 +27,12 @@ import {
 } from 'lucide-react';
 
 const Buy = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoMessage, setPromoMessage] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -40,6 +40,63 @@ const Buy = () => {
 
   const basePrice = 499; // INR
   const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
+
+  // Check for payment success in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentId = urlParams.get('razorpay_payment_id');
+    const orderId = urlParams.get('razorpay_order_id');
+    const signature = urlParams.get('razorpay_signature');
+
+    if (paymentId && orderId && signature) {
+      handlePaymentSuccess(paymentId, orderId, signature);
+    }
+  }, []);
+
+  const handlePaymentSuccess = async (paymentId: string, orderId: string, signature: string) => {
+    setPaymentProcessing(true);
+    try {
+      // Update user profile to premium
+      const planEndDate = new Date();
+      planEndDate.setMonth(planEndDate.getMonth() + 1); // 1 month from now
+
+      await updateProfile({
+        has_active_subscription: true,
+        plan_tier: 'premium',
+        plan_id: 'premium_monthly',
+        plan_start_date: new Date().toISOString(),
+        plan_end_date: planEndDate.toISOString(),
+        used_promo_code: promoCode || null
+      });
+
+      // Use promo code if valid
+      if (promoDiscount > 0 && promoCode) {
+        await supabase.rpc('use_promo_code', {
+          promo_code: promoCode.trim().toUpperCase()
+        });
+      }
+
+      // Create subscription record
+      await supabase.from('subscriptions').insert({
+        user_id: user.id,
+        status: 'active',
+        plan_type: 'monthly',
+        amount: discountedPrice,
+        currency: 'inr',
+        current_period_start: new Date().toISOString(),
+        current_period_end: planEndDate.toISOString()
+      });
+
+      // Clear URL params and redirect to dashboard
+      window.history.replaceState({}, document.title, '/buy');
+      window.location.href = '/dashboard?upgraded=true';
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      alert('Payment successful but there was an error upgrading your account. Please contact support.');
+    } finally {
+      setPaymentProcessing(false);
+    }
+  };
 
   const validatePromoCode = async () => {
     if (!promoCode.trim()) {
@@ -80,31 +137,18 @@ const Buy = () => {
     }
   };
 
-  const handlePayment = async () => {
-    setLoading(true);
-    try {
-      // In a real implementation, you would integrate with Razorpay here
-      console.log('Processing payment for:', discountedPrice, 'INR');
-      
-      // For demo purposes, we'll simulate a successful payment
-      // In production, you'd handle the actual Razorpay integration
-      
-      // Use promo code if valid
-      if (promoDiscount > 0 && promoCode) {
-        await supabase.rpc('use_promo_code', {
-          promo_code: promoCode.trim().toUpperCase()
-        });
-      }
-
-      // Update user subscription (in real app, this would be done after payment confirmation)
-      // This is just for demo purposes
-      alert(`Payment simulation: ₹${discountedPrice} - Razorpay integration needed for actual payments`);
-      
-    } catch (error) {
-      console.error('Payment error:', error);
-    } finally {
-      setLoading(false);
-    }
+  // Create Razorpay form with dynamic pricing
+  const createRazorpayForm = () => {
+    return (
+      <form>
+        <script 
+          src="https://checkout.razorpay.com/v1/payment-button.js" 
+          data-payment_button_id="pl_Qjs2W5AhXxHlni"
+          data-amount={discountedPrice * 100} // Razorpay expects amount in paise
+          async
+        />
+      </form>
+    );
   };
 
   const features = [
@@ -117,6 +161,18 @@ const Buy = () => {
     { icon: <Zap className="h-5 w-5 text-orange-500" />, text: "🚀 Early access to all new features" },
     { icon: <HeadphonesIcon className="h-5 w-5 text-cyan-500" />, text: "🧑‍💼 Priority support" }
   ];
+
+  if (paymentProcessing) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-white text-lg">Processing your payment...</div>
+          <div className="text-muted-foreground">Please wait while we upgrade your account</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
@@ -210,22 +266,21 @@ const Buy = () => {
                   )}
                 </div>
 
-                <Button 
-                  onClick={handlePayment}
-                  disabled={loading}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg transition-all duration-300 transform hover:scale-105"
-                >
-                  {loading ? (
-                    'Processing...'
-                  ) : (
-                    <>
-                      <Crown className="mr-2 h-5 w-5" />
-                      Pay ₹{discountedPrice} – Upgrade Now
-                    </>
-                  )}
-                </Button>
+                {/* Razorpay Payment Button */}
+                <div className="text-center mb-4">
+                  <div className="bg-gradient-to-r from-primary to-accent p-6 rounded-lg">
+                    <div className="mb-4">
+                      <Crown className="h-8 w-8 text-white mx-auto mb-2" />
+                      <h3 className="text-xl font-bold text-white mb-1">Pay ₹{discountedPrice}</h3>
+                      <p className="text-white/80">Secure payment via Razorpay</p>
+                    </div>
+                    <div dangerouslySetInnerHTML={{ 
+                      __html: `<form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_Qjs2W5AhXxHlni" async></script></form>` 
+                    }} />
+                  </div>
+                </div>
 
-                <p className="text-center text-muted-foreground text-sm mt-4">
+                <p className="text-center text-muted-foreground text-sm">
                   Secure payment via Razorpay. Cancel anytime.
                 </p>
               </CardContent>
