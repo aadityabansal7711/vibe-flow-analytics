@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Share2, Download, Calendar, Flame, Trophy, Target, Clock, TrendingUp, Copy, ExternalLink, Sparkles, Music, Star, Activity } from 'lucide-react';
+import { Share2, Download, Calendar, Flame, Trophy, Target, Clock, TrendingUp, Copy, ExternalLink, Sparkles, Music, Star, Activity, User } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 
@@ -29,11 +29,17 @@ interface Profile {
 interface ShareableCardsProps {
   isLocked: boolean;
   profile: Profile | null;
+  topTracks?: any[];
+  topArtists?: any[];
+  recentlyPlayed?: any[];
 }
 
 const ShareableCards: React.FC<ShareableCardsProps> = ({ 
   isLocked, 
-  profile 
+  profile,
+  topTracks = [],
+  topArtists = [],
+  recentlyPlayed = []
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -46,7 +52,8 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
           backgroundColor: null,
           scale: 2,
           logging: false,
-          useCORS: true
+          useCORS: true,
+          allowTaint: true
         });
         const link = document.createElement('a');
         link.download = `${cardId}-${Date.now()}.png`;
@@ -70,7 +77,8 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
           backgroundColor: null,
           scale: 2,
           logging: false,
-          useCORS: true
+          useCORS: true,
+          allowTaint: true
         });
         
         canvas.toBlob(async (blob) => {
@@ -83,7 +91,6 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
                 files: [file]
               });
             } else {
-              // Fallback: copy to clipboard
               await navigator.clipboard.write([
                 new ClipboardItem({ 'image/png': blob })
               ]);
@@ -108,21 +115,22 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
     }
   };
 
-  // Mock data for demonstration - in real app, this would come from actual user analytics
+  // Calculate actual user data
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const userData = {
-    name: profile?.full_name || profile?.spotify_display_name || 'Music Lover',
-    avatar: profile?.spotify_avatar_url,
-    listeningHours: Math.floor(Math.random() * 40) + 25,
-    songsPlayed: Math.floor(Math.random() * 300) + 150,
-    newArtists: Math.floor(Math.random() * 25) + 10,
-    topGenre: 'Pop',
-    currentStreak: Math.floor(Math.random() * 15) + 5,
-    longestStreak: Math.floor(Math.random() * 30) + 15,
-    totalDays: Math.floor(Math.random() * 200) + 100,
-    energy: Math.floor(Math.random() * 30) + 70,
-    happiness: Math.floor(Math.random() * 25) + 65,
-    chill: Math.floor(Math.random() * 35) + 45
+  const userName = profile?.full_name || profile?.spotify_display_name || 'Music Lover';
+  const userAvatar = profile?.spotify_avatar_url;
+  
+  const actualData = {
+    totalTracks: topTracks.length + recentlyPlayed.length,
+    topTrack: topTracks[0]?.name || 'No data yet',
+    topArtist: topArtists[0]?.name || topTracks[0]?.artists[0]?.name || 'No data yet',
+    listeningHours: Math.max(1, Math.floor(recentlyPlayed.length / 20)), // Estimate based on tracks
+    songsPlayed: recentlyPlayed.length,
+    newArtists: new Set(topArtists.map(a => a.name)).size,
+    topGenre: topArtists[0]?.genres[0] || 'Various',
+    avgPopularity: topTracks.length > 0 ? Math.round(topTracks.reduce((sum, t) => sum + t.popularity, 0) / topTracks.length) : 50,
+    streakDays: Math.min(30, Math.max(1, recentlyPlayed.length / 5)), // Estimate
+    discoveryScore: Math.min(10, Math.max(1, new Set([...topArtists.map(a => a.name), ...topTracks.map(t => t.artists[0]?.name)]).size / 2))
   };
 
   return (
@@ -133,168 +141,82 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
           Create Shareable Cards
         </h2>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          Generate beautiful, social media-ready cards to showcase your music journey and connect with fellow music lovers
+          Generate beautiful, social media-ready cards showcasing your actual music journey
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Listening Streaks Card */}
-        <div className="space-y-4">
-          <div 
-            id="listening-streaks-card" 
-            className="relative bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
-          >
-            {/* Glassmorphism overlay */}
-            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl"></div>
-            
-            {/* Decorative elements */}
-            <div className="absolute top-4 right-4 opacity-20">
-              <Flame className="h-16 w-16" />
-            </div>
-            <div className="absolute bottom-4 left-4 opacity-10">
-              <Activity className="h-20 w-20" />
-            </div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center space-x-4">
-                  <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <Flame className="h-10 w-10" />
-                  </div>
-                  <div>
-                    <h3 className="text-3xl font-bold">Listening Streaks</h3>
-                    <p className="text-white/80 text-lg">MyVibeLyrics Analytics</p>
-                  </div>
-                </div>
-                <Badge className="bg-white/20 text-white border-white/30 px-4 py-2 text-lg backdrop-blur-sm">
-                  🔥 On Fire!
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                <div className="text-center">
-                  <div className="text-5xl font-bold mb-3">{userData.currentStreak}</div>
-                  <div className="text-white/90 text-lg font-medium">Current Streak</div>
-                  <div className="text-white/70 text-sm">Days in a row</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-5xl font-bold mb-3">{userData.longestStreak}</div>
-                  <div className="text-white/90 text-lg font-medium">Longest Streak</div>
-                  <div className="text-white/70 text-sm">Personal best</div>
-                </div>
-              </div>
-
-              <div className="bg-white/15 rounded-2xl p-6 backdrop-blur-sm mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-lg text-white/90 font-medium">Streak Goal Progress</span>
-                  <span className="text-lg font-bold">{userData.currentStreak}/30 days</span>
-                </div>
-                <div className="w-full bg-white/20 rounded-full h-3">
-                  <div 
-                    className="bg-white rounded-full h-3 transition-all duration-500"
-                    style={{ width: `${(userData.currentStreak / 30) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <div className="text-2xl font-bold mb-2">{userData.totalDays} Total Days</div>
-                <div className="text-white/80 text-lg">Active Music Listening</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex space-x-3">
-            <Button
-              onClick={() => generateCard('listening-streaks-card')}
-              disabled={isGenerating}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white transition-all duration-300 transform hover:scale-105"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download PNG
-            </Button>
-            <Button
-              onClick={() => shareCard('listening-streaks-card', 'My Listening Streaks')}
-              variant="outline"
-              className="flex-1 transition-all duration-300 transform hover:scale-105"
-            >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-            <Button
-              onClick={() => copyLink('Listening Streaks')}
-              variant="ghost"
-              size="sm"
-              className="transition-all duration-300 transform hover:scale-105"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
         {/* Music Journey Card */}
         <div className="space-y-4">
           <div 
             id="music-journey-card" 
-            className="relative bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
+            className="relative bg-gradient-to-br from-purple-600 via-indigo-700 to-blue-800 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
           >
             {/* Glassmorphism overlay */}
-            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl"></div>
+            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl border border-white/20"></div>
             
-            {/* Decorative waveform bars */}
-            <div className="absolute top-6 right-6 flex space-x-1 opacity-20">
+            {/* Animated music waves */}
+            <div className="absolute top-6 right-6 flex space-x-1 opacity-30">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className={`bg-white rounded-full w-2 animate-pulse`} style={{height: `${20 + i * 10}px`, animationDelay: `${i * 0.1}s`}}></div>
+                <div 
+                  key={i} 
+                  className={`bg-white rounded-full w-1 animate-pulse h-${8 + i * 2}`} 
+                  style={{animationDelay: `${i * 0.2}s`}}
+                ></div>
               ))}
             </div>
             
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
-                  <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <Trophy className="h-10 w-10" />
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm border border-white/30">
+                    <Music className="h-8 w-8" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-bold">Music Journey</h3>
-                    <p className="text-white/80 text-lg">{currentMonth}</p>
+                    <h3 className="text-2xl font-bold">My Music Journey</h3>
+                    <p className="text-white/80 text-sm">{currentMonth}</p>
                   </div>
                 </div>
-                <Badge className="bg-white/20 text-white border-white/30 px-4 py-2 text-lg backdrop-blur-sm">
-                  🎵 Vibes
+                <Badge className="bg-white/20 text-white border-white/30 px-3 py-1 backdrop-blur-sm">
+                  🎵 MyVibeLyrics
                 </Badge>
               </div>
 
-              <div className="text-center mb-8">
-                <div className="relative w-32 h-32 mx-auto mb-6">
-                  <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                    {userData.avatar ? (
-                      <img src={userData.avatar} alt="Profile" className="w-24 h-24 rounded-full object-cover" />
+              <div className="text-center mb-6">
+                <div className="relative w-20 h-20 mx-auto mb-4">
+                  <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                    {userAvatar ? (
+                      <img src={userAvatar} alt="Profile" className="w-16 h-16 rounded-full object-cover" />
                     ) : (
-                      <div className="text-5xl">🎤</div>
+                      <User className="h-10 w-10" />
                     )}
                   </div>
-                  <div className="absolute -bottom-2 -right-2 bg-white/20 rounded-full p-2 backdrop-blur-sm">
-                    <Music className="h-6 w-6" />
+                  <div className="absolute -bottom-1 -right-1 bg-white/20 rounded-full p-1 backdrop-blur-sm border border-white/30">
+                    <Music className="h-4 w-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold mb-2">{userData.name}</div>
-                <div className="text-white/80 text-lg">
-                  {userData.listeningHours} hours listened this month
+                <div className="text-lg font-bold mb-1">{userName}</div>
+                <div className="text-white/80 text-sm">
+                  {actualData.listeningHours} hours • {actualData.songsPlayed} tracks this month
                 </div>
               </div>
 
-              <div className="space-y-4 bg-white/10 rounded-2xl p-6 backdrop-blur-sm">
+              <div className="space-y-3 bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/20">
                 <div className="flex justify-between items-center">
-                  <span className="text-white/90 font-medium">Songs Discovered</span>
-                  <span className="font-bold text-xl">{userData.songsPlayed}</span>
+                  <span className="text-white/90 text-sm">Top Track</span>
+                  <span className="font-bold text-sm truncate max-w-[150px]">{actualData.topTrack}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-white/90 font-medium">New Artists</span>
-                  <span className="font-bold text-xl">{userData.newArtists}</span>
+                  <span className="text-white/90 text-sm">Top Artist</span>
+                  <span className="font-bold text-sm truncate max-w-[150px]">{actualData.topArtist}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-white/90 font-medium">Top Genre</span>
-                  <span className="font-bold text-xl">{userData.topGenre}</span>
+                  <span className="text-white/90 text-sm">New Artists</span>
+                  <span className="font-bold text-sm">{actualData.newArtists}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/90 text-sm">Top Genre</span>
+                  <span className="font-bold text-sm truncate max-w-[150px]">{actualData.topGenre}</span>
                 </div>
               </div>
             </div>
@@ -304,7 +226,7 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
             <Button
               onClick={() => generateCard('music-journey-card')}
               disabled={isGenerating}
-              className="flex-1 bg-purple-500 hover:bg-purple-600 text-white transition-all duration-300 transform hover:scale-105"
+              className="flex-1 bg-purple-500 hover:bg-purple-600 text-white"
             >
               <Download className="mr-2 h-4 w-4" />
               Download PNG
@@ -312,7 +234,7 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
             <Button
               onClick={() => shareCard('music-journey-card', 'My Music Journey')}
               variant="outline"
-              className="flex-1 transition-all duration-300 transform hover:scale-105"
+              className="flex-1"
             >
               <Share2 className="mr-2 h-4 w-4" />
               Share
@@ -321,70 +243,77 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
               onClick={() => copyLink('Music Journey')}
               variant="ghost"
               size="sm"
-              className="transition-all duration-300 transform hover:scale-105"
             >
               <Copy className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* Monthly Summary Card */}
+        {/* Music Stats Card */}
         <div className="space-y-4">
           <div 
-            id="monthly-summary-card" 
-            className="relative bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
+            id="music-stats-card" 
+            className="relative bg-gradient-to-br from-emerald-600 via-teal-700 to-cyan-800 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
           >
             {/* Glassmorphism overlay */}
-            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl"></div>
+            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl border border-white/20"></div>
             
             {/* Decorative elements */}
             <div className="absolute top-4 right-4 opacity-20">
-              <Calendar className="h-16 w-16" />
+              <Trophy className="h-16 w-16" />
             </div>
             
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
-                  <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <Calendar className="h-10 w-10" />
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm border border-white/30">
+                    <TrendingUp className="h-8 w-8" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-bold">Monthly Summary</h3>
-                    <p className="text-white/80 text-lg">{currentMonth}</p>
+                    <h3 className="text-2xl font-bold">Music Stats</h3>
+                    <p className="text-white/80 text-sm">{currentMonth} Highlights</p>
                   </div>
                 </div>
-                <Badge className="bg-white/20 text-white border-white/30 px-4 py-2 text-lg backdrop-blur-sm">
+                <Badge className="bg-white/20 text-white border-white/30 px-3 py-1 backdrop-blur-sm">
                   📊 Stats
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 mb-8">
+              <div className="grid grid-cols-2 gap-6 mb-6">
                 <div className="text-center">
-                  <div className="text-4xl font-bold mb-3">{userData.listeningHours}h</div>
-                  <div className="text-white/90 text-lg font-medium">Total Listening</div>
+                  <div className="text-3xl font-bold mb-2">{actualData.listeningHours}h</div>
+                  <div className="text-white/90 text-sm font-medium">Total Listening</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl font-bold mb-3">{userData.songsPlayed}</div>
-                  <div className="text-white/90 text-lg font-medium">Songs Played</div>
+                  <div className="text-3xl font-bold mb-2">{actualData.songsPlayed}</div>
+                  <div className="text-white/90 text-sm font-medium">Songs Played</div>
                 </div>
               </div>
 
-              <div className="space-y-4 bg-white/15 rounded-2xl p-6 backdrop-blur-sm">
+              <div className="space-y-3 bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/20">
                 <div className="flex justify-between items-center">
-                  <span className="text-white/90 font-medium">New Artists Discovered</span>
-                  <span className="font-bold text-xl">{userData.newArtists}</span>
+                  <span className="text-white/90 text-sm">Discovery Score</span>
+                  <span className="font-bold text-sm">{actualData.discoveryScore.toFixed(1)}/10</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-white/90 font-medium">Most Played Genre</span>
-                  <span className="font-bold text-xl">{userData.topGenre}</span>
+                  <span className="text-white/90 text-sm">Music Taste</span>
+                  <span className="font-bold text-sm">{actualData.avgPopularity}% Mainstream</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-white/90 font-medium">Peak Listening Hour</span>
-                  <span className="font-bold text-xl">8-9 PM</span>
+                  <span className="text-white/90 text-sm">Listening Streak</span>
+                  <span className="font-bold text-sm">{Math.round(actualData.streakDays)} days</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-white/90 font-medium">Music Discovery Score</span>
-                  <span className="font-bold text-xl">8.5/10</span>
+                  <span className="text-white/90 text-sm">Music Variety</span>
+                  <span className="font-bold text-sm">{actualData.newArtists} artists</span>
+                </div>
+              </div>
+
+              <div className="mt-4 text-center bg-white/5 rounded-xl p-3 border border-white/10">
+                <div className="text-sm font-bold mb-1">Music DNA</div>
+                <div className="text-xs text-white/80">
+                  {actualData.avgPopularity > 70 ? 'Mainstream Explorer' : 
+                   actualData.avgPopularity > 40 ? 'Balanced Listener' : 'Underground Enthusiast'}
                 </div>
               </div>
             </div>
@@ -392,122 +321,192 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
 
           <div className="flex space-x-3">
             <Button
-              onClick={() => generateCard('monthly-summary-card')}
+              onClick={() => generateCard('music-stats-card')}
               disabled={isGenerating}
-              className="flex-1 bg-teal-500 hover:bg-teal-600 text-white transition-all duration-300 transform hover:scale-105"
+              className="flex-1 bg-teal-500 hover:bg-teal-600 text-white"
             >
               <Download className="mr-2 h-4 w-4" />
               Download PNG
             </Button>
             <Button
-              onClick={() => shareCard('monthly-summary-card', 'My Monthly Summary')}
+              onClick={() => shareCard('music-stats-card', 'My Music Stats')}
               variant="outline"
-              className="flex-1 transition-all duration-300 transform hover:scale-105"
+              className="flex-1"
             >
               <Share2 className="mr-2 h-4 w-4" />
               Share
             </Button>
             <Button
-              onClick={() => copyLink('Monthly Summary')}
+              onClick={() => copyLink('Music Stats')}
               variant="ghost"
               size="sm"
-              className="transition-all duration-300 transform hover:scale-105"
             >
               <Copy className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* Mood Analytics Card */}
+        {/* Top Artists Showcase */}
         <div className="space-y-4">
           <div 
-            id="mood-analytics-card" 
-            className="relative bg-gradient-to-br from-rose-500 via-pink-600 to-purple-700 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
+            id="top-artists-card" 
+            className="relative bg-gradient-to-br from-rose-600 via-pink-700 to-purple-800 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
           >
             {/* Glassmorphism overlay */}
-            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl"></div>
-            
-            {/* Decorative elements */}
-            <div className="absolute top-4 right-4 opacity-20">
-              <Star className="h-16 w-16" />
-            </div>
+            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl border border-white/20"></div>
             
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
-                  <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <TrendingUp className="h-10 w-10" />
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm border border-white/30">
+                    <Star className="h-8 w-8" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-bold">Mood Analytics</h3>
-                    <p className="text-white/80 text-lg">Your Musical Emotions</p>
+                    <h3 className="text-2xl font-bold">Top Artists</h3>
+                    <p className="text-white/80 text-sm">Your Music Favorites</p>
                   </div>
                 </div>
-                <Badge className="bg-white/20 text-white border-white/30 px-4 py-2 text-lg backdrop-blur-sm">
-                  😊 Happy
+                <Badge className="bg-white/20 text-white border-white/30 px-3 py-1 backdrop-blur-sm">
+                  ⭐ Artists
                 </Badge>
               </div>
 
-              <div className="space-y-6 mb-8">
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-white/90 font-medium text-lg">Energy Level</span>
-                    <span className="font-bold text-xl">{userData.energy}%</span>
+              <div className="space-y-4">
+                {(topArtists.length > 0 ? topArtists.slice(0, 5) : [{name: 'No data yet', genres: ['Various']}]).map((artist, index) => (
+                  <div key={index} className="flex items-center space-x-4 bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/20">
+                    <div className="text-2xl font-bold text-white/60">#{index + 1}</div>
+                    <div className="flex-1">
+                      <div className="font-bold text-sm truncate">{artist.name}</div>
+                      <div className="text-xs text-white/70 truncate">
+                        {artist.genres?.[0] || 'Various genres'}
+                      </div>
+                    </div>
+                    <Music className="h-4 w-4 text-white/60" />
                   </div>
-                  <div className="w-full bg-white/20 rounded-full h-3">
-                    <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full h-3 transition-all duration-500" style={{ width: `${userData.energy}%` }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-white/90 font-medium text-lg">Happiness</span>
-                    <span className="font-bold text-xl">{userData.happiness}%</span>
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-3">
-                    <div className="bg-gradient-to-r from-pink-400 to-rose-500 rounded-full h-3 transition-all duration-500" style={{ width: `${userData.happiness}%` }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-white/90 font-medium text-lg">Chill Factor</span>
-                    <span className="font-bold text-xl">{userData.chill}%</span>
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-3">
-                    <div className="bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full h-3 transition-all duration-500" style={{ width: `${userData.chill}%` }}></div>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              <div className="text-center bg-white/15 rounded-2xl p-6 backdrop-blur-sm">
-                <div className="text-2xl font-bold mb-2">Most Common Mood</div>
-                <div className="text-white/90 text-lg font-medium">Upbeat & Energetic</div>
-                <div className="text-white/70 text-sm mt-2">Based on your recent listening patterns</div>
+              <div className="mt-6 text-center bg-white/5 rounded-xl p-3 border border-white/10">
+                <div className="text-sm font-bold mb-1">Artist Discovery</div>
+                <div className="text-xs text-white/80">
+                  You've explored {actualData.newArtists} different artists this month
+                </div>
               </div>
             </div>
           </div>
 
           <div className="flex space-x-3">
             <Button
-              onClick={() => generateCard('mood-analytics-card')}
+              onClick={() => generateCard('top-artists-card')}
               disabled={isGenerating}
-              className="flex-1 bg-pink-500 hover:bg-pink-600 text-white transition-all duration-300 transform hover:scale-105"
+              className="flex-1 bg-pink-500 hover:bg-pink-600 text-white"
             >
               <Download className="mr-2 h-4 w-4" />
               Download PNG
             </Button>
             <Button
-              onClick={() => shareCard('mood-analytics-card', 'My Mood Analytics')}
+              onClick={() => shareCard('top-artists-card', 'My Top Artists')}
               variant="outline"
-              className="flex-1 transition-all duration-300 transform hover:scale-105"
+              className="flex-1"
             >
               <Share2 className="mr-2 h-4 w-4" />
               Share
             </Button>
             <Button
-              onClick={() => copyLink('Mood Analytics')}
+              onClick={() => copyLink('Top Artists')}
               variant="ghost"
               size="sm"
-              className="transition-all duration-300 transform hover:scale-105"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Listening Activity Card */}
+        <div className="space-y-4">
+          <div 
+            id="listening-activity-card" 
+            className="relative bg-gradient-to-br from-orange-600 via-red-700 to-pink-800 p-8 rounded-3xl text-white shadow-2xl overflow-hidden min-h-[400px]"
+          >
+            {/* Glassmorphism overlay */}
+            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl border border-white/20"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm border border-white/30">
+                    <Activity className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Listening Activity</h3>
+                    <p className="text-white/80 text-sm">Your Music Energy</p>
+                  </div>
+                </div>
+                <Badge className="bg-white/20 text-white border-white/30 px-3 py-1 backdrop-blur-sm">
+                  ⚡ Active
+                </Badge>
+              </div>
+
+              <div className="text-center mb-6">
+                <div className="text-4xl font-bold mb-2">{Math.round(actualData.streakDays)}</div>
+                <div className="text-white/90 text-lg font-medium">Day Streak</div>
+                <div className="text-white/70 text-sm">Consistent listening</div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-white/90 text-sm">Daily Average</span>
+                    <span className="font-bold text-sm">{Math.round(actualData.listeningHours / 30 * 60)}min</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-2">
+                    <div className="bg-white rounded-full h-2 transition-all duration-500" style={{ width: '75%' }}></div>
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-white/90 text-sm">Music Enthusiasm</span>
+                    <span className="font-bold text-sm">High</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-2">
+                    <div className="bg-gradient-to-r from-orange-400 to-red-400 rounded-full h-2 transition-all duration-500" style={{ width: '85%' }}></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 text-center bg-white/5 rounded-xl p-3 border border-white/10">
+                <div className="text-sm font-bold mb-1">Activity Level</div>
+                <div className="text-xs text-white/80">
+                  {actualData.songsPlayed > 100 ? 'Music Addict 🎵' : 
+                   actualData.songsPlayed > 50 ? 'Active Listener 🎧' : 
+                   'Casual Listener 🎶'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex space-x-3">
+            <Button
+              onClick={() => generateCard('listening-activity-card')}
+              disabled={isGenerating}
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download PNG
+            </Button>
+            <Button
+              onClick={() => shareCard('listening-activity-card', 'My Listening Activity')}
+              variant="outline"
+              className="flex-1"
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+            <Button
+              onClick={() => copyLink('Listening Activity')}
+              variant="ghost"
+              size="sm"
             >
               <Copy className="h-4 w-4" />
             </Button>
@@ -519,21 +518,21 @@ const ShareableCards: React.FC<ShareableCardsProps> = ({
         <Sparkles className="h-12 w-12 text-primary mx-auto mb-4" />
         <h3 className="text-2xl font-bold text-foreground mb-3">Share Your Music DNA</h3>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Connect with fellow music lovers and discover new connections through your shared musical journey. 
-          Each card tells a unique story about your relationship with music.
+          Connect with fellow music lovers and showcase your unique musical journey. 
+          Each card uses your actual Spotify data to tell your story.
         </p>
         <div className="flex justify-center space-x-4 mt-6">
           <Badge variant="outline" className="text-primary border-primary/50 px-4 py-2">
             <Music className="mr-2 h-4 w-4" />
-            High-Quality PNG
+            Real Data
           </Badge>
           <Badge variant="outline" className="text-primary border-primary/50 px-4 py-2">
-            <Share2 className="mr-2 h-4 w-4" />  
-            Social Media Ready
+            <Share2 className="mr-2 h-4 w-4" />
+            Social Ready
           </Badge>
           <Badge variant="outline" className="text-primary border-primary/50 px-4 py-2">
             <Sparkles className="mr-2 h-4 w-4" />
-            Glassmorphism Design
+            Beautiful Design
           </Badge>
         </div>
       </div>

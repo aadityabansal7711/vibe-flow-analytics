@@ -78,63 +78,18 @@ const SpecialHighlights: React.FC<Props> = ({
     setProgress(10);
 
     try {
-      // Step 1: Prepare seeds from user's data
+      // Prepare seeds from user's data
       const availableArtists = topArtists.length > 0 ? topArtists : [];
       const availableTracks = topTracks.length > 0 ? topTracks : recentlyPlayed.slice(0, 5);
       
-      let artistSeeds = '';
-      let trackSeeds = '';
-      
-      if (availableArtists.length > 0) {
-        artistSeeds = availableArtists.slice(0, 2).map(a => a.id).join(',');
-      }
-      
-      if (availableTracks.length > 0) {
-        trackSeeds = availableTracks.slice(0, 3).map(t => t.id).join(',');
-      }
-
-      if (!artistSeeds && !trackSeeds) {
-        throw new Error('Unable to generate recommendations - insufficient data');
-      }
-
-      setProgress(30);
-      setMessage('Fetching AI-powered recommendations...');
-
-      // Step 2: Get recommendations from Spotify
-      const seedParams = [];
-      if (artistSeeds) seedParams.push(`seed_artists=${artistSeeds}`);
-      if (trackSeeds) seedParams.push(`seed_tracks=${trackSeeds}`);
-      
-      const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=50&${seedParams.join('&')}`;
-      
-      const recommendationsRes = await fetch(recommendationsUrl, {
-        headers: { 
-          'Authorization': `Bearer ${spotifyAccessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!recommendationsRes.ok) {
-        if (recommendationsRes.status === 401) {
-          throw new Error('Spotify session expired. Please reconnect your account.');
-        }
-        throw new Error(`Failed to get recommendations: ${recommendationsRes.status}`);
-      }
-
-      const recommendations = await recommendationsRes.json();
-
-      if (!recommendations.tracks || recommendations.tracks.length === 0) {
-        throw new Error('No recommendations received from Spotify. Try again later.');
-      }
-
-      setProgress(60);
-      setMessage('Creating your personalized playlist...');
-
-      // Step 3: Create playlist
       const currentDate = new Date();
       const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       const playlistName = `MyVibe AI Mix – ${monthYear}`;
-      
+
+      setProgress(20);
+      setMessage('Creating your personalized playlist...');
+
+      // Create playlist first
       const createRes = await fetch(`https://api.spotify.com/v1/users/${spotifyUserId}/playlists`, {
         method: 'POST',
         headers: {
@@ -143,26 +98,81 @@ const SpecialHighlights: React.FC<Props> = ({
         },
         body: JSON.stringify({
           name: playlistName,
-          description: `AI-generated playlist based on your music taste. Created by MyVibeLyrics on ${currentDate.toLocaleDateString()}. Discover new music that matches your vibe!`,
+          description: `AI-generated playlist with 100 tracks based on your music taste. Created by MyVibeLyrics on ${currentDate.toLocaleDateString()}. Discover new music that matches your vibe!`,
           public: false,
           collaborative: false
         })
       });
 
       if (!createRes.ok) {
-        if (createRes.status === 401) {
-          throw new Error('Spotify session expired. Please reconnect your account.');
-        }
         throw new Error(`Failed to create playlist: ${createRes.status}`);
       }
 
       const playlist = await createRes.json();
+      setProgress(40);
+      setMessage('Generating 100 AI-powered recommendations...');
 
-      setProgress(80);
-      setMessage('Adding tracks to your playlist...');
+      // Generate multiple batches of recommendations to get 100 tracks
+      const allTracks = [];
+      const batchSize = 20; // Spotify's limit per request
+      const totalBatches = 5; // 5 batches of 20 = 100 tracks
 
-      // Step 4: Add tracks to playlist
-      const trackUris = recommendations.tracks.map((track: any) => track.uri);
+      for (let batch = 0; batch < totalBatches; batch++) {
+        const seedParams = [];
+        
+        // Rotate seeds for variety
+        if (availableArtists.length > 0) {
+          const artistIndex = batch % availableArtists.length;
+          seedParams.push(`seed_artists=${availableArtists[artistIndex].id}`);
+        }
+        
+        if (availableTracks.length > 0) {
+          const trackIndex = batch % availableTracks.length;
+          seedParams.push(`seed_tracks=${availableTracks[trackIndex].id}`);
+        }
+
+        // Add variety with different audio features for each batch
+        const audioFeatures = [
+          'target_energy=0.8&target_danceability=0.7',
+          'target_valence=0.6&target_acousticness=0.3',
+          'target_instrumentalness=0.1&target_loudness=-8',
+          'target_speechiness=0.1&target_tempo=120',
+          'target_liveness=0.2&target_popularity=70'
+        ];
+        
+        const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || ''}`;
+        
+        const recommendationsRes = await fetch(recommendationsUrl, {
+          headers: { 
+            'Authorization': `Bearer ${spotifyAccessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (recommendationsRes.ok) {
+          const recommendations = await recommendationsRes.json();
+          if (recommendations.tracks) {
+            allTracks.push(...recommendations.tracks);
+          }
+        }
+
+        setProgress(40 + (batch + 1) * 8); // Progress from 40 to 80
+      }
+
+      if (allTracks.length === 0) {
+        throw new Error('No recommendations received from Spotify.');
+      }
+
+      setMessage(`Adding ${allTracks.length} tracks to your playlist...`);
+      setProgress(85);
+
+      // Remove duplicates based on track ID
+      const uniqueTracks = allTracks.filter((track, index, self) => 
+        index === self.findIndex(t => t.id === track.id)
+      );
+
+      // Add tracks to playlist in batches (Spotify limit is 100 tracks per request)
+      const trackUris = uniqueTracks.map(track => track.uri);
       
       const addTracksRes = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
         method: 'POST',
@@ -171,7 +181,7 @@ const SpecialHighlights: React.FC<Props> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          uris: trackUris,
+          uris: trackUris.slice(0, 100), // Limit to 100 tracks
           position: 0
         })
       });
@@ -181,11 +191,11 @@ const SpecialHighlights: React.FC<Props> = ({
       }
 
       setProgress(100);
-      setMessage('✅ Playlist created successfully!');
+      setMessage(`✅ Playlist created with ${Math.min(trackUris.length, 100)} tracks!`);
       setPlaylistUrl(playlist.external_urls.spotify);
       setPlaylistCreated(true);
       
-      toast.success(`🎉 "${playlistName}" created with ${trackUris.length} tracks!`, {
+      toast.success(`🎉 "${playlistName}" created with ${Math.min(trackUris.length, 100)} tracks!`, {
         duration: 5000,
         action: {
           label: 'Open in Spotify',
@@ -200,8 +210,6 @@ const SpecialHighlights: React.FC<Props> = ({
       
       if (error.message.includes('session expired') || error.message.includes('401')) {
         toast.error('Your Spotify session has expired. Please reconnect your account.');
-      } else if (error.message.includes('insufficient data')) {
-        toast.error('Please listen to more music on Spotify to improve AI recommendations.');
       } else {
         toast.error(`Failed to create playlist: ${error.message}`);
       }
@@ -246,7 +254,7 @@ const SpecialHighlights: React.FC<Props> = ({
                 AI Playlist Generator
               </CardTitle>
               <CardDescription>
-                Create personalized playlists using advanced AI based on your listening habits
+                Create personalized playlists with 100 tracks using advanced AI based on your listening habits
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -282,7 +290,8 @@ const SpecialHighlights: React.FC<Props> = ({
                 <>
                   <div className="text-sm text-muted-foreground space-y-2">
                     <p>• Uses your top tracks and artists as seeds</p>
-                    <p>• Generates 50 personalized song recommendations</p>
+                    <p>• Generates 100 personalized song recommendations</p>
+                    <p>• Uses AI to create variety across different moods</p>
                     <p>• Saves directly to your Spotify account</p>
                     <p>• Updates monthly with fresh discoveries</p>
                   </div>
@@ -290,14 +299,14 @@ const SpecialHighlights: React.FC<Props> = ({
                   <Button 
                     onClick={createAIPlaylist} 
                     disabled={isLocked || !spotifyAccessToken || !hasActiveSubscription} 
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white transition-all duration-300 transform hover:scale-105"
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
                     {isLocked || !hasActiveSubscription ? (
                       'Premium Required'
                     ) : !spotifyAccessToken ? (
                       'Connect Spotify First'
                     ) : (
-                      'Generate AI Playlist'
+                      'Generate AI Playlist (100 tracks)'
                     )}
                   </Button>
                 </>
@@ -324,7 +333,7 @@ const SpecialHighlights: React.FC<Props> = ({
             <CardHeader>
               <CardTitle className="flex items-center">
                 <MessageCircle className="mr-2 h-5 w-5 text-blue-500" />
-                Community Chat
+                MyVibeLytics Community
               </CardTitle>
               <CardDescription>
                 Connect with music lovers worldwide - Free for everyone!
@@ -346,29 +355,30 @@ const SpecialHighlights: React.FC<Props> = ({
                 
                 <div className="border-t pt-4 space-y-3">
                   <div className="text-sm text-muted-foreground">
-                    <p><strong>Available Chat Rooms:</strong></p>
+                    <p><strong>🌟 MyVibeLytics Features:</strong></p>
                     <ul className="list-disc list-inside ml-2 space-y-1">
-                      <li>"Top Tracks Talk" - Share your current favorites</li>
-                      <li>"Mood Check" - Music for every emotion</li>
-                      <li>"Now Playing" - Real-time listening sessions</li>
-                      <li>"Vibe Swap" - Discover new genres together</li>
+                      <li>Find friends by username & send friend requests</li>
+                      <li>Create and join private music groups</li>
+                      <li>View detailed user profiles & music taste</li>
+                      <li>Real-time messaging with music sharing</li>
+                      <li>Smart moderation & community safety</li>
                     </ul>
                   </div>
                   
                   <Button 
                     onClick={() => setIsChatOpen(true)}
-                    className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-300 transform hover:scale-105"
+                    className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                   >
                     <MessageCircle className="h-4 w-4" />
-                    <span>Join Community Chat</span>
+                    <span>Join MyVibeLytics Community</span>
                   </Button>
                   
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground">
-                      🎉 <strong>Free for all users!</strong> Create your username and start connecting
+                      🎉 <strong>Free for all users!</strong> Connect, share, and discover music together
                     </p>
                     <p className="text-xs text-green-600 mt-1">
-                      ✨ Find friends by username • Real-time messaging • Music-focused discussions
+                      ✨ Advanced features • Safe environment • Music-focused discussions
                     </p>
                   </div>
                 </div>

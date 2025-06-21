@@ -176,6 +176,9 @@ const Dashboard = () => {
             <ShareableCards
               isLocked={isLocked}
               profile={profile}
+              topTracks={topTracks}
+              topArtists={topArtists}
+              recentlyPlayed={recentlyPlayed}
             />
           </div>
         )}
