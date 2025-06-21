@@ -17,7 +17,13 @@ import {
   Users, 
   ArrowLeft,
   Percent,
-  Tag
+  Tag,
+  Brain,
+  MessageCircle,
+  Share2,
+  Gift,
+  Zap,
+  HeadphonesIcon
 } from 'lucide-react';
 
 const Buy = () => {
@@ -102,14 +108,14 @@ const Buy = () => {
   };
 
   const features = [
-    "Unlimited music analytics",
-    "Advanced mood analysis", 
-    "Social music comparisons",
-    "AI-powered insights",
-    "Unlimited shareable cards",
-    "Weekly giveaway entries",
-    "Premium support",
-    "Early access to new features"
+    { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
+    { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Advanced mood + personality analysis" },
+    { icon: <Users className="h-5 w-5 text-blue-500" />, text: "🤝 Compare music taste with friends" },
+    { icon: <Music className="h-5 w-5 text-green-500" />, text: "🤖 AI-powered song & playlist insights" },
+    { icon: <Share2 className="h-5 w-5 text-pink-500" />, text: "📤 Unlimited shareable cards" },
+    { icon: <Gift className="h-5 w-5 text-yellow-500" />, text: "🎁 Weekly giveaway entries" },
+    { icon: <Zap className="h-5 w-5 text-orange-500" />, text: "🚀 Early access to all new features" },
+    { icon: <HeadphonesIcon className="h-5 w-5 text-cyan-500" />, text: "🧑‍💼 Priority support" }
   ];
 
   return (
@@ -118,14 +124,14 @@ const Buy = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Link to="/dashboard">
-              <Button variant="outline" size="sm">
+            <Link to="/">
+              <Button variant="outline" size="sm" className="transition-all duration-300 hover:scale-105">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
             </Link>
             <div className="flex items-center space-x-2">
-              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
+              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
               <h1 className="text-3xl font-bold text-gradient">Upgrade to Premium</h1>
             </div>
           </div>
@@ -134,15 +140,15 @@ const Buy = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Premium Plan */}
           <div className="lg:col-span-2">
-            <Card className="glass-effect border-primary/50 overflow-hidden">
+            <Card className="glass-effect border-primary/50 overflow-hidden card-hover">
               <CardHeader className="bg-gradient-to-r from-primary/20 to-purple-600/20 border-b border-primary/30">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Crown className="h-6 w-6 text-primary" />
                     <CardTitle className="text-2xl text-foreground">Premium Plan</CardTitle>
                   </div>
-                  <Badge className="bg-primary text-primary-foreground">
-                    Most Popular
+                  <Badge className="bg-primary text-primary-foreground animate-pulse">
+                    🌟 Most Popular
                   </Badge>
                 </div>
                 <div className="flex items-baseline space-x-2">
@@ -162,11 +168,11 @@ const Buy = () => {
               </CardHeader>
 
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div className="grid grid-cols-1 gap-4 mb-8">
                   {features.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                      <span className="text-foreground">{feature}</span>
+                    <div key={index} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-primary/5 transition-colors duration-300">
+                      {feature.icon}
+                      <span className="text-foreground font-medium">{feature.text}</span>
                     </div>
                   ))}
                 </div>
@@ -189,6 +195,7 @@ const Buy = () => {
                       disabled={checkingPromo || !promoCode.trim()}
                       variant="outline"
                       size="sm"
+                      className="transition-all duration-300 hover:scale-105"
                     >
                       {checkingPromo ? 'Checking...' : 'Apply'}
                     </Button>
@@ -206,20 +213,20 @@ const Buy = () => {
                 <Button 
                   onClick={handlePayment}
                   disabled={loading}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg transition-all duration-300 transform hover:scale-105"
                 >
                   {loading ? (
                     'Processing...'
                   ) : (
                     <>
                       <Crown className="mr-2 h-5 w-5" />
-                      Pay ₹{discountedPrice} - Upgrade Now
+                      Pay ₹{discountedPrice} – Upgrade Now
                     </>
                   )}
                 </Button>
 
                 <p className="text-center text-muted-foreground text-sm mt-4">
-                  Secure payment powered by Razorpay. Cancel anytime.
+                  Secure payment via Razorpay. Cancel anytime.
                 </p>
               </CardContent>
             </Card>
@@ -227,7 +234,7 @@ const Buy = () => {
 
           {/* Benefits Section */}
           <div className="space-y-6">
-            <Card className="glass-effect border-border/50">
+            <Card className="glass-effect border-border/50 card-hover">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Sparkles className="mr-2 h-5 w-5 text-primary" />
@@ -250,19 +257,19 @@ const Buy = () => {
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <Users className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <MessageCircle className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Community Access</h4>
+                    <p className="text-sm text-muted-foreground">Join exclusive chat rooms and music discussions</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                   <div>
                     <h4 className="font-medium text-foreground">Giveaway Access</h4>
                     <p className="text-sm text-muted-foreground">Enter weekly giveaways for amazing prizes</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-effect border-border/50">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-primary mb-2">30-Day</div>
-                <div className="text-muted-foreground">Money Back Guarantee</div>
               </CardContent>
             </Card>
           </div>

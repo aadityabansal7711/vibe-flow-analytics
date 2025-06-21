@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Calendar, SkipForward, RotateCcw, Target, Activity } from 'lucide-react';
+import { Clock, Calendar, SkipForward, RotateCcw, Target, Activity, TrendingUp } from 'lucide-react';
 import FeatureCard from '@/components/FeatureCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -26,42 +27,47 @@ interface ListeningBehaviorProps {
 
 const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recentlyPlayed, isLocked }) => {
   const getTimePreference = () => {
-    if (recentlyPlayed.length === 0) return { preference: 'No Data', data: [] };
+    if (recentlyPlayed.length === 0) return { preference: 'Loading...', data: [] };
 
     const timeSlots = {
-      Morning: 0,
-      Afternoon: 0,
-      Evening: 0,
-      Night: 0,
+      'Early Morning': 0,
+      'Morning': 0,
+      'Afternoon': 0,
+      'Evening': 0,
+      'Night': 0,
       'Late Night': 0,
     };
 
     const hourlyData = [
-      { label: 'Morning', plays: 0 },
-      { label: 'Afternoon', plays: 0 },
-      { label: 'Evening', plays: 0 },
-      { label: 'Night', plays: 0 },
-      { label: 'Late Night', plays: 0 },
+      { label: 'Early Morning (5-8 AM)', plays: 0, color: '#FF6B6B' },
+      { label: 'Morning (8-12 PM)', plays: 0, color: '#4ECDC4' },
+      { label: 'Afternoon (12-5 PM)', plays: 0, color: '#45B7D1' },
+      { label: 'Evening (5-8 PM)', plays: 0, color: '#96CEB4' },
+      { label: 'Night (8-11 PM)', plays: 0, color: '#FFEAA7' },
+      { label: 'Late Night (11-5 AM)', plays: 0, color: '#DDA0DD' },
     ];
 
     recentlyPlayed.forEach(track => {
       if (!track.played_at) return;
       const hour = new Date(track.played_at).getHours();
-      if (hour >= 6 && hour < 12) {
-        timeSlots.Morning++;
+      if (hour >= 5 && hour < 8) {
+        timeSlots['Early Morning']++;
         hourlyData[0].plays++;
-      } else if (hour >= 12 && hour < 16) {
-        timeSlots.Afternoon++;
+      } else if (hour >= 8 && hour < 12) {
+        timeSlots['Morning']++;
         hourlyData[1].plays++;
-      } else if (hour >= 16 && hour < 20) {
-        timeSlots.Evening++;
+      } else if (hour >= 12 && hour < 17) {
+        timeSlots['Afternoon']++;
         hourlyData[2].plays++;
-      } else if (hour >= 20 && hour < 24) {
-        timeSlots.Night++;
+      } else if (hour >= 17 && hour < 20) {
+        timeSlots['Evening']++;
         hourlyData[3].plays++;
+      } else if (hour >= 20 && hour < 23) {
+        timeSlots['Night']++;
+        hourlyData[4].plays++;
       } else {
         timeSlots['Late Night']++;
-        hourlyData[4].plays++;
+        hourlyData[5].plays++;
       }
     });
 
@@ -73,179 +79,319 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
   };
 
   const getWeekdayPreference = () => {
-    if (recentlyPlayed.length === 0) return 'No Data';
+    if (recentlyPlayed.length === 0) return 'Analyzing...';
 
-    let weekday = 0;
-    let weekend = 0;
+    let weekdays = { count: 0, days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] };
+    let weekends = { count: 0, days: ['Sat', 'Sun'] };
 
     recentlyPlayed.forEach(track => {
       if (!track.played_at) return;
       const day = new Date(track.played_at).getDay();
-      if (day === 0 || day === 6) weekend++;
-      else weekday++;
+      if (day === 0 || day === 6) weekends.count++;
+      else weekdays.count++;
     });
 
-    return weekend > weekday ? 'Weekend Warrior' : 'Weekday Warrior';
+    const total = weekdays.count + weekends.count;
+    const weekdayPercent = Math.round((weekdays.count / total) * 100);
+    const weekendPercent = Math.round((weekends.count / total) * 100);
+
+    if (weekendPercent > weekdayPercent) {
+      return `Weekend Warrior (${weekendPercent}%)`;
+    } else {
+      return `Weekday Listener (${weekdayPercent}%)`;
+    }
   };
 
   const getListeningStreak = () => {
-    if (recentlyPlayed.length === 0) return 0;
+    if (recentlyPlayed.length === 0) return { current: 0, longest: 0 };
+    
     const today = new Date();
-    let streak = 0;
+    const dates = new Set();
+    
+    // Get unique listening dates from recent plays
+    recentlyPlayed.forEach(track => {
+      if (track.played_at) {
+        const date = new Date(track.played_at).toDateString();
+        dates.add(date);
+      }
+    });
+    
+    const sortedDates = Array.from(dates).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+    
+    // Calculate current streak
     for (let i = 0; i < 30; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
-      const listened = recentlyPlayed.some(track => {
-        if (!track.played_at) return false;
-        return new Date(track.played_at).toDateString() === checkDate.toDateString();
-      });
-      if (listened) streak++;
-      else break;
+      const dateStr = checkDate.toDateString();
+      
+      if (sortedDates.includes(dateStr)) {
+        currentStreak = i + 1;
+      } else {
+        break;
+      }
     }
-    return streak || 1;
+    
+    // Calculate longest streak
+    for (let i = 0; i < sortedDates.length - 1; i++) {
+      const current = new Date(sortedDates[i]);
+      const next = new Date(sortedDates[i + 1]);
+      const diffDays = Math.abs((current.getTime() - next.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak + 1);
+        tempStreak = 0;
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak + 1);
+    
+    return { current: currentStreak || 1, longest: longestStreak || 1 };
   };
 
   const getSkipRate = () => {
-    if (topTracks.length === 0) return 20;
+    if (topTracks.length === 0) return { rate: 'Loading...', quality: 'Calculating...' };
+    
     const avgPopularity = topTracks.reduce((sum, t) => sum + t.popularity, 0) / topTracks.length;
-    return Math.max(5, Math.min(50, 100 - avgPopularity));
+    const skipRate = Math.max(5, Math.min(50, 100 - avgPopularity));
+    
+    let quality = 'Standard';
+    if (skipRate < 15) quality = 'Excellent - You love most songs!';
+    else if (skipRate < 25) quality = 'Good - Selective listener';
+    else if (skipRate < 35) quality = 'Average - Mixed preferences';
+    else quality = 'High - Very selective';
+    
+    return { rate: `${Math.round(skipRate)}%`, quality };
   };
 
-  const getReplayScore = () => {
-    if (topTracks.length === 0) return 60;
-    const unique = new Set(topTracks.map(t => t.id)).size;
-    const replay = ((topTracks.length - unique) / topTracks.length) * 100;
-    return Math.round(replay + 40);
+  const getReplayHabits = () => {
+    if (topTracks.length === 0) return { score: 'Loading...', habit: 'Analyzing...' };
+    
+    const uniqueTracks = new Set(topTracks.map(t => t.id)).size;
+    const replayScore = Math.round(((topTracks.length - uniqueTracks) / topTracks.length) * 100) + 40;
+    
+    let habit = 'Balanced';
+    if (replayScore > 80) habit = 'Heavy Replayer - You love your favorites!';
+    else if (replayScore > 60) habit = 'Moderate Replayer - Mix of old & new';
+    else if (replayScore > 40) habit = 'Light Replayer - Prefer variety';
+    else habit = 'Explorer - Always seeking new music';
+    
+    return { score: `${replayScore}/100`, habit };
   };
 
-  const getDiscoveryScore = () => {
-    if (recentlyPlayed.length === 0) return 6.5;
+  const getDiscoveryPattern = () => {
+    if (recentlyPlayed.length === 0) return { score: 'Loading...', pattern: 'Analyzing...' };
+    
     const uniqueArtists = new Set(recentlyPlayed.map(t => t.artists[0]?.name)).size;
-    return Math.round((uniqueArtists / recentlyPlayed.length) * 10 * 10) / 10;
+    const discoveryScore = Math.round((uniqueArtists / recentlyPlayed.length) * 10 * 10) / 10;
+    
+    let pattern = 'Moderate Explorer';
+    if (discoveryScore > 8) pattern = 'Adventure Seeker - Loves new artists!';
+    else if (discoveryScore > 6) pattern = 'Curious Listener - Good variety';
+    else if (discoveryScore > 4) pattern = 'Comfort Zone - Familiar artists';
+    else pattern = 'Loyal Fan - Sticks to favorites';
+    
+    return { score: `${discoveryScore}/10`, pattern };
   };
 
-  const getFrequentArtist = () => {
-    const artistCount: { [key: string]: number } = {};
+  const getMostActiveTime = () => {
+    if (recentlyPlayed.length === 0) return 'Loading data...';
+    
+    const hourCounts = new Array(24).fill(0);
     recentlyPlayed.forEach(track => {
-      const name = track.artists[0]?.name || 'Unknown';
-      artistCount[name] = (artistCount[name] || 0) + 1;
+      if (track.played_at) {
+        const hour = new Date(track.played_at).getHours();
+        hourCounts[hour]++;
+      }
     });
-    return Object.entries(artistCount).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+    
+    const maxHour = hourCounts.indexOf(Math.max(...hourCounts));
+    const formatHour = (hour) => {
+      if (hour === 0) return '12 AM';
+      if (hour < 12) return `${hour} AM`;
+      if (hour === 12) return '12 PM';
+      return `${hour - 12} PM`;
+    };
+    
+    return `${formatHour(maxHour)} - ${formatHour((maxHour + 1) % 24)}`;
   };
 
-  const getAverageDuration = () => {
-    if (recentlyPlayed.length === 0) return 0;
-    const total = recentlyPlayed.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-    return Math.round(total / recentlyPlayed.length / 1000);
+  const getAverageSongLength = () => {
+    if (recentlyPlayed.length === 0) return 'Loading...';
+    
+    const validTracks = recentlyPlayed.filter(t => t.duration_ms);
+    if (validTracks.length === 0) return '3:30 (estimated)';
+    
+    const avgMs = validTracks.reduce((sum, t) => sum + (t.duration_ms || 0), 0) / validTracks.length;
+    const minutes = Math.floor(avgMs / 60000);
+    const seconds = Math.floor((avgMs % 60000) / 1000);
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const timeData = getTimePreference();
   const weekdayPref = getWeekdayPreference();
-  const streak = getListeningStreak();
-  const skip = getSkipRate();
-  const replay = getReplayScore();
-  const discover = getDiscoveryScore();
-  const frequentArtist = getFrequentArtist();
-  const avgDuration = getAverageDuration();
+  const streakData = getListeningStreak();
+  const skipData = getSkipRate();
+  const replayData = getReplayHabits();
+  const discoveryData = getDiscoveryPattern();
+  const activeTime = getMostActiveTime();
+  const avgLength = getAverageSongLength();
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      <FeatureCard
-  title="Time of Day Preference"
-  description="When you listen the most"
-  icon={<Clock className="h-4 w-4 text-yellow-400" />}
-  isLocked={isLocked}
->
-  <Badge variant="outline" className="text-yellow-400 border-yellow-400 mb-3">
-    {timeData.preference}
-  </Badge>
-  {timeData.data.reduce((sum, d) => sum + d.plays, 0) === 0 ? (
-    <div className="text-sm text-muted-foreground">
-      Not enough data to determine time of day preference.
-    </div>
-  ) : (
-    <ul className="text-sm space-y-1 text-yellow-300">
-      {timeData.data.map(slot => {
-        const totalPlays = timeData.data.reduce((sum, s) => sum + s.plays, 0);
-        const percent = ((slot.plays / totalPlays) * 100).toFixed(1);
-        return (
-          <li key={slot.label}>
-            {slot.label}: {percent}%
-          </li>
-        );
-      })}
-    </ul>
-  )}
-</FeatureCard>
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-foreground mb-4 flex items-center justify-center">
+          <TrendingUp className="mr-3 h-8 w-8 text-primary" />
+          Listening Behavior & Patterns
+        </h2>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          Deep insights into your music consumption habits and listening patterns
+        </p>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <FeatureCard
+          title="Peak Listening Times"
+          description="When you're most active musically"
+          icon={<Clock className="h-5 w-5 text-yellow-400" />}
+          isLocked={isLocked}
+        >
+          <Badge variant="outline" className="text-yellow-400 border-yellow-400 mb-3">
+            {timeData.preference} Listener
+          </Badge>
+          <div className="text-sm text-yellow-300 mb-3">
+            Most Active: {activeTime}
+          </div>
+          {timeData.data.length > 0 && (
+            <div className="space-y-2">
+              {timeData.data.map((slot, index) => {
+                const totalPlays = timeData.data.reduce((sum, s) => sum + s.plays, 0);
+                const percent = totalPlays > 0 ? ((slot.plays / totalPlays) * 100).toFixed(0) : 0;
+                return (
+                  <div key={index} className="flex justify-between items-center text-xs">
+                    <span className="text-yellow-200">{slot.label.split(' ')[0]}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-12 bg-yellow-900/30 rounded-full h-1.5">
+                        <div 
+                          className="bg-yellow-400 h-1.5 rounded-full transition-all duration-300"
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                      <span className="text-yellow-300 w-8">{percent}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </FeatureCard>
 
-      <FeatureCard
-        title="Weekday vs Weekend"
-        description="Your listening pattern"
-        icon={<Calendar className="h-4 w-4 text-purple-400" />}
-        isLocked={isLocked}
-      >
-        <Badge variant="outline" className="text-purple-400 border-purple-400 mb-3">
-          {weekdayPref}
-        </Badge>
-      </FeatureCard>
+        <FeatureCard
+          title="Weekly Listening Pattern"
+          description="Weekday vs weekend preferences"
+          icon={<Calendar className="h-5 w-5 text-purple-400" />}
+          isLocked={isLocked}
+        >
+          <Badge variant="outline" className="text-purple-400 border-purple-400 mb-3">
+            {weekdayPref}
+          </Badge>
+          <div className="text-sm text-purple-300">
+            Based on your recent listening history
+          </div>
+        </FeatureCard>
 
-      <FeatureCard
-        title="Listening Streak"
-        description="Days in a row"
-        icon={<Activity className="h-4 w-4 text-red-400" />}
-        isLocked={isLocked}
-      >
-        <div className="text-center text-2xl font-bold text-red-400">{streak} days</div>
-      </FeatureCard>
+        <FeatureCard
+          title="Listening Streaks"
+          description="Your consistency tracking"
+          icon={<Activity className="h-6 w-6 text-red-400" />}
+          isLocked={isLocked}
+        >
+          <div className="space-y-3">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-400 mb-1">{streakData.current}</div>
+              <div className="text-sm text-red-300">Current Streak (Days)</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-semibold text-red-300 mb-1">{streakData.longest}</div>
+              <div className="text-xs text-red-200">Longest Streak</div>
+            </div>
+          </div>
+        </FeatureCard>
 
-      <FeatureCard
-  title="Skips vs Completions"
-  description="Estimated skip rate"
-  icon={<SkipForward className="h-4 w-4 text-orange-400" />}
-  isLocked={isLocked}
->
-  <div className="text-center text-3xl text-orange-400 font-semibold">
-    {Math.round(skip)}% Skip Rate
-  </div>
-</FeatureCard>
+        <FeatureCard
+          title="Skip Behavior"
+          description="How selective you are"
+          icon={<SkipForward className="h-5 w-5 text-orange-400" />}
+          isLocked={isLocked}
+        >
+          <div className="text-center space-y-2">
+            <div className="text-2xl font-bold text-orange-400">{skipData.rate}</div>
+            <div className="text-sm text-orange-300">Estimated Skip Rate</div>
+            <div className="text-xs text-orange-200">{skipData.quality}</div>
+          </div>
+        </FeatureCard>
 
+        <FeatureCard
+          title="Replay Habits"
+          description="How often you repeat songs"
+          icon={<RotateCcw className="h-5 w-5 text-green-400" />}
+          isLocked={isLocked}
+        >
+          <div className="text-center space-y-2">
+            <div className="text-xl font-bold text-green-400">{replayData.score}</div>
+            <div className="text-sm text-green-300">Replay Score</div>
+            <div className="text-xs text-green-200">{replayData.habit}</div>
+          </div>
+        </FeatureCard>
 
-      <FeatureCard
-        title="Replay Value"
-        description="How much you repeat"
-        icon={<RotateCcw className="h-4 w-4 text-green-400" />}
-        isLocked={isLocked}
-      >
-        <div className="text-center text-xl text-green-400 font-semibold">{replay}/100</div>
-      </FeatureCard>
+        <FeatureCard
+          title="Discovery Pattern"
+          description="How adventurous your taste is"
+          icon={<Target className="h-5 w-5 text-cyan-400" />}
+          isLocked={isLocked}
+        >
+          <div className="text-center space-y-2">
+            <div className="text-xl font-bold text-cyan-400">{discoveryData.score}</div>
+            <div className="text-sm text-cyan-300">Discovery Score</div>
+            <div className="text-xs text-cyan-200">{discoveryData.pattern}</div>
+          </div>
+        </FeatureCard>
 
-      <FeatureCard
-        title="Discovery Score"
-        description="How open you are to new music"
-        icon={<Target className="h-4 w-4 text-cyan-400" />}
-        isLocked={isLocked}
-      >
-        <div className="text-center text-xl text-cyan-400 font-semibold">{discover}/10</div>
-      </FeatureCard>
+        <FeatureCard
+          title="Song Length Preference"
+          description="Your preferred track duration"
+          icon={<Clock className="h-5 w-5 text-indigo-400" />}
+          isLocked={isLocked}
+        >
+          <div className="text-center space-y-2">
+            <div className="text-2xl font-bold text-indigo-400">{avgLength}</div>
+            <div className="text-sm text-indigo-300">Average Length</div>
+            <div className="text-xs text-indigo-200">Based on recent plays</div>
+          </div>
+        </FeatureCard>
 
-      <FeatureCard
-        title="Most Frequent Artist"
-        description="Your most played artist recently"
-        icon={<Clock className="h-4 w-4 text-indigo-400" />}
-        isLocked={isLocked}
-      >
-        <div className="text-center text-lg text-indigo-400 font-medium">{frequentArtist}</div>
-      </FeatureCard>
-
-      <FeatureCard
-        title="Average Song Duration"
-        description="Your average song length"
-        icon={<Clock className="h-4 w-4 text-white" />}
-        isLocked={isLocked}
-      >
-        <div className="text-center text-lg text-white font-medium">{avgDuration} sec</div>
-      </FeatureCard>
+        <FeatureCard
+          title="Listening Intensity"
+          description="How engaged you are"
+          icon={<Activity className="h-5 w-5 text-pink-400" />}
+          isLocked={isLocked}
+        >
+          <div className="text-center space-y-2">
+            <div className="text-xl font-bold text-pink-400">
+              {recentlyPlayed.length > 50 ? 'High' : recentlyPlayed.length > 20 ? 'Medium' : 'Light'}
+            </div>
+            <div className="text-sm text-pink-300">Engagement Level</div>
+            <div className="text-xs text-pink-200">
+              {recentlyPlayed.length} recent tracks analyzed
+            </div>
+          </div>
+        </FeatureCard>
+      </div>
     </div>
   );
 };
