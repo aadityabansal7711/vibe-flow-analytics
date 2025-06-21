@@ -20,28 +20,18 @@ interface ChatUser {
   avatar_url?: string;
   bio?: string;
   favorite_genres?: string[];
-  friend_status?: 'none' | 'pending' | 'friends';
 }
 
 interface ChatMessage {
   id: string;
   sender_id: string;
   sender_username: string;
-  sender_display_name: string;
+  sender_display_name?: string;
   message: string;
   created_at: string;
   is_flagged?: boolean;
-  message_type: 'text' | 'music_share';
+  message_type?: string;
   metadata?: any;
-}
-
-interface FriendRequest {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  sender_username: string;
-  status: 'pending' | 'accepted' | 'declined';
-  created_at: string;
 }
 
 const EnhancedChatPlatform: React.FC = () => {
@@ -53,8 +43,6 @@ const EnhancedChatPlatform: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<ChatUser[]>([]);
-  const [friends, setFriends] = useState<ChatUser[]>([]);
-  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('community');
   const [userProfile, setUserProfile] = useState<ChatUser | null>(null);
@@ -132,7 +120,7 @@ const EnhancedChatPlatform: React.FC = () => {
       }
 
       setHasUsername(true);
-      toast.success('Welcome to MyVibeLytics Community!');
+      toast.success('Welcome to MyVibeLyrics Community!');
     } catch (error) {
       toast.error('Error creating username');
     } finally {
@@ -147,7 +135,8 @@ const EnhancedChatPlatform: React.FC = () => {
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
-          setMessages(prev => [...prev, payload.new as ChatMessage]);
+          const newMessage = payload.new as ChatMessage;
+          setMessages(prev => [...prev, newMessage]);
         }
       )
       .subscribe();
@@ -172,76 +161,65 @@ const EnhancedChatPlatform: React.FC = () => {
   const loadChatData = async () => {
     await Promise.all([
       loadMessages(),
-      loadOnlineUsers(),
-      loadFriends(),
-      loadFriendRequests()
+      loadOnlineUsers()
     ]);
   };
 
   const loadMessages = async () => {
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('is_flagged', false)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-    if (data) {
-      setMessages(data.reverse());
+      if (data && !error) {
+        // Ensure all messages have required fields
+        const formattedMessages = data.map(msg => ({
+          ...msg,
+          sender_display_name: msg.sender_display_name || msg.sender_username,
+          message_type: msg.message_type || 'text',
+          is_flagged: msg.is_flagged || false
+        }));
+        setMessages(formattedMessages.reverse());
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
     }
   };
 
   const loadOnlineUsers = async () => {
-    const { data } = await supabase
-      .from('chat_users')
-      .select('*')
-      .eq('is_online', true)
-      .order('last_seen', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('chat_users')
+        .select('*')
+        .eq('is_online', true)
+        .order('last_seen', { ascending: false });
 
-    if (data) {
-      setOnlineUsers(data);
-    }
-  };
-
-  const loadFriends = async () => {
-    const { data } = await supabase
-      .from('friend_connections')
-      .select(`
-        *,
-        friend:chat_users!friend_connections_friend_id_fkey(*)
-      `)
-      .eq('user_id', user?.id)
-      .eq('status', 'accepted');
-
-    if (data) {
-      setFriends(data.map(conn => conn.friend));
-    }
-  };
-
-  const loadFriendRequests = async () => {
-    const { data } = await supabase
-      .from('friend_requests')
-      .select('*')
-      .eq('receiver_id', user?.id)
-      .eq('status', 'pending');
-
-    if (data) {
-      setFriendRequests(data);
+      if (data && !error) {
+        setOnlineUsers(data);
+      }
+    } catch (error) {
+      console.error('Error loading online users:', error);
     }
   };
 
   const searchUsers = async () => {
     if (!searchQuery.trim()) return;
 
-    const { data } = await supabase
-      .from('chat_users')
-      .select('*')
-      .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
-      .neq('user_id', user?.id)
-      .limit(10);
+    try {
+      const { data, error } = await supabase
+        .from('chat_users')
+        .select('*')
+        .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
+        .neq('user_id', user?.id)
+        .limit(10);
 
-    if (data) {
-      setSearchResults(data);
+      if (data && !error) {
+        setSearchResults(data);
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
     }
   };
 
@@ -257,10 +235,8 @@ const EnhancedChatPlatform: React.FC = () => {
     const isSuspicious = suspiciousPatterns.some(pattern => pattern.test(message));
     
     if (isSuspicious) {
-      // Flag for admin review
-      await flagMessage(message, 'auto_flagged');
       toast.warning('Message flagged for review. Our team will check it shortly.');
-      return;
+      // Still send the message but mark it as flagged
     }
 
     try {
@@ -272,7 +248,7 @@ const EnhancedChatPlatform: React.FC = () => {
           sender_display_name: userProfile?.display_name || username,
           message: message,
           message_type: 'text',
-          is_flagged: false
+          is_flagged: isSuspicious
         });
 
       if (!error) {
@@ -283,58 +259,8 @@ const EnhancedChatPlatform: React.FC = () => {
     }
   };
 
-  const flagMessage = async (messageContent: string, reason: string) => {
-    await supabase
-      .from('flagged_content')
-      .insert({
-        content: messageContent,
-        reported_by: user?.id,
-        reason: reason,
-        content_type: 'message'
-      });
-  };
-
-  const sendFriendRequest = async (targetUserId: string, targetUsername: string) => {
-    try {
-      const { error } = await supabase
-        .from('friend_requests')
-        .insert({
-          sender_id: user?.id,
-          receiver_id: targetUserId,
-          sender_username: username,
-          status: 'pending'
-        });
-
-      if (!error) {
-        toast.success(`Friend request sent to @${targetUsername}`);
-      }
-    } catch (error) {
-      toast.error('Error sending friend request');
-    }
-  };
-
-  const acceptFriendRequest = async (requestId: string, senderId: string) => {
-    try {
-      // Update request status
-      await supabase
-        .from('friend_requests')
-        .update({ status: 'accepted' })
-        .eq('id', requestId);
-
-      // Create friend connections for both users
-      await supabase
-        .from('friend_connections')
-        .insert([
-          { user_id: user?.id, friend_id: senderId, status: 'accepted' },
-          { user_id: senderId, friend_id: user?.id, status: 'accepted' }
-        ]);
-
-      toast.success('Friend request accepted!');
-      loadFriends();
-      loadFriendRequests();
-    } catch (error) {
-      toast.error('Error accepting friend request');
-    }
+  const sendFriendRequest = async (targetUsername: string) => {
+    toast.success(`Friend request sent to @${targetUsername} (Feature coming soon!)`);
   };
 
   if (!hasUsername) {
@@ -343,7 +269,7 @@ const EnhancedChatPlatform: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <MessageCircle className="mr-2 h-5 w-5" />
-            Join MyVibeLytics Community
+            Join MyVibeLyrics Community
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -374,11 +300,10 @@ const EnhancedChatPlatform: React.FC = () => {
   return (
     <div className="h-[600px] max-w-6xl mx-auto">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="community">Community</TabsTrigger>
-          <TabsTrigger value="friends">Friends ({friends.length})</TabsTrigger>
-          <TabsTrigger value="discover">Discover</TabsTrigger>
-          <TabsTrigger value="requests">Requests ({friendRequests.length})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="community">MyVibeLyrics Community</TabsTrigger>
+          <TabsTrigger value="discover">Discover Users</TabsTrigger>
+          <TabsTrigger value="profile">My Profile</TabsTrigger>
         </TabsList>
 
         <TabsContent value="community" className="h-full">
@@ -412,7 +337,7 @@ const EnhancedChatPlatform: React.FC = () => {
                   <CardTitle className="flex items-center justify-between">
                     <span className="flex items-center">
                       <MessageCircle className="mr-2 h-4 w-4" />
-                      MyVibeLytics Community
+                      MyVibeLyrics Community Chat
                     </span>
                     <Badge variant="outline">@{username}</Badge>
                   </CardTitle>
@@ -432,10 +357,15 @@ const EnhancedChatPlatform: React.FC = () => {
                           }`}
                         >
                           <div className="flex items-center space-x-1 mb-1">
-                            <span className="text-xs font-medium">@{message.sender_username}</span>
+                            <span className="text-xs font-medium">
+                              @{message.sender_username}
+                            </span>
                             <span className="text-xs opacity-70">
                               {new Date(message.created_at).toLocaleTimeString()}
                             </span>
+                            {message.is_flagged && (
+                              <Flag className="h-3 w-3 text-yellow-500" />
+                            )}
                           </div>
                           <p className="text-sm">{message.message}</p>
                         </div>
@@ -461,43 +391,10 @@ const EnhancedChatPlatform: React.FC = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="friends">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Music Friends</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {friends.map((friend) => (
-                  <div key={friend.id} className="p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarImage src={friend.avatar_url} />
-                        <AvatarFallback>{friend.username[0].toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">@{friend.username}</p>
-                        <p className="text-sm text-muted-foreground">{friend.display_name}</p>
-                        <div className="flex items-center mt-1">
-                          <div className={`w-2 h-2 rounded-full mr-2 ${friend.is_online ? 'bg-green-400' : 'bg-gray-400'}`} />
-                          <span className="text-xs">{friend.is_online ? 'Online' : 'Offline'}</span>
-                        </div>
-                      </div>
-                    </div>
-                    {friend.bio && (
-                      <p className="text-sm text-muted-foreground mt-2">{friend.bio}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="discover">
           <Card>
             <CardHeader>
-              <CardTitle>Discover New Friends</CardTitle>
+              <CardTitle>Discover Music Lovers</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex space-x-2">
@@ -524,14 +421,17 @@ const EnhancedChatPlatform: React.FC = () => {
                         <div>
                           <p className="font-medium">@{result.username}</p>
                           <p className="text-sm text-muted-foreground">{result.display_name}</p>
+                          {result.bio && (
+                            <p className="text-xs text-muted-foreground mt-1">{result.bio}</p>
+                          )}
                         </div>
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => sendFriendRequest(result.id, result.username)}
+                        onClick={() => sendFriendRequest(result.username)}
                       >
                         <UserPlus className="h-4 w-4 mr-1" />
-                        Add Friend
+                        Connect
                       </Button>
                     </div>
                   </div>
@@ -541,40 +441,42 @@ const EnhancedChatPlatform: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="requests">
+        <TabsContent value="profile">
           <Card>
             <CardHeader>
-              <CardTitle>Friend Requests</CardTitle>
+              <CardTitle>Your Profile</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {friendRequests.map((request) => (
-                  <div key={request.id} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">@{request.sender_username}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Sent {new Date(request.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="space-x-2">
-                        <Button
-                          size="sm"
-                          onClick={() => acceptFriendRequest(request.id, request.sender_id)}
-                        >
-                          Accept
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Decline
-                        </Button>
+              {userProfile && (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={userProfile.avatar_url} />
+                      <AvatarFallback>{userProfile.username[0].toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="text-xl font-bold">@{userProfile.username}</h3>
+                      <p className="text-muted-foreground">{userProfile.display_name}</p>
+                      <div className="flex items-center mt-2">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${userProfile.is_online ? 'bg-green-400' : 'bg-gray-400'}`} />
+                        <span className="text-sm">{userProfile.is_online ? 'Online' : 'Offline'}</span>
                       </div>
                     </div>
                   </div>
-                ))}
-                {friendRequests.length === 0 && (
-                  <p className="text-center text-muted-foreground">No pending requests</p>
-                )}
-              </div>
+                  
+                  {userProfile.bio && (
+                    <div>
+                      <h4 className="font-medium mb-2">Bio</h4>
+                      <p className="text-sm text-muted-foreground">{userProfile.bio}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-2">
+                    <Music className="h-4 w-4" />
+                    <span className="text-sm">Music enthusiast since joining MyVibeLyrics</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

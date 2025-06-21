@@ -43,21 +43,33 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_flagged: boolean | null
           message: string
+          message_type: string | null
+          metadata: Json | null
+          sender_display_name: string | null
           sender_id: string
           sender_username: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_flagged?: boolean | null
           message: string
+          message_type?: string | null
+          metadata?: Json | null
+          sender_display_name?: string | null
           sender_id: string
           sender_username: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_flagged?: boolean | null
           message?: string
+          message_type?: string | null
+          metadata?: Json | null
+          sender_display_name?: string | null
           sender_id?: string
           sender_username?: string
         }
@@ -65,8 +77,11 @@ export type Database = {
       }
       chat_users: {
         Row: {
+          avatar_url: string | null
+          bio: string | null
           created_at: string
           display_name: string
+          favorite_genres: string[] | null
           id: string
           is_online: boolean
           last_seen: string
@@ -75,8 +90,11 @@ export type Database = {
           username: string
         }
         Insert: {
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name: string
+          favorite_genres?: string[] | null
           id?: string
           is_online?: boolean
           last_seen?: string
@@ -85,8 +103,11 @@ export type Database = {
           username: string
         }
         Update: {
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name?: string
+          favorite_genres?: string[] | null
           id?: string
           is_online?: boolean
           last_seen?: string
@@ -123,6 +144,87 @@ export type Database = {
           name?: string
           status?: string | null
           subject?: string | null
+        }
+        Relationships: []
+      }
+      flagged_content: {
+        Row: {
+          content: string
+          content_type: string
+          created_at: string
+          id: string
+          reason: string
+          reported_by: string | null
+          status: string | null
+        }
+        Insert: {
+          content: string
+          content_type: string
+          created_at?: string
+          id?: string
+          reason: string
+          reported_by?: string | null
+          status?: string | null
+        }
+        Update: {
+          content?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          reported_by?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      friend_connections: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      friend_requests: {
+        Row: {
+          created_at: string
+          id: string
+          receiver_id: string
+          sender_id: string
+          sender_username: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          receiver_id: string
+          sender_id: string
+          sender_username: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          sender_username?: string
+          status?: string
         }
         Relationships: []
       }
