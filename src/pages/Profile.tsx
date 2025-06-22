@@ -20,14 +20,37 @@ import {
   Settings,
   Shield
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Profile = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+  const [isEditing, setIsEditing] = useState(false);
+  const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
+
+  const handleUpdateName = async () => {
+    if (!fullName.trim()) {
+      toast.error('Please enter a valid name');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await updateProfile({ full_name: fullName.trim() });
+      toast.success('Name updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating name:', error);
+      toast.error('Failed to update name');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
@@ -106,13 +129,35 @@ const Profile = () => {
                 </Card>
 
                 {/* Profile Info */}
-                <ProfileInfo />
+                <Card className="glass-effect border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-foreground">Profile Information</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ProfileInfo profile={profile} />
+                  </CardContent>
+                </Card>
               </div>
 
               <Separator className="my-6" />
 
               {/* Name Editor */}
-              <EditName />
+              <Card className="glass-effect border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-foreground">Edit Profile</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <EditName 
+                    isEditing={isEditing}
+                    setIsEditing={setIsEditing}
+                    fullName={fullName}
+                    setFullName={setFullName}
+                    isLoading={isLoading}
+                    handleUpdateName={handleUpdateName}
+                    profile={profile}
+                  />
+                </CardContent>
+              </Card>
 
               <Separator className="my-6" />
 
@@ -144,7 +189,14 @@ const Profile = () => {
           )}
 
           {activeTab === 'danger' && (
-            <DangerZone />
+            <Card className="glass-effect border-border/50">
+              <CardHeader>
+                <CardTitle className="text-foreground">Account Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DangerZone profile={profile} />
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
