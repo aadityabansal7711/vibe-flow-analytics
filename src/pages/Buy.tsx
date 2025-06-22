@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,25 +9,27 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Check, 
   Crown, 
   Sparkles, 
   Music, 
-  BarChart3, 
-  Users, 
   ArrowLeft,
-  Percent,
   Tag,
   Brain,
-  MessageCircle,
   Share2,
   Gift,
   Zap,
-  HeadphonesIcon
+  HeadphonesIcon,
+  Users
 } from 'lucide-react';
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 const Buy = () => {
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile } = useAuth();
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoMessage, setPromoMessage] = useState('');
@@ -37,63 +40,20 @@ const Buy = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const basePrice = 499; // INR
+  const basePrice = 4999; // INR 49.99 yearly
   const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
 
-  // Check for payment success in URL params
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentId = urlParams.get('razorpay_payment_id');
-    const orderId = urlParams.get('razorpay_order_id');
-    const signature = urlParams.get('razorpay_signature');
+    // Load Razorpay script
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
 
-    if (paymentId && orderId && signature) {
-      handlePaymentSuccess(paymentId, orderId, signature);
-    }
+    return () => {
+      document.body.removeChild(script);
+    };
   }, []);
-
-  const handlePaymentSuccess = async (paymentId: string, orderId: string, signature: string) => {
-    setPaymentProcessing(true);
-    try {
-      // Update user profile to premium
-      await updateProfile({
-        has_active_subscription: true,
-        plan_tier: 'premium',
-        plan_id: 'premium_monthly',
-        used_promo_code: promoCode || null
-      });
-
-      // Use promo code if valid
-      if (promoDiscount > 0 && promoCode) {
-        await supabase.rpc('use_promo_code', {
-          promo_code: promoCode.trim().toUpperCase()
-        });
-      }
-
-      // Create subscription record with dates
-      const planEndDate = new Date();
-      planEndDate.setMonth(planEndDate.getMonth() + 1); // 1 month from now
-
-      await supabase.from('subscriptions').insert({
-        user_id: user.id,
-        status: 'active',
-        plan_type: 'monthly',
-        amount: discountedPrice,
-        currency: 'inr',
-        current_period_start: new Date().toISOString(),
-        current_period_end: planEndDate.toISOString()
-      });
-
-      // Clear URL params and redirect to dashboard
-      window.history.replaceState({}, document.title, '/buy');
-      window.location.href = '/dashboard?upgraded=true';
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      alert('Payment successful but there was an error upgrading your account. Please contact support.');
-    } finally {
-      setPaymentProcessing(false);
-    }
-  };
 
   const validatePromoCode = async () => {
     if (!promoCode.trim()) {
@@ -134,6 +94,87 @@ const Buy = () => {
     }
   };
 
+  const handleSubscriptionPayment = async () => {
+    if (!window.Razorpay) {
+      alert('Razorpay SDK failed to load. Please refresh the page and try again.');
+      return;
+    }
+
+    setPaymentProcessing(true);
+
+    try {
+      const options = {
+        key: 'rzp_live_spLJgQSWhiE0KB',
+        subscription_id: 'plan_QkDRJrPOe3ujbQ',
+        name: 'MyVibeLytics',
+        description: 'Premium Yearly Subscription',
+        image: '/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png',
+        handler: async function (response: any) {
+          console.log('Payment successful:', response);
+          
+          // Store subscription details
+          try {
+            const { error } = await supabase
+              .from('subscriptions')
+              .insert({
+                user_id: user.id,
+                razorpay_subscription_id: response.razorpay_subscription_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                status: 'active',
+                plan_type: 'yearly',
+                amount: discountedPrice,
+                currency: 'inr',
+                auto_renew: true,
+                current_period_start: new Date().toISOString(),
+                current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+              });
+
+            if (error) {
+              console.error('Error storing subscription:', error);
+            }
+
+            // Use promo code if valid
+            if (promoDiscount > 0 && promoCode) {
+              await supabase.rpc('use_promo_code', {
+                promo_code: promoCode.trim().toUpperCase()
+              });
+            }
+
+            // The webhook will handle updating the profile to premium
+            window.location.href = '/dashboard?upgraded=true';
+          } catch (error) {
+            console.error('Error processing subscription:', error);
+            alert('Payment successful but there was an error. Please contact support.');
+          }
+        },
+        prefill: {
+          name: profile?.full_name || '',
+          email: profile?.email || '',
+        },
+        notes: {
+          user_id: user.id,
+          promo_code: promoCode || '',
+          discount: promoDiscount
+        },
+        theme: {
+          color: '#6366f1'
+        },
+        modal: {
+          ondismiss: function() {
+            setPaymentProcessing(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error('Error initializing payment:', error);
+      alert('Failed to initialize payment. Please try again.');
+      setPaymentProcessing(false);
+    }
+  };
+
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
     { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Advanced mood + personality analysis" },
@@ -150,8 +191,8 @@ const Buy = () => {
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-lg">Processing your payment...</div>
-          <div className="text-muted-foreground">Please wait while we upgrade your account</div>
+          <div className="text-white text-lg">Processing your subscription...</div>
+          <div className="text-muted-foreground">Please complete the payment process</div>
         </div>
       </div>
     );
@@ -193,16 +234,16 @@ const Buy = () => {
                 <div className="flex items-baseline space-x-2">
                   {promoDiscount > 0 ? (
                     <>
-                      <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice}</span>
-                      <span className="text-4xl font-bold text-primary">₹{discountedPrice}</span>
+                      <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice/100}</span>
+                      <span className="text-4xl font-bold text-primary">₹{discountedPrice/100}</span>
                       <Badge variant="destructive" className="ml-2">
                         {promoDiscount}% OFF
                       </Badge>
                     </>
                   ) : (
-                    <span className="text-4xl font-bold text-primary">₹{basePrice}</span>
+                    <span className="text-4xl font-bold text-primary">₹{basePrice/100}</span>
                   )}
-                  <span className="text-muted-foreground">/month</span>
+                  <span className="text-muted-foreground">/year</span>
                 </div>
               </CardHeader>
 
@@ -241,7 +282,6 @@ const Buy = () => {
                   </div>
                   {promoMessage && (
                     <Alert className={`mt-3 ${promoDiscount > 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                      <Percent className="h-4 w-4" />
                       <AlertDescription className={promoDiscount > 0 ? 'text-green-400' : 'text-red-400'}>
                         {promoMessage}
                       </AlertDescription>
@@ -249,22 +289,17 @@ const Buy = () => {
                   )}
                 </div>
 
-                {/* Razorpay Payment Button */}
-                <div className="text-center mb-4">
-                  <div className="bg-gradient-to-r from-primary to-accent p-6 rounded-lg">
-                    <div className="mb-4">
-                      <Crown className="h-8 w-8 text-white mx-auto mb-2" />
-                      <h3 className="text-xl font-bold text-white mb-1">Pay ₹{discountedPrice}</h3>
-                      <p className="text-white/80">Secure payment via Razorpay</p>
-                    </div>
-                    <div dangerouslySetInnerHTML={{ 
-                      __html: `<form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_Qjs2W5AhXxHlni" data-amount="${discountedPrice * 100}" async></script></form>` 
-                    }} />
-                  </div>
-                </div>
+                {/* Subscription Payment Button */}
+                <Button 
+                  onClick={handleSubscriptionPayment}
+                  disabled={paymentProcessing}
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground text-lg py-6"
+                >
+                  {paymentProcessing ? 'Processing...' : `Subscribe for ₹${discountedPrice/100}/year`}
+                </Button>
 
-                <p className="text-center text-muted-foreground text-sm">
-                  Secure payment via Razorpay. Cancel anytime from your profile.
+                <p className="text-center text-muted-foreground text-sm mt-4">
+                  Secure payment via Razorpay. Auto-renews yearly. Cancel anytime from your profile.
                 </p>
               </CardContent>
             </Card>
@@ -288,24 +323,24 @@ const Buy = () => {
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <BarChart3 className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <Brain className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                   <div>
                     <h4 className="font-medium text-foreground">AI Insights</h4>
                     <p className="text-sm text-muted-foreground">Get personalized AI-powered recommendations</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <MessageCircle className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-foreground">Community Access</h4>
-                    <p className="text-sm text-muted-foreground">Join exclusive chat rooms and music discussions</p>
+                    <h4 className="font-medium text-foreground">Yearly Savings</h4>
+                    <p className="text-sm text-muted-foreground">Save money with our annual subscription</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <Crown className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-foreground">Giveaway Access</h4>
-                    <p className="text-sm text-muted-foreground">Enter weekly giveaways for amazing prizes</p>
+                    <h4 className="font-medium text-foreground">Premium Support</h4>
+                    <p className="text-sm text-muted-foreground">Get priority help when you need it</p>
                   </div>
                 </div>
               </CardContent>

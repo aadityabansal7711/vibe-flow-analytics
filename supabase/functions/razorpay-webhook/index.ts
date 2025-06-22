@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-razorpay-signature',
 }
 
 serve(async (req) => {
@@ -19,76 +19,38 @@ serve(async (req) => {
     )
 
     const body = await req.json()
-    
-    // Verify webhook signature (in production, verify with Razorpay secret)
     const event = body.event
-    const paymentEntity = body.payload.payment.entity
+    
+    console.log('Webhook event received:', event)
+    console.log('Webhook payload:', JSON.stringify(body, null, 2))
 
-    console.log('Webhook event:', event)
-    console.log('Payment entity:', paymentEntity)
+    // Store webhook event for tracking
+    await supabaseClient
+      .from('webhook_events')
+      .insert({
+        event_type: event,
+        event_data: body,
+        processed: false
+      })
 
-    if (event === 'payment.captured') {
-      const paymentId = paymentEntity.id
-      const amount = paymentEntity.amount / 100 // Convert from paise to rupees
-      const email = paymentEntity.email
-      const contact = paymentEntity.contact
-
-      // Find user by email
-      const { data: profiles, error: profileError } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('email', email)
-        .single()
-
-      if (profileError || !profiles) {
-        console.error('User not found:', email)
-        return new Response(
-          JSON.stringify({ error: 'User not found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-        )
-      }
-
-      // Update user to premium
-      const planEndDate = new Date()
-      planEndDate.setMonth(planEndDate.getMonth() + 1) // 1 month from now
-
-      const { error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({
-          has_active_subscription: true,
-          plan_tier: 'premium',
-          plan_id: 'premium_monthly',
-          plan_start_date: new Date().toISOString(),
-          plan_end_date: planEndDate.toISOString(),
-        })
-        .eq('user_id', profiles.user_id)
-
-      if (updateError) {
-        console.error('Error updating profile:', updateError)
-        return new Response(
-          JSON.stringify({ error: 'Failed to update profile' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        )
-      }
-
-      // Create subscription record
-      const { error: subscriptionError } = await supabaseClient
-        .from('subscriptions')
-        .insert({
-          user_id: profiles.user_id,
-          status: 'active',
-          plan_type: 'monthly',
-          amount: amount,
-          currency: 'inr',
-          current_period_start: new Date().toISOString(),
-          current_period_end: planEndDate.toISOString(),
-        })
-
-      if (subscriptionError) {
-        console.error('Error creating subscription:', subscriptionError)
-      }
-
-      console.log('Successfully upgraded user to premium:', email)
+    // Handle different subscription events
+    switch (event) {
+      case 'subscription.activated':
+      case 'subscription.charged':
+        await handleSubscriptionActivated(supabaseClient, body)
+        break
+      
+      case 'subscription.cancelled':
+      case 'subscription.completed':
+        await handleSubscriptionCancelled(supabaseClient, body)
+        break
+      
+      case 'payment.captured':
+        await handlePaymentCaptured(supabaseClient, body)
+        break
+      
+      default:
+        console.log('Unhandled event type:', event)
     }
 
     return new Response(
@@ -104,3 +66,126 @@ serve(async (req) => {
     )
   }
 })
+
+async function handleSubscriptionActivated(supabase: any, body: any) {
+  const subscription = body.payload.subscription.entity
+  const payment = body.payload.payment?.entity
+  
+  console.log('Handling subscription activation:', subscription.id)
+
+  // Find user by customer_id or email
+  let profile = null
+  
+  if (subscription.customer_id) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('razorpay_customer_id', subscription.customer_id)
+      .single()
+    profile = data
+  }
+
+  if (!profile && payment?.email) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', payment.email)
+      .single()
+    profile = data
+  }
+
+  if (!profile) {
+    console.error('User not found for subscription:', subscription.id)
+    return
+  }
+
+  // Calculate subscription period
+  const startDate = new Date(subscription.start_at * 1000)
+  const endDate = new Date(subscription.end_at * 1000)
+
+  // Update profile to premium
+  await supabase
+    .from('profiles')
+    .update({
+      has_active_subscription: true,
+      plan_tier: 'premium',
+      plan_id: 'plan_QkDRJrPOe3ujbQ',
+      plan_start_date: startDate.toISOString(),
+      plan_end_date: endDate.toISOString(),
+      razorpay_customer_id: subscription.customer_id
+    })
+    .eq('user_id', profile.user_id)
+
+  // Create/update subscription record
+  await supabase
+    .from('subscriptions')
+    .upsert({
+      user_id: profile.user_id,
+      razorpay_subscription_id: subscription.id,
+      status: 'active',
+      plan_type: 'yearly',
+      amount: subscription.plan_id === 'plan_QkDRJrPOe3ujbQ' ? 4999 : subscription.total_count,
+      currency: 'inr',
+      current_period_start: startDate.toISOString(),
+      current_period_end: endDate.toISOString(),
+      auto_renew: true
+    })
+
+  console.log('Successfully activated subscription for user:', profile.user_id)
+}
+
+async function handleSubscriptionCancelled(supabase: any, body: any) {
+  const subscription = body.payload.subscription.entity
+  
+  console.log('Handling subscription cancellation:', subscription.id)
+
+  // Find user by subscription ID
+  const { data: subscriptionRecord } = await supabase
+    .from('subscriptions')
+    .select('user_id')
+    .eq('razorpay_subscription_id', subscription.id)
+    .single()
+
+  if (!subscriptionRecord) {
+    console.error('Subscription not found:', subscription.id)
+    return
+  }
+
+  // Update profile to free tier
+  await supabase
+    .from('profiles')
+    .update({
+      has_active_subscription: false,
+      plan_tier: 'free',
+      plan_id: 'free_tier'
+    })
+    .eq('user_id', subscriptionRecord.user_id)
+
+  // Update subscription status
+  await supabase
+    .from('subscriptions')
+    .update({
+      status: 'cancelled',
+      auto_renew: false
+    })
+    .eq('razorpay_subscription_id', subscription.id)
+
+  console.log('Successfully cancelled subscription for user:', subscriptionRecord.user_id)
+}
+
+async function handlePaymentCaptured(supabase: any, body: any) {
+  const payment = body.payload.payment.entity
+  
+  // This handles one-time payments if needed
+  console.log('Payment captured:', payment.id)
+  
+  // Update subscription record with payment details if it exists
+  if (payment.subscription_id) {
+    await supabase
+      .from('subscriptions')
+      .update({
+        razorpay_payment_id: payment.id
+      })
+      .eq('razorpay_subscription_id', payment.subscription_id)
+  }
+}

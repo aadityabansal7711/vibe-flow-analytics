@@ -17,13 +17,11 @@ import {
   ArrowLeft,
   Tag,
   Brain,
-  MessageCircle,
   Share2,
   Gift,
   Zap,
   HeadphonesIcon
 } from 'lucide-react';
-import { getPricingForRegion, detectUserRegion } from '@/utils/pricing';
 
 const Pricing = () => {
   const navigate = useNavigate();
@@ -32,9 +30,7 @@ const Pricing = () => {
   const [promoMessage, setPromoMessage] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
 
-  const region = detectUserRegion();
-  const pricing = getPricingForRegion(region);
-  const basePrice = pricing.price;
+  const basePrice = 4999; // INR 49.99 yearly
   const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
 
   const validatePromoCode = async () => {
@@ -77,6 +73,10 @@ const Pricing = () => {
   };
 
   const handleGetStarted = () => {
+    navigate('/auth');
+  };
+
+  const handleUpgradeToPremium = () => {
     navigate('/auth');
   };
 
@@ -130,7 +130,7 @@ const Pricing = () => {
                 </Badge>
               </div>
               <div className="flex items-baseline space-x-2">
-                <span className="text-4xl font-bold text-gray-400">{pricing.symbol}0</span>
+                <span className="text-4xl font-bold text-gray-400">₹0</span>
                 <span className="text-muted-foreground">/forever</span>
               </div>
             </CardHeader>
@@ -170,16 +170,16 @@ const Pricing = () => {
               <div className="flex items-baseline space-x-2">
                 {promoDiscount > 0 ? (
                   <>
-                    <span className="text-3xl font-bold text-muted-foreground line-through">{pricing.symbol}{basePrice}</span>
-                    <span className="text-4xl font-bold text-primary">{pricing.symbol}{discountedPrice}</span>
+                    <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice/100}</span>
+                    <span className="text-4xl font-bold text-primary">₹{discountedPrice/100}</span>
                     <Badge variant="destructive" className="ml-2">
                       {promoDiscount}% OFF
                     </Badge>
                   </>
                 ) : (
-                  <span className="text-4xl font-bold text-primary">{pricing.symbol}{basePrice}</span>
+                  <span className="text-4xl font-bold text-primary">₹{basePrice/100}</span>
                 )}
-                <span className="text-muted-foreground">/{pricing.period}</span>
+                <span className="text-muted-foreground">/year</span>
               </div>
             </CardHeader>
 
@@ -226,7 +226,7 @@ const Pricing = () => {
               </div>
 
               <Button 
-                onClick={handleGetStarted}
+                onClick={handleUpgradeToPremium}
                 className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
               >
                 Get Premium Now

@@ -281,7 +281,9 @@ export type Database = {
           plan_id: string | null
           plan_start_date: string | null
           plan_tier: string | null
+          profile_picture_url: string | null
           promo_code: string | null
+          razorpay_customer_id: string | null
           spotify_access_token: string | null
           spotify_avatar_url: string | null
           spotify_connected: boolean | null
@@ -303,7 +305,9 @@ export type Database = {
           plan_id?: string | null
           plan_start_date?: string | null
           plan_tier?: string | null
+          profile_picture_url?: string | null
           promo_code?: string | null
+          razorpay_customer_id?: string | null
           spotify_access_token?: string | null
           spotify_avatar_url?: string | null
           spotify_connected?: boolean | null
@@ -325,7 +329,9 @@ export type Database = {
           plan_id?: string | null
           plan_start_date?: string | null
           plan_tier?: string | null
+          profile_picture_url?: string | null
           promo_code?: string | null
+          razorpay_customer_id?: string | null
           spotify_access_token?: string | null
           spotify_avatar_url?: string | null
           spotify_connected?: boolean | null
@@ -378,12 +384,16 @@ export type Database = {
       subscriptions: {
         Row: {
           amount: number | null
+          auto_renew: boolean | null
           created_at: string | null
           currency: string | null
           current_period_end: string | null
           current_period_start: string | null
           id: string
           plan_type: string | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          razorpay_subscription_id: string | null
           status: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -392,12 +402,16 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          auto_renew?: boolean | null
           created_at?: string | null
           currency?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
           plan_type?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_subscription_id?: string | null
           status?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -406,12 +420,16 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          auto_renew?: boolean | null
           created_at?: string | null
           currency?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
           plan_type?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_subscription_id?: string | null
           status?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -495,6 +513,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      webhook_events: {
+        Row: {
+          created_at: string | null
+          event_data: Json
+          event_type: string
+          id: string
+          processed: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_data: Json
+          event_type: string
+          id?: string
+          processed?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_data?: Json
+          event_type?: string
+          id?: string
+          processed?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
