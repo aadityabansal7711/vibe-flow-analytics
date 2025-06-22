@@ -134,20 +134,6 @@ const Buy = () => {
     }
   };
 
-  // Create Razorpay form with dynamic pricing
-  const createRazorpayForm = () => {
-    return (
-      <form>
-        <script 
-          src="https://checkout.razorpay.com/v1/payment-button.js" 
-          data-payment_button_id="pl_Qjs2W5AhXxHlni"
-          data-amount={discountedPrice * 100} // Razorpay expects amount in paise
-          async
-        />
-      </form>
-    );
-  };
-
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
     { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Advanced mood + personality analysis" },
@@ -177,10 +163,10 @@ const Buy = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Link to="/">
+            <Link to="/dashboard">
               <Button variant="outline" size="sm" className="transition-all duration-300 hover:scale-105">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                Back to Dashboard
               </Button>
             </Link>
             <div className="flex items-center space-x-2">
@@ -272,13 +258,13 @@ const Buy = () => {
                       <p className="text-white/80">Secure payment via Razorpay</p>
                     </div>
                     <div dangerouslySetInnerHTML={{ 
-                      __html: `<form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_Qjs2W5AhXxHlni" async></script></form>` 
+                      __html: `<form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_Qjs2W5AhXxHlni" data-amount="${discountedPrice * 100}" async></script></form>` 
                     }} />
                   </div>
                 </div>
 
                 <p className="text-center text-muted-foreground text-sm">
-                  Secure payment via Razorpay. Cancel anytime.
+                  Secure payment via Razorpay. Cancel anytime from your profile.
                 </p>
               </CardContent>
             </Card>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,7 +59,6 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  // Handle forgot password
   const handleForgotPassword = async () => {
     if (!email) {
       setError("Please enter your email above to reset password.");
@@ -70,7 +68,6 @@ const Auth = () => {
     setError('');
     setResetSent(false);
     try {
-      // Send password reset request to Supabase
       // @ts-ignore - resetPasswordForEmail is part of supabase.auth
       const { supabase } = await import('@/integrations/supabase/client');
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/forgot-password' });

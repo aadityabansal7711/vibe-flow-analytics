@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -19,6 +18,7 @@ interface Profile {
   spotify_access_token?: string;
   spotify_refresh_token?: string;
   spotify_token_expires_at?: string;
+  profile_picture_url?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -36,6 +36,7 @@ interface AuthContextType {
   updateProfile: (updates: Partial<Profile>) => Promise<Profile>;
   getValidSpotifyToken: () => Promise<string | null>;
   fetchProfile: () => Promise<Profile | null>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const authInitialized = useRef(false);
+  const profileFetchInProgress = useRef(false);
 
   const isUnlocked = profile?.has_active_subscription || false;
 
@@ -64,6 +67,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let authSubscription: any = null;
 
     const initializeAuth = async () => {
+      if (authInitialized.current) return;
+      authInitialized.current = true;
+
       try {
         // Get initial session
         const { data: { session: initialSession } } = await supabase.auth.getSession();
@@ -72,8 +78,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
           
-          if (initialSession?.user) {
+          if (initialSession?.user && !profileFetchInProgress.current) {
+            profileFetchInProgress.current = true;
             await fetchUserProfile(initialSession.user.id);
+            profileFetchInProgress.current = false;
           }
         }
 
@@ -86,15 +94,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSession(session);
             setUser(session?.user ?? null);
 
-            if (session?.user && event !== 'TOKEN_REFRESHED') {
-              // Small delay to ensure profile data is ready
-              setTimeout(() => {
+            if (session?.user && event === 'SIGNED_IN' && !profileFetchInProgress.current) {
+              profileFetchInProgress.current = true;
+              setTimeout(async () => {
                 if (mounted) {
-                  fetchUserProfile(session.user.id);
+                  await fetchUserProfile(session.user.id);
+                  profileFetchInProgress.current = false;
                 }
               }, 100);
             } else if (!session?.user) {
               setProfile(null);
+              profileFetchInProgress.current = false;
             }
           }
         );
@@ -134,11 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (existingProfile) {
-        console.log('✅ Found existing profile', {
-          spotifyConnected: existingProfile.spotify_connected,
-          hasSpotifyToken: !!existingProfile.spotify_access_token,
-          tokenExpires: existingProfile.spotify_token_expires_at
-        });
+        console.log('✅ Found existing profile');
         setProfile(existingProfile);
       } else {
         // Create new profile if none exists
@@ -179,7 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
       options: {
         data: fullName ? { full_name: fullName } : undefined,
-        emailRedirectTo: 'https://my-vibe-lytics.lovable.app/'
+        emailRedirectTo: `${window.location.origin}/dashboard`
       }
     });
     
@@ -203,6 +209,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
+      authInitialized.current = false;
+      profileFetchInProgress.current = false;
       
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
@@ -220,6 +228,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('❌ Logout error:', error);
       window.location.href = '/';
+    }
+  };
+
+  const deleteAccount = async () => {
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    try {
+      console.log('🗑️ Deleting account for user:', user.id);
+      
+      // Call the delete-user edge function
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: user.id }
+      });
+
+      if (error) {
+        console.error('❌ Error deleting account:', error);
+        throw error;
+      }
+
+      console.log('✅ Account deleted successfully');
+      
+      // Clear state and redirect
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      authInitialized.current = false;
+      profileFetchInProgress.current = false;
+      localStorage.clear();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('❌ Delete account error:', error);
+      throw error;
     }
   };
 
@@ -251,10 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       `state=${user.id}&` +
       `show_dialog=true`;
 
-    console.log('🔗 Redirecting to Spotify auth URL', {
-      redirectUri: SPOTIFY_REDIRECT_URI,
-      state: user.id
-    });
+    console.log('🔗 Redirecting to Spotify auth URL');
     window.location.href = authUrl;
   };
 
@@ -287,10 +326,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No profile returned from update');
       }
 
-      console.log('✅ Profile updated successfully', {
-        spotifyConnected: updatedProfile.spotify_connected,
-        hasToken: !!updatedProfile.spotify_access_token
-      });
+      console.log('✅ Profile updated successfully');
       setProfile(updatedProfile);
       return updatedProfile;
     } catch (error) {
@@ -389,6 +425,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateProfile,
     getValidSpotifyToken,
     fetchProfile,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
