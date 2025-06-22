@@ -6,12 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Crown, Calendar, CreditCard, AlertTriangle } from 'lucide-react';
+import { Crown, Calendar, CreditCard, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Subscription {
   id: string;
-  razorpay_subscription_id: string;
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
   status: string;
   plan_type: string;
   amount: number;
@@ -25,7 +26,6 @@ const SubscriptionManager = () => {
   const { profile, updateProfile } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     fetchSubscription();
@@ -50,49 +50,6 @@ const SubscriptionManager = () => {
       console.error('Error:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCancelSubscription = async () => {
-    if (!subscription) return;
-
-    setCancelling(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch('/api/cancel-subscription', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to cancel subscription');
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        toast.success('Subscription cancelled successfully');
-        
-        // Update local state
-        await updateProfile({
-          has_active_subscription: false,
-          plan_tier: 'free',
-          plan_id: 'free_tier'
-        });
-        
-        setSubscription(null);
-      } else {
-        throw new Error(result.error || 'Failed to cancel subscription');
-      }
-    } catch (error) {
-      console.error('Error cancelling subscription:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to cancel subscription');
-    } finally {
-      setCancelling(false);
     }
   };
 
@@ -141,7 +98,11 @@ const SubscriptionManager = () => {
 
   const formatAmount = (amount: number, currency: string) => {
     const symbol = currency === 'inr' ? '₹' : '$';
-    return `${symbol}${(amount / 100).toFixed(2)}`;
+    return `${symbol}${(amount / 100).toFixed(0)}`;
+  };
+
+  const handleContactSupport = () => {
+    window.open('mailto:support@myvibelytics.com?subject=Subscription Cancellation Request', '_blank');
   };
 
   return (
@@ -166,13 +127,13 @@ const SubscriptionManager = () => {
             </p>
           </div>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Amount</p>
+            <p className="text-sm text-muted-foreground">Amount Paid</p>
             <p className="font-medium text-foreground">
               {formatAmount(subscription.amount, subscription.currency)}
             </p>
           </div>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Next Billing</p>
+            <p className="text-sm text-muted-foreground">Valid Until</p>
             <p className="font-medium text-foreground flex items-center">
               <Calendar className="mr-1 h-4 w-4" />
               {formatDate(subscription.current_period_end)}
@@ -180,39 +141,40 @@ const SubscriptionManager = () => {
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Auto Renewal</p>
-            <Badge variant={subscription.auto_renew ? "secondary" : "destructive"}>
-              {subscription.auto_renew ? "Enabled" : "Disabled"}
+            <Badge variant="secondary">
+              One-time Payment
             </Badge>
           </div>
         </div>
 
-        <Alert className="border-yellow-500/20 bg-yellow-500/5">
-          <AlertTriangle className="h-4 w-4 text-yellow-500" />
-          <AlertDescription className="text-yellow-700 dark:text-yellow-300">
-            Cancelling your subscription will downgrade your account to the free plan at the end of your billing period.
+        <Alert className="border-blue-500/20 bg-blue-500/5">
+          <AlertTriangle className="h-4 w-4 text-blue-500" />
+          <AlertDescription className="text-blue-700 dark:text-blue-300">
+            This is a one-time yearly subscription. To cancel or get a refund, please contact our support team.
           </AlertDescription>
         </Alert>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             variant="destructive"
-            onClick={handleCancelSubscription}
-            disabled={cancelling}
+            onClick={handleContactSupport}
             className="flex-1"
           >
-            {cancelling ? 'Cancelling...' : 'Cancel Subscription'}
+            Contact Support for Cancellation
           </Button>
           <Button
             variant="outline"
             onClick={fetchSubscription}
             className="flex-1"
           >
+            <RefreshCw className="mr-2 h-4 w-4" />
             Refresh Status
           </Button>
         </div>
 
-        <div className="text-xs text-muted-foreground">
-          <p>Subscription ID: {subscription.razorpay_subscription_id}</p>
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>Payment ID: {subscription.razorpay_payment_id}</p>
+          <p>Order ID: {subscription.razorpay_order_id}</p>
           <p>Status: {subscription.status}</p>
         </div>
       </CardContent>

@@ -40,7 +40,7 @@ const Buy = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const basePrice = 4999; // INR 49.99 yearly
+  const basePrice = 499; // INR 499 yearly
   const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
 
   useEffect(() => {
@@ -51,7 +51,9 @@ const Buy = () => {
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, []);
 
@@ -103,48 +105,67 @@ const Buy = () => {
     setPaymentProcessing(true);
 
     try {
+      // Create order on backend first
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const orderResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: discountedPrice * 100, // Convert to paise
+          currency: 'INR',
+          user_id: user.id,
+          promo_code: promoCode || null,
+          discount: promoDiscount
+        })
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const orderData = await orderResponse.json();
+
       const options = {
         key: 'rzp_live_spLJgQSWhiE0KB',
-        subscription_id: 'plan_QkDRJrPOe3ujbQ',
+        amount: discountedPrice * 100, // amount in paise
+        currency: 'INR',
         name: 'MyVibeLytics',
         description: 'Premium Yearly Subscription',
         image: '/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png',
+        order_id: orderData.order_id,
         handler: async function (response: any) {
           console.log('Payment successful:', response);
           
-          // Store subscription details
+          // Verify payment on backend
           try {
-            const { error } = await supabase
-              .from('subscriptions')
-              .insert({
-                user_id: user.id,
-                razorpay_subscription_id: response.razorpay_subscription_id,
+            const verifyResponse = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session?.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
-                status: 'active',
-                plan_type: 'yearly',
+                razorpay_signature: response.razorpay_signature,
+                user_id: user.id,
                 amount: discountedPrice,
-                currency: 'inr',
-                auto_renew: true,
-                current_period_start: new Date().toISOString(),
-                current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-              });
+                promo_code: promoCode || null
+              })
+            });
 
-            if (error) {
-              console.error('Error storing subscription:', error);
+            if (verifyResponse.ok) {
+              window.location.href = '/dashboard?upgraded=true';
+            } else {
+              throw new Error('Payment verification failed');
             }
-
-            // Use promo code if valid
-            if (promoDiscount > 0 && promoCode) {
-              await supabase.rpc('use_promo_code', {
-                promo_code: promoCode.trim().toUpperCase()
-              });
-            }
-
-            // The webhook will handle updating the profile to premium
-            window.location.href = '/dashboard?upgraded=true';
           } catch (error) {
-            console.error('Error processing subscription:', error);
-            alert('Payment successful but there was an error. Please contact support.');
+            console.error('Error verifying payment:', error);
+            alert('Payment successful but verification failed. Please contact support.');
           }
         },
         prefill: {
@@ -191,7 +212,7 @@ const Buy = () => {
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-lg">Processing your subscription...</div>
+          <div className="text-white text-lg">Processing your payment...</div>
           <div className="text-muted-foreground">Please complete the payment process</div>
         </div>
       </div>
@@ -234,14 +255,14 @@ const Buy = () => {
                 <div className="flex items-baseline space-x-2">
                   {promoDiscount > 0 ? (
                     <>
-                      <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice/100}</span>
-                      <span className="text-4xl font-bold text-primary">₹{discountedPrice/100}</span>
+                      <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice}</span>
+                      <span className="text-4xl font-bold text-primary">₹{discountedPrice}</span>
                       <Badge variant="destructive" className="ml-2">
                         {promoDiscount}% OFF
                       </Badge>
                     </>
                   ) : (
-                    <span className="text-4xl font-bold text-primary">₹{basePrice/100}</span>
+                    <span className="text-4xl font-bold text-primary">₹{basePrice}</span>
                   )}
                   <span className="text-muted-foreground">/year</span>
                 </div>
@@ -289,17 +310,17 @@ const Buy = () => {
                   )}
                 </div>
 
-                {/* Subscription Payment Button */}
+                {/* Payment Button */}
                 <Button 
                   onClick={handleSubscriptionPayment}
                   disabled={paymentProcessing}
                   className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground text-lg py-6"
                 >
-                  {paymentProcessing ? 'Processing...' : `Subscribe for ₹${discountedPrice/100}/year`}
+                  {paymentProcessing ? 'Processing...' : `Pay ₹${discountedPrice}/year`}
                 </Button>
 
                 <p className="text-center text-muted-foreground text-sm mt-4">
-                  Secure payment via Razorpay. Auto-renews yearly. Cancel anytime from your profile.
+                  Secure payment via Razorpay. One-time yearly payment.
                 </p>
               </CardContent>
             </Card>
@@ -332,8 +353,8 @@ const Buy = () => {
                 <div className="flex items-start space-x-3">
                   <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-foreground">Yearly Savings</h4>
-                    <p className="text-sm text-muted-foreground">Save money with our annual subscription</p>
+                    <h4 className="font-medium text-foreground">Great Value</h4>
+                    <p className="text-sm text-muted-foreground">Only ₹499 per year - less than ₹42 per month</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">

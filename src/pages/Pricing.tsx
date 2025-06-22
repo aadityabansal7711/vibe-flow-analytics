@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,66 +72,13 @@ const Pricing = () => {
     }
   };
 
-  const loadRazorpayScript = () =>
-    new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-
   const handleGetStarted = () => {
     navigate('/auth');
   };
 
-  const handleUpgradeToPremium = async () => {
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded) {
-      alert("Razorpay SDK failed to load. Please refresh the page and try again.");
-      return;
-    }
-
-    try {
-      const userEmail = "aadityabansal1112@gmail.com";
-
-      const response = await fetch('/api/create-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail })
-      });
-
-      const { subscription_id, error } = await response.json();
-
-      if (error || !subscription_id) {
-        alert("Failed to create subscription. Please try again.");
-        return;
-      }
-
-      const options = {
-        key: 'rzp_live_spLJgQSWhiE0KB',
-        subscription_id,
-        name: 'MyVibeLytics',
-        description: 'Annual Premium Subscription',
-        theme: { color: '#1DB954' },
-        handler: function (response) {
-          console.log('Payment successful', response);
-          navigate('/thank-you');
-        },
-        prefill: {
-          email: userEmail
-        },
-        notes: {
-          plan: 'Premium Yearly'
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error("Error during payment:", err);
-      alert("Something went wrong. Please try again later.");
-    }
+  const handleUpgradeToPremium = () => {
+    // Redirect to buy page which handles authentication
+    navigate('/buy');
   };
 
   const features = [
