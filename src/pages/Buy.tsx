@@ -56,15 +56,10 @@ const Buy = () => {
     setPaymentProcessing(true);
     try {
       // Update user profile to premium
-      const planEndDate = new Date();
-      planEndDate.setMonth(planEndDate.getMonth() + 1); // 1 month from now
-
       await updateProfile({
         has_active_subscription: true,
         plan_tier: 'premium',
         plan_id: 'premium_monthly',
-        plan_start_date: new Date().toISOString(),
-        plan_end_date: planEndDate.toISOString(),
         used_promo_code: promoCode || null
       });
 
@@ -75,7 +70,10 @@ const Buy = () => {
         });
       }
 
-      // Create subscription record
+      // Create subscription record with dates
+      const planEndDate = new Date();
+      planEndDate.setMonth(planEndDate.getMonth() + 1); // 1 month from now
+
       await supabase.from('subscriptions').insert({
         user_id: user.id,
         status: 'active',
