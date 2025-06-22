@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +11,7 @@ interface Profile {
   plan_tier?: string;
   has_active_subscription?: boolean;
   plan_id?: string;
+  used_promo_code?: string;
   spotify_connected?: boolean;
   spotify_user_id?: string;
   spotify_display_name?: string;
