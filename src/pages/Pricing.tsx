@@ -29,7 +29,7 @@ const Pricing = () => {
   const [promoMessage, setPromoMessage] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
 
-  const basePrice = 4999; // INR 49.99 yearly
+  const basePrice = 499;
   const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
 
   const validatePromoCode = async () => {
@@ -100,7 +100,12 @@ const Pricing = () => {
         body: JSON.stringify({ email: userEmail })
       });
 
-      const { subscription_id } = await response.json();
+      const { subscription_id, error } = await response.json();
+
+      if (error || !subscription_id) {
+        alert("Failed to create subscription. Please try again.");
+        return;
+      }
 
       const options = {
         key: 'rzp_live_spLJgQSWhiE0KB',
@@ -114,6 +119,9 @@ const Pricing = () => {
         },
         prefill: {
           email: userEmail
+        },
+        notes: {
+          plan: 'Premium Yearly'
         }
       };
 
@@ -161,6 +169,7 @@ const Pricing = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Free Plan */}
           <Card className="glass-effect border-border/50 overflow-hidden card-hover">
             <CardHeader className="bg-gradient-to-r from-gray-500/20 to-gray-600/20 border-b border-gray-500/30">
               <div className="flex items-center justify-between">
@@ -168,13 +177,16 @@ const Pricing = () => {
                   <Music className="h-6 w-6 text-gray-400" />
                   <CardTitle className="text-2xl text-foreground">Free Plan</CardTitle>
                 </div>
-                <Badge variant="outline" className="bg-gray-500/20 text-gray-300">🆓 Always Free</Badge>
+                <Badge variant="outline" className="bg-gray-500/20 text-gray-300">
+                  🆓 Always Free
+                </Badge>
               </div>
               <div className="flex items-baseline space-x-2">
                 <span className="text-4xl font-bold text-gray-400">₹0</span>
                 <span className="text-muted-foreground">/forever</span>
               </div>
             </CardHeader>
+
             <CardContent className="p-6">
               <div className="grid grid-cols-1 gap-4 mb-8">
                 {freeFeatures.map((feature, index) => (
@@ -184,14 +196,24 @@ const Pricing = () => {
                   </div>
                 ))}
               </div>
-              <Button onClick={handleGetStarted} className="w-full bg-gray-600 hover:bg-gray-700 text-white transition-all duration-300 hover:scale-105">Get Started Free</Button>
+
+              <Button 
+                onClick={handleGetStarted}
+                className="w-full bg-gray-600 hover:bg-gray-700 text-white transition-all duration-300 hover:scale-105"
+              >
+                Get Started Free
+              </Button>
             </CardContent>
           </Card>
 
+          {/* Premium Plan */}
           <Card className="glass-effect border-primary/50 overflow-hidden card-hover relative">
             <div className="absolute top-4 right-4 z-10">
-              <Badge className="bg-primary text-primary-foreground animate-pulse">🌟 Most Popular</Badge>
+              <Badge className="bg-primary text-primary-foreground animate-pulse">
+                🌟 Most Popular
+              </Badge>
             </div>
+            
             <CardHeader className="bg-gradient-to-r from-primary/20 to-purple-600/20 border-b border-primary/30">
               <div className="flex items-center space-x-2">
                 <Crown className="h-6 w-6 text-primary" />
@@ -200,16 +222,19 @@ const Pricing = () => {
               <div className="flex items-baseline space-x-2">
                 {promoDiscount > 0 ? (
                   <>
-                    <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice/100}</span>
-                    <span className="text-4xl font-bold text-primary">₹{discountedPrice/100}</span>
-                    <Badge variant="destructive" className="ml-2">{promoDiscount}% OFF</Badge>
+                    <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice}</span>
+                    <span className="text-4xl font-bold text-primary">₹{discountedPrice}</span>
+                    <Badge variant="destructive" className="ml-2">
+                      {promoDiscount}% OFF
+                    </Badge>
                   </>
                 ) : (
-                  <span className="text-4xl font-bold text-primary">₹{basePrice/100}</span>
+                  <span className="text-4xl font-bold text-primary">₹{basePrice}</span>
                 )}
                 <span className="text-muted-foreground">/year</span>
               </div>
             </CardHeader>
+
             <CardContent className="p-6">
               <div className="grid grid-cols-1 gap-4 mb-8">
                 {features.map((feature, index) => (
@@ -219,27 +244,49 @@ const Pricing = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Promo Code Section */}
               <div className="bg-background/30 rounded-lg p-4 mb-6">
                 <div className="flex items-center space-x-2 mb-3">
                   <Tag className="h-4 w-4 text-primary" />
                   <span className="font-medium text-foreground">Have a promo code?</span>
                 </div>
                 <div className="flex space-x-2">
-                  <Input placeholder="Enter promo code" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} className="flex-1" />
-                  <Button onClick={validatePromoCode} disabled={checkingPromo || !promoCode.trim()} variant="outline" size="sm" className="transition-all duration-300 hover:scale-105">
+                  <Input
+                    placeholder="Enter promo code"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={validatePromoCode}
+                    disabled={checkingPromo || !promoCode.trim()}
+                    variant="outline"
+                    size="sm"
+                    className="transition-all duration-300 hover:scale-105"
+                  >
                     {checkingPromo ? 'Checking...' : 'Apply'}
                   </Button>
                 </div>
                 {promoMessage && (
                   <Alert className={`mt-3 ${promoDiscount > 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                    <AlertDescription className={promoDiscount > 0 ? 'text-green-400' : 'text-red-400'}>{promoMessage}</AlertDescription>
+                    <AlertDescription className={promoDiscount > 0 ? 'text-green-400' : 'text-red-400'}>
+                      {promoMessage}
+                    </AlertDescription>
                   </Alert>
                 )}
               </div>
-              <Button onClick={handleUpgradeToPremium} className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground">
+
+              <Button 
+                onClick={handleUpgradeToPremium}
+                className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
+              >
                 Get Premium Now
               </Button>
-              <p className="text-center text-muted-foreground text-sm mt-4">Sign up required to continue with payment</p>
+
+              <p className="text-center text-muted-foreground text-sm mt-4">
+                Sign up required to continue with payment
+              </p>
             </CardContent>
           </Card>
         </div>
