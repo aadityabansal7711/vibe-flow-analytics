@@ -57,30 +57,48 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
   };
 
   const getListeningStreak = () => {
-    const dates = new Set(
-      recentlyPlayed
-        .map(t => t.played_at && new Date(t.played_at).toDateString())
-        .filter(Boolean)
+    const playedDates = new Set(
+      recentlyPlayed.map(t => {
+        try {
+          const d = new Date(t.played_at || '');
+          return isNaN(d.getTime()) ? null : d.toDateString();
+        } catch {
+          return null;
+        }
+      }).filter(Boolean) as string[]
     );
 
     let currentStreak = 0;
     let longestStreak = 0;
-    let temp = 0;
-    const today = new Date();
+    let tempStreak = 0;
+    let checkingDate = new Date();
 
-    for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
-      if (dates.has(d.toDateString())) {
-        currentStreak++;
-        temp++;
-      } else {
-        longestStreak = Math.max(longestStreak, temp);
-        temp = 0;
-      }
+    // Check current streak
+    while (playedDates.has(checkingDate.toDateString())) {
+      currentStreak++;
+      checkingDate.setDate(checkingDate.getDate() - 1);
     }
 
-    longestStreak = Math.max(longestStreak, temp);
+    // Reset and count longest streak
+    const sortedDates = Array.from(playedDates)
+      .map(d => new Date(d))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    let prevDate = null;
+    for (const d of sortedDates) {
+      if (prevDate) {
+        const diff = Math.round((d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diff === 1) {
+          tempStreak++;
+        } else {
+          longestStreak = Math.max(longestStreak, tempStreak + 1);
+          tempStreak = 0;
+        }
+      }
+      prevDate = d;
+    }
+    longestStreak = Math.max(longestStreak, tempStreak + 1);
+
     return { current: currentStreak || 1, longest: longestStreak || 1 };
   };
 
