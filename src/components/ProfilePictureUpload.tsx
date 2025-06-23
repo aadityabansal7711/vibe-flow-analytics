@@ -8,7 +8,7 @@ import { Upload, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ProfilePictureUpload = () => {
-  const { profile, updateProfile } = useAuth();
+  const { profile, fetchProfile } = useAuth();
   const [uploading, setUploading] = useState(false);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,7 +32,7 @@ const ProfilePictureUpload = () => {
 
       if (error) throw error;
 
-      updateProfile();
+      await fetchProfile();
       toast.success('Profile picture updated successfully!');
     } catch (error) {
       console.error('Error uploading profile picture:', error);

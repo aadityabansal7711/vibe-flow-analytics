@@ -9,7 +9,7 @@ import { Music, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 
 const SpotifyConnect = () => {
-  const { profile, updateProfile } = useAuth();
+  const { profile, fetchProfile } = useAuth();
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -66,7 +66,7 @@ const SpotifyConnect = () => {
 
       if (error) throw error;
 
-      updateProfile();
+      await fetchProfile();
       toast.success('Spotify account disconnected successfully');
     } catch (error) {
       console.error('Error disconnecting Spotify:', error);
@@ -84,7 +84,7 @@ const SpotifyConnect = () => {
 
       if (error) throw error;
 
-      updateProfile();
+      await fetchProfile();
       toast.success('Spotify token refreshed successfully');
     } catch (error) {
       console.error('Error refreshing Spotify token:', error);
