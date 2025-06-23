@@ -5,66 +5,40 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const ForgotPassword: React.FC = () => {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [isResetMode, setIsResetMode] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const location = useLocation();
 
-  // Check if we have access token in URL (reset mode)
-  useEffect(() => {
+  // Extract the access token (one-time token) from URL (provided by Supabase in reset link)
+  const getAccessToken = () => {
     const params = new URLSearchParams(location.search);
-    const accessToken = params.get('access_token');
-    if (accessToken) {
-      setIsResetMode(true);
-    }
-  }, [location]);
+    return params.get('access_token');
+  };
+  const accessToken = getAccessToken();
 
-  const handlePasswordReset = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!accessToken) {
+      setError("Invalid or expired reset link. Please request a new password reset.");
+    }
+  }, [accessToken]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    if (!email) {
-      setError('Please enter your email address.');
+    if (!accessToken) {
+      setError("Invalid or expired reset link. Please request a new password reset.");
       return;
     }
-    
-    setSubmitting(true);
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/forgot-password`,
-      });
-
-      if (error) {
-        setError(error.message);
-      } else {
-        toast({
-          title: 'Reset email sent!',
-          description: 'Check your email for password reset instructions.',
-        });
-        setSuccess(true);
-      }
-    } catch (e: any) {
-      setError(e.message || "Failed to send reset email.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleNewPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
     
     if (!password || !confirm) {
       setError('Please fill out both fields.');
@@ -82,15 +56,36 @@ const ForgotPassword: React.FC = () => {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      // Dynamically import supabase client to avoid SSR issues
+      const { createClient } = await import('@supabase/supabase-js');
+      // Create a new supabase client for just this operation
+      const supabaseUrl = "https://wxwbfduhveewbuluetpb.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4d2JmZHVodmVld2J1bHVldHBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzODkxNzYsImV4cCI6MjA2NDk2NTE3Nn0.xZYb93_kej1HPbQEKbSrBh_T0Zm27y8WoZ5oxuo7FeA";
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-      if (error) {
-        setError(error.message || "Failed to reset password.");
+      // Set session with the one-time access token
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: '',
+      });
+
+      if (sessionError) {
+        setError("Invalid or expired reset link. Please request a new password reset.");
+        return;
+      }
+
+      // Use access token to update the user's password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password
+      });
+
+      if (updateError) {
+        setError(updateError.message || "Failed to reset password.");
       } else {
         setSuccess(true);
         toast({
-          title: 'Password updated!',
-          description: "Your password has been successfully updated.",
+          title: 'Password reset successful!',
+          description: "Your password has been updated. Redirecting to login...",
         });
         setTimeout(() => navigate('/auth'), 2000);
       }
@@ -112,94 +107,62 @@ const ForgotPassword: React.FC = () => {
             <span className="text-3xl font-bold text-gradient">MyVibeLytics</span>
           </Link>
         </div>
-        
         <Card className="glass-effect-strong border-border/50">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10">
-              {isResetMode ? <Lock className="h-8 w-8 text-primary" /> : <Mail className="h-8 w-8 text-primary" />}
+              <Lock className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl text-foreground">
-              {isResetMode ? 'Set New Password' : 'Reset Password'}
-            </CardTitle>
-            <p className="text-muted-foreground">
-              {isResetMode ? 'Enter your new password below' : 'Enter your email to receive reset instructions'}
-            </p>
+            <CardTitle className="text-2xl text-foreground">Reset Your Password</CardTitle>
+            <p className="text-muted-foreground">Enter your new password below</p>
           </CardHeader>
           <CardContent>
             {!success ? (
-              <form onSubmit={isResetMode ? handleNewPassword : handlePasswordReset} className="space-y-6">
-                {!isResetMode ? (
-                  <div>
-                    <Label htmlFor="email" className="text-foreground">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className="bg-background/50 border-border text-foreground"
-                      placeholder="Enter your email address"
-                      required
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <Label htmlFor="new-password" className="text-foreground">New Password</Label>
-                      <Input
-                        id="new-password"
-                        type="password"
-                        value={password}
-                        minLength={6}
-                        autoComplete="new-password"
-                        required
-                        onChange={e => setPassword(e.target.value)}
-                        className="bg-background/50 border-border text-foreground"
-                        placeholder="Enter your new password"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="confirm-password" className="text-foreground">Confirm Password</Label>
-                      <Input
-                        id="confirm-password"
-                        type="password"
-                        value={confirm}
-                        minLength={6}
-                        autoComplete="new-password"
-                        required
-                        onChange={e => setConfirm(e.target.value)}
-                        className="bg-background/50 border-border text-foreground"
-                        placeholder="Confirm your new password"
-                      />
-                    </div>
-                  </>
-                )}
-                
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <Label htmlFor="new-password" className="text-foreground">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={password}
+                    minLength={6}
+                    autoComplete="new-password"
+                    required
+                    onChange={e => setPassword(e.target.value)}
+                    className="bg-background/50 border-border text-foreground"
+                    placeholder="Enter your new password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirm-password" className="text-foreground">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirm}
+                    minLength={6}
+                    autoComplete="new-password"
+                    required
+                    onChange={e => setConfirm(e.target.value)}
+                    className="bg-background/50 border-border text-foreground"
+                    placeholder="Confirm your new password"
+                  />
+                </div>
                 {error && (
                   <div className="text-red-400 text-sm mb-2">{error}</div>
                 )}
-                
                 <Button
                   type="submit"
                   className="w-full bg-gradient-spotify"
-                  disabled={submitting}
+                  disabled={submitting || !accessToken}
                 >
-                  {submitting ? (isResetMode ? "Updating..." : "Sending...") : (isResetMode ? "Update Password" : "Send Reset Email")}
+                  {submitting ? "Resetting..." : "Reset Password"}
                 </Button>
-                
                 <div className="text-center mt-6">
                   <Link to="/auth" className="text-muted-foreground hover:text-primary text-sm">← Back to Login</Link>
                 </div>
               </form>
             ) : (
-              <div className="text-center">
-                <div className="text-green-500 font-medium mb-4">
-                  {isResetMode ? 'Password updated successfully!' : 'Reset email sent!'}
-                </div>
-                {isResetMode ? (
-                  <p className="text-muted-foreground">Redirecting to login...</p>
-                ) : (
-                  <p className="text-muted-foreground">Check your email for further instructions.</p>
-                )}
+              <div className="text-green-500 font-medium text-center">
+                Password updated! Redirecting to login...
               </div>
             )}
           </CardContent>

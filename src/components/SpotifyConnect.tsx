@@ -1,190 +1,154 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Music, User, Crown, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Music, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
-import { toast } from 'sonner';
+import { Link, useSearchParams } from 'react-router-dom';
 
 const SpotifyConnect = () => {
-  const { profile, fetchProfile } = useAuth();
-  const [connecting, setConnecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const { user, profile, connectSpotify, loading, isUnlocked, fetchProfile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [justConnected, setJustConnected] = useState(false);
 
-  const connectSpotify = async () => {
-    setConnecting(true);
-    try {
-      // Generate state parameter for security
-      const state = Math.random().toString(36).substring(2, 15);
-      
-      // Store state in localStorage
-      localStorage.setItem('spotify_auth_state', state);
-      
-      const clientId = 'your_spotify_client_id'; // This should come from environment
-      const redirectUri = `${window.location.origin}/spotify-callback`;
-      const scopes = [
-        'user-read-private',
-        'user-read-email',
-        'user-top-read',
-        'user-read-recently-played',
-        'playlist-modify-public',
-        'playlist-modify-private'
-      ].join(' ');
+  // Check for connection success or error in URL params
+  useEffect(() => {
+    const spotifyConnected = searchParams.get('spotify_connected');
+    const spotifyError = searchParams.get('spotify_error');
 
-      const authUrl = `https://accounts.spotify.com/authorize?` +
-        `response_type=code&` +
-        `client_id=${clientId}&` +
-        `scope=${encodeURIComponent(scopes)}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `state=${state}`;
-
-      window.location.href = authUrl;
-    } catch (error) {
-      console.error('Error connecting to Spotify:', error);
-      toast.error('Failed to connect to Spotify');
-      setConnecting(false);
+    if (spotifyConnected === 'true') {
+      setJustConnected(true);
+      // Clear the URL parameter
+      window.history.replaceState({}, '', '/dashboard');
+      // Fetch fresh profile data
+      if (fetchProfile) {
+        fetchProfile();
+      }
     }
-  };
 
-  const disconnectSpotify = async () => {
-    setDisconnecting(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          spotify_connected: false,
-          spotify_access_token: null,
-          spotify_refresh_token: null,
-          spotify_user_id: null,
-          spotify_display_name: null,
-          spotify_avatar_url: null,
-          spotify_token_expires_at: null
-        })
-        .eq('user_id', profile?.user_id);
-
-      if (error) throw error;
-
-      await fetchProfile();
-      toast.success('Spotify account disconnected successfully');
-    } catch (error) {
-      console.error('Error disconnecting Spotify:', error);
-      toast.error('Failed to disconnect Spotify account');
-    } finally {
-      setDisconnecting(false);
+    if (spotifyError) {
+      console.error('Spotify connection error:', spotifyError);
+      // Clear the error parameter
+      window.history.replaceState({}, '', '/dashboard');
     }
-  };
+  }, [searchParams, fetchProfile]);
 
-  const refreshToken = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('spotify-refresh', {
-        body: { user_id: profile?.user_id }
-      });
+  if (loading) {
+    return (
+      <Card className="glass-effect border-border/50">
+        <CardContent className="flex items-center justify-center p-6">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-      if (error) throw error;
+  if (!user) {
+    return (
+      <Card className="glass-effect border-border/50">
+        <CardHeader className="text-center">
+          <CardTitle className="text-foreground flex items-center justify-center">
+            <User className="mr-2 h-6 w-6" />
+            Authentication Required
+          </CardTitle>
+          <CardDescription>
+            You need to be logged in to connect your Spotify account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link to="/auth">
+            <Button className="w-full bg-primary hover:bg-primary/90">
+              Sign In
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
 
-      await fetchProfile();
-      toast.success('Spotify token refreshed successfully');
-    } catch (error) {
-      console.error('Error refreshing Spotify token:', error);
-      toast.error('Failed to refresh Spotify token');
-    }
-  };
+  if (profile?.spotify_connected || justConnected) {
+    return (
+      <Card className="glass-effect border-border/50">
+        <CardHeader className="text-center">
+          <CardTitle className="text-foreground flex items-center justify-center">
+            <CheckCircle className="mr-2 h-6 w-6 text-green-400" />
+            Spotify Connected Successfully!
+          </CardTitle>
+          <CardDescription>
+            {profile?.spotify_display_name ? 
+              `Connected as ${profile.spotify_display_name}` : 
+              'Your Spotify account is connected'
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-sm text-muted-foreground">
+            You can now view your personalized music insights below!
+          </div>
+          {isUnlocked && (
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex items-center space-x-2 text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-medium">Premium Account Notice</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Premium users cannot disconnect their Spotify account to ensure continuous access to advanced analytics and features.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="glass-effect border-border/50">
-      <CardHeader>
-        <CardTitle className="text-foreground flex items-center">
-          <Music className="mr-2 h-5 w-5 text-green-500" />
-          Spotify Connection
+      <CardHeader className="text-center">
+        <CardTitle className="text-foreground flex items-center justify-center">
+          <Music className="mr-2 h-6 w-6" />
+          Connect Your Spotify
         </CardTitle>
+        <CardDescription>
+          Connect your Spotify account to get personalized music insights and analytics
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {profile?.spotify_connected ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                {profile.spotify_avatar_url && (
-                  <img
-                    src={profile.spotify_avatar_url}
-                    alt="Spotify Avatar"
-                    className="w-10 h-10 rounded-full"
-                  />
-                )}
-                <div>
-                  <p className="font-medium text-foreground">
-                    {profile.spotify_display_name || 'Connected'}
-                  </p>
-                  <Badge className="bg-green-500 text-white">
-                    Connected
-                  </Badge>
-                </div>
-              </div>
-              <Badge variant="outline" className="text-green-500 border-green-500">
-                <Music className="mr-1 h-3 w-3" />
-                Active
-              </Badge>
+        <div className="text-center">
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="text-center">
+              <Music className="h-8 w-8 text-green-400 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Top Tracks</p>
             </div>
-
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refreshToken}
-                className="flex-1"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh Token
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={disconnectSpotify}
-                disabled={disconnecting}
-                className="flex-1"
-              >
-                <Unlink className="mr-2 h-4 w-4" />
-                {disconnecting ? 'Disconnecting...' : 'Disconnect'}
-              </Button>
+            <div className="text-center">
+              <User className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Top Artists</p>
             </div>
-
-            <div className="text-xs text-muted-foreground">
-              <p>Connected on: {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}</p>
-              {profile.spotify_token_expires_at && (
-                <p>Token expires: {new Date(profile.spotify_token_expires_at).toLocaleDateString()}</p>
-              )}
+            <div className="text-center">
+              <Crown className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Premium Insights</p>
             </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="text-center py-6">
-              <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Connect Your Spotify Account</h3>
-              <p className="text-muted-foreground mb-4">
-                Connect your Spotify account to unlock personalized music analytics and insights.
-              </p>
-              <Button
-                onClick={connectSpotify}
-                disabled={connecting}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {connecting ? 'Connecting...' : 'Connect to Spotify'}
-              </Button>
-            </div>
+        </div>
 
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p><strong>What we'll access:</strong></p>
-              <ul className="list-disc list-inside ml-2 space-y-1">
-                <li>Your top tracks and artists</li>
-                <li>Your recently played songs</li>
-                <li>Create playlists for you (optional)</li>
-                <li>Basic profile information</li>
-              </ul>
-            </div>
-          </div>
-        )}
+        <Button 
+          onClick={connectSpotify}
+          className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
+        >
+          <Music className="mr-2 h-5 w-5" />
+          Connect with Spotify
+        </Button>
+
+        <p className="text-xs text-muted-foreground text-center">
+          We'll redirect you to Spotify to authorize access to your music data. 
+          Your data is kept private and secure.
+        </p>
+        
+        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <p className="text-xs text-blue-400 text-center">
+            <strong>Note:</strong> Free users can connect and disconnect Spotify anytime. 
+            Premium users cannot disconnect to ensure continuous access to advanced features.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
