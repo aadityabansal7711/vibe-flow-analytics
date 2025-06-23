@@ -12,6 +12,7 @@ import SubscriptionManager from '@/components/SubscriptionManager';
 import ProfileInfo from '@/pages/profile/ProfileInfo';
 import EditName from '@/pages/profile/EditName';
 import DangerZone from '@/pages/profile/DangerZone';
+import ProfileSettings from '@/pages/profile/ProfileSettings';
 import { 
   ArrowLeft, 
   Sparkles,
@@ -31,6 +32,17 @@ const Profile = () => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-white text-xl">Loading profile...</div>
+        </div>
+      </div>
+    );
   }
 
   const handleUpdateName = async () => {
@@ -178,14 +190,7 @@ const Profile = () => {
           )}
 
           {activeTab === 'settings' && (
-            <Card className="glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="text-foreground">Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Settings panel coming soon...</p>
-              </CardContent>
-            </Card>
+            <ProfileSettings profile={profile} />
           )}
 
           {activeTab === 'danger' && (

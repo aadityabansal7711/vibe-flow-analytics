@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, SkipForward, Activity, TrendingUp } from 'lucide-react';
+import { Clock, Activity, TrendingUp } from 'lucide-react';
 import FeatureCard from '@/components/FeatureCard';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface SpotifyTrack {
   id: string;
@@ -26,7 +26,7 @@ interface ListeningBehaviorProps {
 
 const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recentlyPlayed, isLocked }) => {
   const getTimePreference = () => {
-    if (!recentlyPlayed?.length) return { preference: 'No data available', data: [] };
+    if (!recentlyPlayed?.length) return { preference: 'No data available', mostActive: 'No data' };
 
     const timeSlots = [
       { label: 'Early Morning (5-8 AM)', range: [5, 8], plays: 0 },
@@ -52,11 +52,25 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
       }
     }
 
-    const preference = timeSlots.reduce((prev, curr) => (curr.plays > prev.plays ? curr : prev), timeSlots[0]).label.split(' ')[0];
-    return { preference, data: timeSlots };
+    const mostActiveSlot = timeSlots.reduce((prev, curr) => (curr.plays > prev.plays ? curr : prev), timeSlots[0]);
+    const preference = mostActiveSlot.label.split(' ')[0];
+    
+    // Get most active hour
+    const hourCount = Array(24).fill(0);
+    for (const t of recentlyPlayed) {
+      const d = new Date(t.played_at || '');
+      if (!isNaN(d.getTime())) hourCount[d.getHours()]++;
+    }
+    const h = hourCount.indexOf(Math.max(...hourCount));
+    const formatHour = (hr: number) => (hr === 0 ? '12 AM' : hr < 12 ? `${hr} AM` : hr === 12 ? '12 PM' : `${hr - 12} PM`);
+    const mostActive = `${formatHour(h)} - ${formatHour((h + 1) % 24)}`;
+
+    return { preference, mostActive };
   };
 
   const getListeningStreak = () => {
+    if (!recentlyPlayed?.length) return { current: 0, longest: 0 };
+
     const playedDates = new Set(
       recentlyPlayed.map(t => {
         try {
@@ -69,8 +83,6 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
     );
 
     let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
     let checkingDate = new Date();
 
     // Check current streak
@@ -79,39 +91,7 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
       checkingDate.setDate(checkingDate.getDate() - 1);
     }
 
-    // Reset and count longest streak
-    const sortedDates = Array.from(playedDates)
-      .map(d => new Date(d))
-      .sort((a, b) => a.getTime() - b.getTime());
-
-    let prevDate = null;
-    for (const d of sortedDates) {
-      if (prevDate) {
-        const diff = Math.round((d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diff === 1) {
-          tempStreak++;
-        } else {
-          longestStreak = Math.max(longestStreak, tempStreak + 1);
-          tempStreak = 0;
-        }
-      }
-      prevDate = d;
-    }
-    longestStreak = Math.max(longestStreak, tempStreak + 1);
-
-    return { current: currentStreak || 1, longest: longestStreak || 1 };
-  };
-
-  const getSkipRate = () => {
-    if (!topTracks.length) return { rate: 'No data', quality: 'No data available' };
-    const avg = topTracks.reduce((a, t) => a + t.popularity, 0) / topTracks.length;
-    const skip = Math.max(5, Math.min(50, 100 - avg));
-    let quality = 'Standard';
-    if (skip < 15) quality = 'Excellent - You love most songs!';
-    else if (skip < 25) quality = 'Good - Selective listener';
-    else if (skip < 35) quality = 'Average - Mixed preferences';
-    else quality = 'High - Very selective';
-    return { rate: `${Math.round(skip)}%`, quality };
+    return { current: currentStreak || 1, longest: playedDates.size };
   };
 
   const getAverageLength = () => {
@@ -121,22 +101,9 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
     return `${Math.floor(avg / 60000)}:${String(Math.floor((avg % 60000) / 1000)).padStart(2, '0')}`;
   };
 
-  const mostActiveHour = () => {
-    const hourCount = Array(24).fill(0);
-    for (const t of recentlyPlayed) {
-      const d = new Date(t.played_at || '');
-      if (!isNaN(d.getTime())) hourCount[d.getHours()]++;
-    }
-    const h = hourCount.indexOf(Math.max(...hourCount));
-    const format = (hr: number) => (hr === 0 ? '12 AM' : hr < 12 ? `${hr} AM` : hr === 12 ? '12 PM' : `${hr - 12} PM`);
-    return `${format(h)} - ${format((h + 1) % 24)}`;
-  };
-
   const timeData = getTimePreference();
   const streakData = getListeningStreak();
-  const skipData = getSkipRate();
   const avgLength = getAverageLength();
-  const activeTime = mostActiveHour();
 
   return (
     <div className="space-y-6">
@@ -166,7 +133,7 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
             <Badge variant="outline" className="text-yellow-400 border-yellow-400 mb-3">
               {timeData.preference} Listener
             </Badge>
-            <div className="text-sm text-yellow-300 mb-3">Most Active: {activeTime}</div>
+            <div className="text-sm text-yellow-300 mb-3">Most Active: {timeData.mostActive}</div>
           </FeatureCard>
 
           <FeatureCard title="Listening Streaks" description="Your consistency tracking" icon={<Activity className="h-6 w-6 text-red-400" />} isLocked={isLocked}>
@@ -177,16 +144,8 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
               </div>
               <div>
                 <div className="text-xl font-semibold text-red-300 mb-1">{streakData.longest}</div>
-                <div className="text-xs text-red-200">Longest Streak</div>
+                <div className="text-xs text-red-200">Total Active Days</div>
               </div>
-            </div>
-          </FeatureCard>
-
-          <FeatureCard title="Skip Behavior" description="How selective you are" icon={<SkipForward className="h-5 w-5 text-orange-400" />} isLocked={isLocked}>
-            <div className="text-center space-y-2">
-              <div className="text-2xl font-bold text-orange-400">{skipData.rate}</div>
-              <div className="text-sm text-orange-300">Estimated Skip Rate</div>
-              <div className="text-xs text-orange-200">{skipData.quality}</div>
             </div>
           </FeatureCard>
 
@@ -194,7 +153,7 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
             <div className="text-center space-y-2">
               <div className="text-2xl font-bold text-indigo-400">{avgLength}</div>
               <div className="text-sm text-indigo-300">Average Length</div>
-              <div className="text-xs text-indigo-200">Based on recent plays</div>
+              <div className="text-xs text-indigo-200">Based on {recentlyPlayed.length} recent plays</div>
             </div>
           </FeatureCard>
 
@@ -205,6 +164,22 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
               </div>
               <div className="text-sm text-pink-300">Engagement Level</div>
               <div className="text-xs text-pink-200">{recentlyPlayed.length} recent tracks analyzed</div>
+            </div>
+          </FeatureCard>
+
+          <FeatureCard title="Music Discovery" description="How much you explore new music" icon={<TrendingUp className="h-5 w-5 text-green-400" />} isLocked={isLocked}>
+            <div className="text-center space-y-2">
+              <div className="text-xl font-bold text-green-400">
+                {(() => {
+                  const uniqueArtists = new Set(recentlyPlayed.map(t => t.artists[0]?.name)).size;
+                  const discoveryRate = recentlyPlayed.length > 0 ? (uniqueArtists / recentlyPlayed.length * 100) : 0;
+                  return discoveryRate > 70 ? 'Explorer' : discoveryRate > 40 ? 'Balanced' : 'Focused';
+                })()}
+              </div>
+              <div className="text-sm text-green-300">Discovery Style</div>
+              <div className="text-xs text-green-200">
+                {new Set(recentlyPlayed.map(t => t.artists[0]?.name)).size} unique artists
+              </div>
             </div>
           </FeatureCard>
         </div>
