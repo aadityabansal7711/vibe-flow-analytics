@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -183,13 +184,22 @@ const Dashboard = () => {
           {/* Core Insights */}
           <div>
             <h2 className="text-2xl font-bold text-gradient mb-6">Your Music Insights</h2>
-            <CoreInsights spotifyData={spotifyData} />
+            <CoreInsights 
+              topTracks={spotifyData.topTracks} 
+              topArtists={spotifyData.topArtists} 
+              recentlyPlayed={spotifyData.recentlyPlayed}
+              isLocked={false}
+            />
           </div>
 
           {/* Listening Behavior */}
           <div>
             <h2 className="text-2xl font-bold text-gradient mb-6">Listening Behavior</h2>
-            <ListeningBehavior spotifyData={spotifyData} />
+            <ListeningBehavior 
+              topTracks={spotifyData.topTracks} 
+              recentlyPlayed={spotifyData.recentlyPlayed}
+              isLocked={false}
+            />
           </div>
 
           {/* Personality Analytics - Premium Feature */}
@@ -204,7 +214,12 @@ const Dashboard = () => {
               )}
             </div>
             {profile?.has_active_subscription ? (
-              <PersonalityAnalytics spotifyData={spotifyData} />
+              <PersonalityAnalytics 
+                topTracks={spotifyData.topTracks} 
+                topArtists={spotifyData.topArtists}
+                recentlyPlayed={spotifyData.recentlyPlayed}
+                isLocked={false}
+              />
             ) : (
               <Card className="glass-effect border-border/50 p-8 text-center">
                 <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -234,7 +249,13 @@ const Dashboard = () => {
               )}
             </div>
             {profile?.has_active_subscription ? (
-              <ShareableCards spotifyData={spotifyData} />
+              <ShareableCards 
+                isLocked={false}
+                profile={profile}
+                topTracks={spotifyData.topTracks}
+                topArtists={spotifyData.topArtists}
+                recentlyPlayed={spotifyData.recentlyPlayed}
+              />
             ) : (
               <Card className="glass-effect border-border/50 p-8 text-center">
                 <Share className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -255,7 +276,11 @@ const Dashboard = () => {
           {/* Special Highlights */}
           <div>
             <h2 className="text-2xl font-bold text-gradient mb-6">Special Highlights</h2>
-            <SpecialHighlights spotifyData={spotifyData} />
+            <SpecialHighlights 
+              topTracks={spotifyData.topTracks} 
+              topArtists={spotifyData.topArtists}
+              recentlyPlayed={spotifyData.recentlyPlayed}
+            />
           </div>
         </div>
       </div>
