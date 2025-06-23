@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import PromoCodeManager from '@/components/PromoCodeManager';
+import CustomPricingManager from '@/components/CustomPricingManager';
+import ContactRequestsManager from '@/components/ContactRequestsManager';
 import { 
   Users, 
   UserCheck, 
@@ -26,7 +28,9 @@ import {
   Music,
   Gift,
   Plus,
-  Edit
+  Edit,
+  DollarSign,
+  MessageSquare
 } from 'lucide-react';
 
 interface User {
@@ -80,6 +84,8 @@ const Admin = () => {
     spotifyConnected: 0,
     newUsersToday: 0
   });
+
+  const [activeSection, setActiveSection] = useState('users');
 
   useEffect(() => {
     fetchUsers();
@@ -454,302 +460,353 @@ const Admin = () => {
           </Alert>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="glass-effect border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">All registered users</p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-effect border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Premium Users</CardTitle>
-              <Star className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.premiumUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats.totalUsers > 0 ? Math.round((stats.premiumUsers / stats.totalUsers) * 100) : 0}% conversion rate
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-effect border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Spotify Connected</CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.spotifyConnected}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats.totalUsers > 0 ? Math.round((stats.spotifyConnected / stats.totalUsers) * 100) : 0}% connection rate
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-effect border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">New Today</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.newUsersToday}</div>
-              <p className="text-xs text-muted-foreground">Users registered today</p>
-            </CardContent>
-          </Card>
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          <Button
+            variant={activeSection === 'users' ? 'default' : 'outline'}
+            onClick={() => setActiveSection('users')}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Users
+          </Button>
+          <Button
+            variant={activeSection === 'giveaways' ? 'default' : 'outline'}
+            onClick={() => setActiveSection('giveaways')}
+          >
+            <Gift className="mr-2 h-4 w-4" />
+            Giveaways
+          </Button>
+          <Button
+            variant={activeSection === 'promos' ? 'default' : 'outline'}
+            onClick={() => setActiveSection('promos')}
+          >
+            <Star className="mr-2 h-4 w-4" />
+            Promo Codes
+          </Button>
+          <Button
+            variant={activeSection === 'pricing' ? 'default' : 'outline'}
+            onClick={() => setActiveSection('pricing')}
+          >
+            <DollarSign className="mr-2 h-4 w-4" />
+            Custom Pricing
+          </Button>
+          <Button
+            variant={activeSection === 'contacts' ? 'default' : 'outline'}
+            onClick={() => setActiveSection('contacts')}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Contact Requests
+          </Button>
         </div>
 
-        {/* Promo Code Management */}
-        <div className="mb-8">
-          <PromoCodeManager />
-        </div>
+        {activeSection === 'users' && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card className="glass-effect border-border/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{stats.totalUsers}</div>
+                <p className="text-xs text-muted-foreground">All registered users</p>
+              </CardContent>
+            </Card>
 
-        {/* Giveaway Management */}
-        <Card className="glass-effect border-border/50 mb-8">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center justify-between">
-              <div className="flex items-center">
-                <Gift className="mr-2 h-5 w-5" />
-                Weekly Giveaways ({giveaways.length})
-              </div>
-              <Button onClick={() => { setShowGiveawayForm(!showGiveawayForm); setEditingGiveaway(null); setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' }); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                {showGiveawayForm ? 'Cancel' : 'New Giveaway'}
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {showGiveawayForm && (
-              <form onSubmit={createGiveaway} className="mb-6 p-4 bg-background/30 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="gift_name">Gift Name *</Label>
+            <Card className="glass-effect border-border/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Premium Users</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{stats.premiumUsers}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalUsers > 0 ? Math.round((stats.premiumUsers / stats.totalUsers) * 100) : 0}% conversion rate
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-effect border-border/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Spotify Connected</CardTitle>
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{stats.spotifyConnected}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalUsers > 0 ? Math.round((stats.spotifyConnected / stats.totalUsers) * 100) : 0}% connection rate
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-effect border-border/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">New Today</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{stats.newUsersToday}</div>
+                <p className="text-xs text-muted-foreground">Users registered today</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {activeSection === 'users' && (
+            <>
+              <Card className="glass-effect border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-foreground flex items-center">
+                    <Database className="mr-2 h-5 w-5" />
+                    User Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="gift_name"
-                      value={giveawayForm.gift_name}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_name: e.target.value})}
-                      placeholder="Enter gift name"
-                      required
+                      placeholder="Search users by email or name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 bg-background/50 border-border text-foreground"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="gift_price">Gift Price (₹) *</Label>
-                    <Input
-                      id="gift_price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={giveawayForm.gift_price}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_price: e.target.value})}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="gift_image_url">Gift Image URL (optional)</Label>
-                    <Input
-                      id="gift_image_url"
-                      type="url"
-                      value={giveawayForm.gift_image_url}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_image_url: e.target.value})}
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="withdrawal_date">Withdrawal Date *</Label>
-                    <Input
-                      id="withdrawal_date"
-                      type="datetime-local"
-                      value={giveawayForm.withdrawal_date}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, withdrawal_date: e.target.value})}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <Button type="submit">
-                    {editingGiveaway ? 'Update' : 'Create'} Giveaway
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => { setShowGiveawayForm(false); setEditingGiveaway(null); }}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            )}
 
-            <div className="space-y-3">
-              {giveaways.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Gift className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No giveaways created yet. Create your first giveaway above!</p>
-                </div>
-              ) : (
-                giveaways.map((giveaway) => (
-                  <div key={giveaway.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
-                    <div className="flex-1">
-                      <h3 className="text-foreground font-medium">{giveaway.gift_name}</h3>
-                      <p className="text-muted-foreground text-sm">₹{giveaway.gift_price}</p>
-                      <p className="text-muted-foreground text-xs">
-                        Withdrawal: {formatDate(giveaway.withdrawal_date)}
-                      </p>
-                      {giveaway.winner_name && (
-                        <p className="text-green-400 text-xs">
-                          Winner: {giveaway.winner_name} ({giveaway.winner_email})
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={giveaway.is_active ? "default" : "secondary"}>
-                        {giveaway.is_active ? 'Active' : 'Completed'}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => editGiveaway(giveaway)}
-                        disabled={actionLoading === giveaway.id}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteGiveaway(giveaway.id, giveaway.gift_name)}
-                        disabled={actionLoading === giveaway.id}
-                        className="text-red-400 border-red-400 hover:bg-red-400/10"
-                      >
-                        {actionLoading === giveaway.id ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </Button>
-                      {giveaway.is_active && !giveaway.winner_user_id && (
-                        <Button
-                          size="sm"
-                          onClick={() => selectRandomWinner(giveaway.id)}
-                        >
-                          Select Winner
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* User Management */}
-        <Card className="glass-effect border-border/50">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center">
-              <Database className="mr-2 h-5 w-5" />
-              User Management
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search users by email or name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-background/50 border-border text-foreground"
-              />
-            </div>
-
-            {/* User List */}
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {filteredUsers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  {searchTerm ? 'No users found matching your search.' : 'No users found.'}
-                </div>
-              ) : (
-                filteredUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-foreground font-medium">{user.email}</span>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {filteredUsers.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        {searchTerm ? 'No users found matching your search.' : 'No users found.'}
                       </div>
-                      {user.full_name && (
-                        <p className="text-sm text-muted-foreground mb-2">{user.full_name}</p>
-                      )}
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          Joined {formatDate(user.created_at)}
-                        </span>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <div key={user.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-foreground font-medium">{user.email}</span>
+                            </div>
+                            {user.full_name && (
+                              <p className="text-sm text-muted-foreground mb-2">{user.full_name}</p>
+                            )}
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Calendar className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                Joined {formatDate(user.created_at)}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant={user.has_active_subscription ? "default" : "secondary"}>
+                                {user.has_active_subscription ? 'Premium' : 'Free'}
+                              </Badge>
+                              {user.spotify_connected && (
+                                <Badge variant="outline" className="text-green-400 border-green-400">
+                                  <Music className="mr-1 h-3 w-3" />
+                                  Spotify
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {user.has_active_subscription ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => revokePremium(user.user_id)}
+                                disabled={actionLoading === user.id}
+                                className="text-red-400 border-red-400 hover:bg-red-400/10"
+                              >
+                                {actionLoading === user.id ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => grantPremium(user.user_id)}
+                                disabled={actionLoading === user.id}
+                                className="text-green-400 border-green-400 hover:bg-green-400/10"
+                              >
+                                {actionLoading === user.id ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Check className="h-3 w-3" />
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteUser(user.user_id, user.email)}
+                              disabled={actionLoading === user.id}
+                              className="text-red-400 border-red-400 hover:bg-red-400/10"
+                            >
+                              {actionLoading === user.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {activeSection === 'giveaways' && (
+            <Card className="glass-effect border-border/50">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Gift className="mr-2 h-5 w-5" />
+                    Weekly Giveaways ({giveaways.length})
+                  </div>
+                  <Button onClick={() => { setShowGiveawayForm(!showGiveawayForm); setEditingGiveaway(null); setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' }); }}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {showGiveawayForm ? 'Cancel' : 'New Giveaway'}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {showGiveawayForm && (
+                  <form onSubmit={createGiveaway} className="mb-6 p-4 bg-background/30 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="gift_name">Gift Name *</Label>
+                        <Input
+                          id="gift_name"
+                          value={giveawayForm.gift_name}
+                          onChange={(e) => setGiveawayForm({...giveawayForm, gift_name: e.target.value})}
+                          placeholder="Enter gift name"
+                          required
+                        />
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={user.has_active_subscription ? "default" : "secondary"}>
-                          {user.has_active_subscription ? 'Premium' : 'Free'}
-                        </Badge>
-                        {user.spotify_connected && (
-                          <Badge variant="outline" className="text-green-400 border-green-400">
-                            <Music className="mr-1 h-3 w-3" />
-                            Spotify
+                      <div>
+                        <Label htmlFor="gift_price">Gift Price (₹) *</Label>
+                        <Input
+                          id="gift_price"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={giveawayForm.gift_price}
+                          onChange={(e) => setGiveawayForm({...giveawayForm, gift_price: e.target.value})}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="gift_image_url">Gift Image URL (optional)</Label>
+                        <Input
+                          id="gift_image_url"
+                          type="url"
+                          value={giveawayForm.gift_image_url}
+                          onChange={(e) => setGiveawayForm({...giveawayForm, gift_image_url: e.target.value})}
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="withdrawal_date">Withdrawal Date *</Label>
+                        <Input
+                          id="withdrawal_date"
+                          type="datetime-local"
+                          value={giveawayForm.withdrawal_date}
+                          onChange={(e) => setGiveawayForm({...giveawayForm, withdrawal_date: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Button type="submit">
+                        {editingGiveaway ? 'Update' : 'Create'} Giveaway
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => { setShowGiveawayForm(false); setEditingGiveaway(null); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="space-y-3">
+                  {giveaways.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Gift className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No giveaways created yet. Create your first giveaway above!</p>
+                    </div>
+                  ) : (
+                    giveaways.map((giveaway) => (
+                      <div key={giveaway.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
+                        <div className="flex-1">
+                          <h3 className="text-foreground font-medium">{giveaway.gift_name}</h3>
+                          <p className="text-muted-foreground text-sm">₹{giveaway.gift_price}</p>
+                          <p className="text-muted-foreground text-xs">
+                            Withdrawal: {formatDate(giveaway.withdrawal_date)}
+                          </p>
+                          {giveaway.winner_name && (
+                            <p className="text-green-400 text-xs">
+                              Winner: {giveaway.winner_name} ({giveaway.winner_email})
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={giveaway.is_active ? "default" : "secondary"}>
+                            {giveaway.is_active ? 'Active' : 'Completed'}
                           </Badge>
-                        )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => editGiveaway(giveaway)}
+                            disabled={actionLoading === giveaway.id}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteGiveaway(giveaway.id, giveaway.gift_name)}
+                            disabled={actionLoading === giveaway.id}
+                            className="text-red-400 border-red-400 hover:bg-red-400/10"
+                          >
+                            {actionLoading === giveaway.id ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </Button>
+                          {giveaway.is_active && !giveaway.winner_user_id && (
+                            <Button
+                              size="sm"
+                              onClick={() => selectRandomWinner(giveaway.id)}
+                            >
+                              Select Winner
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {user.has_active_subscription ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => revokePremium(user.user_id)}
-                          disabled={actionLoading === user.id}
-                          className="text-red-400 border-red-400 hover:bg-red-400/10"
-                        >
-                          {actionLoading === user.id ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <X className="h-3 w-3" />
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => grantPremium(user.user_id)}
-                          disabled={actionLoading === user.id}
-                          className="text-green-400 border-green-400 hover:bg-green-400/10"
-                        >
-                          {actionLoading === user.id ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Check className="h-3 w-3" />
-                          )}
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteUser(user.user_id, user.email)}
-                        disabled={actionLoading === user.id}
-                        className="text-red-400 border-red-400 hover:bg-red-400/10"
-                      >
-                        {actionLoading === user.id ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSection === 'promos' && (
+            <PromoCodeManager />
+          )}
+
+          {activeSection === 'pricing' && (
+            <CustomPricingManager />
+          )}
+
+          {activeSection === 'contacts' && (
+            <ContactRequestsManager />
+          )}
+        </div>
       </div>
     </div>
   );
