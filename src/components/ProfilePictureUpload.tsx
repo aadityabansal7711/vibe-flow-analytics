@@ -32,7 +32,7 @@ const ProfilePictureUpload = () => {
 
       if (error) throw error;
 
-      await updateProfile();
+      updateProfile();
       toast.success('Profile picture updated successfully!');
     } catch (error) {
       console.error('Error uploading profile picture:', error);

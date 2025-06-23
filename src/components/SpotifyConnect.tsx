@@ -66,7 +66,7 @@ const SpotifyConnect = () => {
 
       if (error) throw error;
 
-      await updateProfile();
+      updateProfile();
       toast.success('Spotify account disconnected successfully');
     } catch (error) {
       console.error('Error disconnecting Spotify:', error);
@@ -84,7 +84,7 @@ const SpotifyConnect = () => {
 
       if (error) throw error;
 
-      await updateProfile();
+      updateProfile();
       toast.success('Spotify token refreshed successfully');
     } catch (error) {
       console.error('Error refreshing Spotify token:', error);

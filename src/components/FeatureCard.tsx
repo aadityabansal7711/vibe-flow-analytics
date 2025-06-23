@@ -9,11 +9,13 @@ interface FeatureCardProps {
   title: string;
   description: string;
   isLocked?: boolean;
+  children?: React.ReactNode;
+  className?: string;
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, isLocked = false }) => {
+const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, isLocked = false, children, className }) => {
   return (
-    <Card className={`glass-effect border-border/50 p-6 hover:scale-105 transition-all duration-300 ${isLocked ? 'opacity-75' : ''}`}>
+    <Card className={`glass-effect border-border/50 p-6 hover:scale-105 transition-all duration-300 ${isLocked ? 'opacity-75' : ''} ${className || ''}`}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -34,6 +36,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, isL
         <CardDescription className="text-muted-foreground leading-relaxed">
           {description}
         </CardDescription>
+        {children && <div className="mt-4">{children}</div>}
       </CardContent>
     </Card>
   );
