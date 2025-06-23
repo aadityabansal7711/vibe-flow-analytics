@@ -277,9 +277,13 @@ const Dashboard = () => {
           <div>
             <h2 className="text-2xl font-bold text-gradient mb-6">Special Highlights</h2>
             <SpecialHighlights 
+              spotifyAccessToken={profile?.spotify_access_token || ''}
+              spotifyUserId={profile?.spotify_user_id || ''}
               topTracks={spotifyData.topTracks} 
               topArtists={spotifyData.topArtists}
               recentlyPlayed={spotifyData.recentlyPlayed}
+              isLocked={!profile?.has_active_subscription}
+              hasActiveSubscription={profile?.has_active_subscription || false}
             />
           </div>
         </div>
