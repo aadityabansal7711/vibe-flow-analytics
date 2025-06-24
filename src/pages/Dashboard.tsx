@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,7 @@ import ShareableCards from '@/components/dashboard/ShareableCards';
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
-  const { topTracks, topArtists, recentlyPlayed, loading } = useSpotifyData();
+  const { topTracks, topArtists, recentlyPlayed, loading, error } = useSpotifyData();
   const [activeTab, setActiveTab] = useState('core');
 
   if (!user) {
@@ -41,6 +40,20 @@ const Dashboard = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <div className="text-white text-xl">Loading your music insights...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center text-white">
+          <h2 className="text-xl mb-4">Error loading data</h2>
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
         </div>
       </div>
     );

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCustomPricing } from '@/hooks/useCustomPricing';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Crown, 
@@ -30,6 +31,7 @@ declare global {
 
 const Buy = () => {
   const { user, profile } = useAuth();
+  const { getPrice, getDiscount, hasCustomPricing } = useCustomPricing();
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoMessage, setPromoMessage] = useState('');
@@ -40,8 +42,10 @@ const Buy = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const basePrice = 499; // INR 499 yearly
-  const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
+  const basePrice = getPrice();
+  const customDiscount = getDiscount();
+  const totalDiscount = Math.max(promoDiscount, customDiscount);
+  const discountedPrice = Math.round(basePrice * (1 - totalDiscount / 100));
 
   useEffect(() => {
     // Load Razorpay script
@@ -105,33 +109,25 @@ const Buy = () => {
     setPaymentProcessing(true);
 
     try {
-      // Create order on backend first
       const { data: { session } } = await supabase.auth.getSession();
       
-      const orderResponse = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: discountedPrice * 100, // Convert to paise
+      const { data: orderData, error } = await supabase.functions.invoke('create-order', {
+        body: {
+          amount: discountedPrice * 100,
           currency: 'INR',
           user_id: user.id,
           promo_code: promoCode || null,
-          discount: promoDiscount
-        })
+          discount: totalDiscount
+        }
       });
 
-      if (!orderResponse.ok) {
+      if (error) {
         throw new Error('Failed to create order');
       }
 
-      const orderData = await orderResponse.json();
-
       const options = {
         key: 'rzp_live_spLJgQSWhiE0KB',
-        amount: discountedPrice * 100, // amount in paise
+        amount: discountedPrice * 100,
         currency: 'INR',
         name: 'MyVibeLytics',
         description: 'Premium Yearly Subscription',
@@ -140,29 +136,23 @@ const Buy = () => {
         handler: async function (response: any) {
           console.log('Payment successful:', response);
           
-          // Verify payment on backend
           try {
-            const verifyResponse = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session?.access_token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
+            const { error: verifyError } = await supabase.functions.invoke('verify-payment', {
+              body: {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
                 user_id: user.id,
                 amount: discountedPrice,
                 promo_code: promoCode || null
-              })
+              }
             });
 
-            if (verifyResponse.ok) {
-              window.location.href = '/dashboard?upgraded=true';
-            } else {
+            if (verifyError) {
               throw new Error('Payment verification failed');
             }
+
+            window.location.href = '/dashboard?upgraded=true';
           } catch (error) {
             console.error('Error verifying payment:', error);
             alert('Payment successful but verification failed. Please contact support.');
@@ -175,7 +165,7 @@ const Buy = () => {
         notes: {
           user_id: user.id,
           promo_code: promoCode || '',
-          discount: promoDiscount
+          discount: totalDiscount
         },
         theme: {
           color: '#6366f1'
@@ -253,13 +243,22 @@ const Buy = () => {
                   </Badge>
                 </div>
                 <div className="flex items-baseline space-x-2">
-                  {promoDiscount > 0 ? (
+                  {(totalDiscount > 0 || hasCustomPricing) ? (
                     <>
-                      <span className="text-3xl font-bold text-muted-foreground line-through">₹{basePrice}</span>
+                      {!hasCustomPricing && (
+                        <span className="text-3xl font-bold text-muted-foreground line-through">₹499</span>
+                      )}
                       <span className="text-4xl font-bold text-primary">₹{discountedPrice}</span>
-                      <Badge variant="destructive" className="ml-2">
-                        {promoDiscount}% OFF
-                      </Badge>
+                      {totalDiscount > 0 && (
+                        <Badge variant="destructive" className="ml-2">
+                          {totalDiscount}% OFF
+                        </Badge>
+                      )}
+                      {hasCustomPricing && (
+                        <Badge variant="outline" className="ml-2 text-green-400 border-green-400">
+                          Special Offer
+                        </Badge>
+                      )}
                     </>
                   ) : (
                     <span className="text-4xl font-bold text-primary">₹{basePrice}</span>
@@ -278,37 +277,48 @@ const Buy = () => {
                   ))}
                 </div>
 
-                {/* Promo Code Section */}
-                <div className="bg-background/30 rounded-lg p-4 mb-6">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Tag className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-foreground">Have a promo code?</span>
+                {/* Promo Code Section - only show if no custom pricing */}
+                {!hasCustomPricing && (
+                  <div className="bg-background/30 rounded-lg p-4 mb-6">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <Tag className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground">Have a promo code?</span>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Input
+                        placeholder="Enter promo code"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={validatePromoCode}
+                        disabled={checkingPromo || !promoCode.trim()}
+                        variant="outline"
+                        size="sm"
+                        className="transition-all duration-300 hover:scale-105"
+                      >
+                        {checkingPromo ? 'Checking...' : 'Apply'}
+                      </Button>
+                    </div>
+                    {promoMessage && (
+                      <Alert className={`mt-3 ${promoDiscount > 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                        <AlertDescription className={promoDiscount > 0 ? 'text-green-400' : 'text-red-400'}>
+                          {promoMessage}
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
-                  <div className="flex space-x-2">
-                    <Input
-                      placeholder="Enter promo code"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                      className="flex-1"
-                    />
-                    <Button 
-                      onClick={validatePromoCode}
-                      disabled={checkingPromo || !promoCode.trim()}
-                      variant="outline"
-                      size="sm"
-                      className="transition-all duration-300 hover:scale-105"
-                    >
-                      {checkingPromo ? 'Checking...' : 'Apply'}
-                    </Button>
-                  </div>
-                  {promoMessage && (
-                    <Alert className={`mt-3 ${promoDiscount > 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                      <AlertDescription className={promoDiscount > 0 ? 'text-green-400' : 'text-red-400'}>
-                        {promoMessage}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
+                )}
+
+                {/* Custom Pricing Notice */}
+                {hasCustomPricing && (
+                  <Alert className="mb-6 border-green-500/20 bg-green-500/5">
+                    <AlertDescription className="text-green-400">
+                      🎉 You have a special offer! Enjoy premium features at a discounted price.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {/* Payment Button */}
                 <Button 
@@ -354,7 +364,12 @@ const Buy = () => {
                   <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                   <div>
                     <h4 className="font-medium text-foreground">Great Value</h4>
-                    <p className="text-sm text-muted-foreground">Only ₹499 per year - less than ₹42 per month</p>
+                    <p className="text-sm text-muted-foreground">
+                      {hasCustomPricing 
+                        ? `Special price: ₹${discountedPrice} per year`
+                        : `Only ₹${basePrice} per year - less than ₹${Math.round(basePrice/12)} per month`
+                      }
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">

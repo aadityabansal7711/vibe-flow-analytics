@@ -39,6 +39,39 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_private: boolean
+          max_members: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean
+          max_members?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean
+          max_members?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string
@@ -144,6 +177,51 @@ export type Database = {
           name?: string
           status?: string | null
           subject?: string | null
+        }
+        Relationships: []
+      }
+      custom_pricing: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          custom_price: number
+          discount_percentage: number | null
+          email: string
+          id: string
+          is_active: boolean
+          reason: string | null
+          updated_at: string
+          user_id: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          custom_price: number
+          discount_percentage?: number | null
+          email: string
+          id?: string
+          is_active?: boolean
+          reason?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          custom_price?: number
+          discount_percentage?: number | null
+          email?: string
+          id?: string
+          is_active?: boolean
+          reason?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valid_until?: string | null
         }
         Relationships: []
       }
@@ -269,6 +347,85 @@ export type Database = {
           withdrawal_date?: string
         }
         Relationships: []
+      }
+      group_members: {
+        Row: {
+          group_id: string | null
+          id: string
+          joined_at: string
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          group_id?: string | null
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string | null
+        }
+        Update: {
+          group_id?: string | null
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_messages: {
+        Row: {
+          created_at: string
+          group_id: string | null
+          id: string
+          is_flagged: boolean | null
+          message: string
+          message_type: string | null
+          metadata: Json | null
+          sender_display_name: string | null
+          sender_id: string | null
+          sender_username: string
+        }
+        Insert: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          message: string
+          message_type?: string | null
+          metadata?: Json | null
+          sender_display_name?: string | null
+          sender_id?: string | null
+          sender_username: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          message?: string
+          message_type?: string | null
+          metadata?: Json | null
+          sender_display_name?: string | null
+          sender_id?: string | null
+          sender_username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -438,6 +595,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity: {
+        Row: {
+          activity_data: Json | null
+          activity_type: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_data?: Json | null
+          activity_type: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_data?: Json | null
+          activity_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_insights: {
         Row: {
           created_at: string | null
@@ -514,6 +701,36 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          role?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       webhook_events: {
         Row: {
           created_at: string | null
@@ -546,6 +763,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_admin: {
+        Args: { user_id?: string }
+        Returns: boolean
+      }
+      log_user_activity: {
+        Args: { activity_type: string; activity_data?: Json; user_id?: string }
+        Returns: string
+      }
       use_promo_code: {
         Args: { promo_code: string }
         Returns: boolean

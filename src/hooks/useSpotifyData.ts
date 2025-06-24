@@ -10,7 +10,9 @@ interface SpotifyTrack {
   popularity: number;
   preview_url?: string;
   external_urls: { spotify: string };
-  uri: string; // Added uri property
+  uri: string;
+  played_at?: string;
+  duration_ms?: number;
 }
 
 interface SpotifyArtist {
@@ -23,165 +25,79 @@ interface SpotifyArtist {
   external_urls: { spotify: string };
 }
 
-interface SpotifyData {
-  topTracks: SpotifyTrack[];
-  topArtists: SpotifyArtist[];
-  recentlyPlayed: SpotifyTrack[];
-  currentlyPlaying?: SpotifyTrack;
-  loading: boolean;
-  error: string | null;
-}
-
-const useSpotifyData = (): SpotifyData => {
-  const { profile, getValidSpotifyToken, updateProfile } = useAuth();
-  const [data, setData] = useState<SpotifyData>({
-    topTracks: [],
-    topArtists: [],
-    recentlyPlayed: [],
-    loading: false,
-    error: null
-  });
+const useSpotifyData = () => {
+  const { profile, getValidSpotifyToken } = useAuth();
+  const [topTracks, setTopTracks] = useState<SpotifyTrack[]>([]);
+  const [topArtists, setTopArtists] = useState<SpotifyArtist[]>([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<SpotifyTrack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSpotifyData = async () => {
     if (!profile?.spotify_connected) {
-      console.log('❌ Spotify not connected');
-      setData(prev => ({ ...prev, loading: false, error: 'Please connect your Spotify account' }));
+      setLoading(false);
       return;
     }
 
-    setData(prev => ({ ...prev, loading: true, error: null }));
-    console.log('🎵 Fetching Spotify data with auto-refresh...');
-
     try {
-      // Get a valid token (will auto-refresh if needed)
-      const accessToken = await getValidSpotifyToken();
-      
-      if (!accessToken) {
-        console.error('❌ Could not obtain valid access token');
-        setData(prev => ({ 
-          ...prev, 
-          loading: false, 
-          error: 'Failed to get valid access token. Please reconnect your Spotify account.' 
-        }));
-        return;
+      setLoading(true);
+      setError(null);
+
+      const token = await getValidSpotifyToken();
+      if (!token) {
+        throw new Error('Unable to get valid Spotify token');
       }
 
-      const makeSpotifyRequest = async (url: string): Promise<Response> => {
-        console.log(`📡 Making request to: ${url.replace('https://api.spotify.com/v1/', '')}`);
-        
-        const response = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-
-        console.log(`📊 Response status: ${response.status}`);
-
-        if (response.status === 401) {
-          console.error('❌ Token invalid - clearing connection');
-          await updateProfile({
-            spotify_connected: false,
-            spotify_access_token: null,
-            spotify_refresh_token: null,
-            spotify_token_expires_at: null
-          });
-          throw new Error('Spotify session expired. Please reconnect your account.');
-        }
-
-        return response;
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
       };
 
-      console.log('📡 Starting API requests...');
-
-      // Fetch data with proper error handling
-      const [topTracksRes, topArtistsRes, recentlyPlayedRes] = await Promise.all([
-        makeSpotifyRequest('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term'),
-        makeSpotifyRequest('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term'),
-        makeSpotifyRequest('https://api.spotify.com/v1/me/player/recently-played?limit=20')
-      ]);
-
-      console.log('📊 API requests completed');
-
-      const processResponse = async (response: Response, name: string) => {
-        if (response.ok) {
-          try {
-            const text = await response.text();
-            if (!text) {
-              console.log(`📭 No content for ${name}`);
-              return null;
-            }
-            const data = JSON.parse(text);
-            console.log(`✅ ${name} data:`, data.items?.length || 0, 'items');
-            return data;
-          } catch (e) {
-            console.error(`❌ Error parsing ${name} response:`, e);
-            return null;
-          }
-        } else if (response.status === 204) {
-          console.log(`📭 No content for ${name}`);
-          return null;
-        } else if (response.status === 403) {
-          console.warn(`🚫 Insufficient permissions for ${name}`);
-          return null;
-        } else {
-          const errorText = await response.text().catch(() => 'Unknown error');
-          console.error(`❌ ${name} request failed:`, response.status, errorText);
-          return null;
-        }
-      };
-
-      const [topTracksData, topArtistsData, recentlyPlayedData] = await Promise.all([
-        processResponse(topTracksRes, 'top tracks'),
-        processResponse(topArtistsRes, 'top artists'),
-        processResponse(recentlyPlayedRes, 'recently played')
-      ]);
-
-      const topTracks = topTracksData?.items || [];
-      const topArtists = topArtistsData?.items || [];
-      const recentlyPlayed = recentlyPlayedData?.items?.map((item: any) => item.track) || [];
-
-      console.log('✅ Spotify data processed successfully:', {
-        topTracks: topTracks.length,
-        topArtists: topArtists.length,
-        recentlyPlayed: recentlyPlayed.length
-      });
-
-      if (topTracks.length === 0 && topArtists.length === 0 && recentlyPlayed.length === 0) {
-        setData(prev => ({ 
-          ...prev, 
-          loading: false, 
-          error: 'No Spotify data found. Try listening to some music first!' 
-        }));
-        return;
+      // Fetch top tracks
+      const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { headers });
+      if (topTracksResponse.ok) {
+        const topTracksData = await topTracksResponse.json();
+        setTopTracks(topTracksData.items || []);
       }
 
-      setData({
-        topTracks,
-        topArtists,
-        recentlyPlayed,
-        loading: false,
-        error: null
-      });
+      // Fetch top artists
+      const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', { headers });
+      if (topArtistsResponse.ok) {
+        const topArtistsData = await topArtistsResponse.json();
+        setTopArtists(topArtistsData.items || []);
+      }
 
-    } catch (error: any) {
-      console.error('❌ Error fetching Spotify data:', error);
-      setData(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: `Failed to fetch Spotify data: ${error.message}` 
-      }));
+      // Fetch recently played
+      const recentResponse = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { headers });
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json();
+        const tracks = recentData.items?.map((item: any) => ({
+          ...item.track,
+          played_at: item.played_at
+        })) || [];
+        setRecentlyPlayed(tracks);
+      }
+
+    } catch (err: any) {
+      console.error('Error fetching Spotify data:', err);
+      setError(err.message || 'Failed to load Spotify data');
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (profile?.spotify_connected) {
-      console.log('🎵 Profile has Spotify connection, fetching data...');
-      fetchSpotifyData();
-    } else {
-      console.log('❌ No Spotify connection found in profile');
-      setData(prev => ({ ...prev, loading: false }));
-    }
+    fetchSpotifyData();
   }, [profile?.spotify_connected, profile?.spotify_access_token]);
 
-  return data;
+  return {
+    topTracks,
+    topArtists,
+    recentlyPlayed,
+    loading,
+    error,
+    refetch: fetchSpotifyData
+  };
 };
 
 export default useSpotifyData;
