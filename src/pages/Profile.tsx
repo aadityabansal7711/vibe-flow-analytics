@@ -22,9 +22,12 @@ import {
 import { toast } from 'sonner';
 
 const Profile = () => {
-  const { user, profile, loading, signOut, disconnectSpotify, isUnlocked } = useAuth();
+  const { user, profile, loading, signOut, disconnectSpotify, isUnlocked, updateProfile } = useAuth();
   const [disconnecting, setDisconnecting] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [isLoading, setIsLoading] = useState(false);
 
   if (loading) {
     return (
@@ -67,6 +70,25 @@ const Profile = () => {
       console.error('Error disconnecting Spotify:', error);
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    if (!fullName.trim()) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await updateProfile({ full_name: fullName.trim() });
+      setIsEditing(false);
+      toast.success('Name updated successfully');
+    } catch (error) {
+      console.error('Error updating name:', error);
+      toast.error('Failed to update name');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -135,7 +157,15 @@ const Profile = () => {
                 <div className="flex items-center space-x-6">
                   <ProfilePictureUpload />
                   <div className="flex-1">
-                    <EditName />
+                    <EditName 
+                      isEditing={isEditing}
+                      setIsEditing={setIsEditing}
+                      fullName={fullName}
+                      setFullName={setFullName}
+                      isLoading={isLoading}
+                      handleUpdateName={handleUpdateName}
+                      profile={profile}
+                    />
                     <p className="text-sm text-muted-foreground mt-2">
                       Email: {profile?.email}
                     </p>
@@ -321,7 +351,6 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
             <Card className="glass-effect border-border/50">
               <CardHeader>
                 <CardTitle className="text-foreground">Quick Actions</CardTitle>

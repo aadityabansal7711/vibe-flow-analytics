@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,6 +66,7 @@ interface AuthContextType {
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   fetchProfile: () => Promise<void>;
   getCustomPrice: () => number;
+  getValidSpotifyToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -156,6 +156,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     return 99900; // Default price in paise (₹999)
+  };
+
+  const getValidSpotifyToken = async (): Promise<string | null> => {
+    if (!profile?.spotify_access_token || !profile?.spotify_refresh_token) {
+      console.log('No Spotify tokens available');
+      return null;
+    }
+
+    // Check if token is expired
+    const expiresAt = profile.spotify_token_expires_at ? new Date(profile.spotify_token_expires_at) : null;
+    const now = new Date();
+    
+    if (expiresAt && now < expiresAt) {
+      console.log('✅ Using existing valid token');
+      return profile.spotify_access_token;
+    }
+
+    console.log('🔄 Token expired, refreshing...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('spotify-refresh', {
+        body: { refresh_token: profile.spotify_refresh_token }
+      });
+
+      if (error) {
+        console.error('❌ Token refresh failed:', error);
+        return null;
+      }
+
+      if (data.access_token) {
+        console.log('✅ Token refreshed successfully');
+        
+        // Update profile with new token
+        const newExpiresAt = new Date();
+        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + (data.expires_in || 3600));
+        
+        await updateProfile({
+          spotify_access_token: data.access_token,
+          spotify_token_expires_at: newExpiresAt.toISOString()
+        });
+
+        return data.access_token;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('❌ Error refreshing token:', error);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -358,6 +407,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateProfile,
     fetchProfile,
     getCustomPrice,
+    getValidSpotifyToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
