@@ -1,7 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import useSpotifyData from '@/hooks/useSpotifyData';
@@ -9,8 +11,6 @@ import CoreInsights from '@/components/dashboard/CoreInsights';
 import ListeningBehavior from '@/components/dashboard/ListeningBehavior';
 import PersonalityAnalytics from '@/components/dashboard/PersonalityAnalytics';
 import SpecialHighlights from '@/components/dashboard/SpecialHighlights';
-import ShareableCards from '@/components/dashboard/ShareableCards';
-import SpotifyConnect from '@/components/SpotifyConnect';
 import { 
   Music, 
   Clock, 
@@ -18,56 +18,24 @@ import {
   Sparkles,
   Share2
 } from 'lucide-react';
+import ShareableCards from '@/components/dashboard/ShareableCards';
 
 const Dashboard = () => {
-  const { user, profile, loading: authLoading } = useAuth();
-  const { topTracks, topArtists, recentlyPlayed, loading: spotifyLoading } = useSpotifyData();
+  const { user, profile } = useAuth();
+  const { topTracks, topArtists, recentlyPlayed, loading } = useSpotifyData();
   const [activeTab, setActiveTab] = useState('core');
 
-  // Redirect if not authenticated
-  if (!authLoading && !user) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Show loading while auth is initializing
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-xl">Loading your profile...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show Spotify connection if not connected
   if (!profile?.spotify_connected) {
-    return (
-      <div className="min-h-screen bg-gradient-dark p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
-              <h1 className="text-3xl font-bold text-gradient">MyVibeLytics</h1>
-            </div>
-            <Link to="/profile">
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
-                Profile Settings
-              </Button>
-            </Link>
-          </div>
-          
-          <SpotifyConnect />
-        </div>
-      </div>
-    );
+    return <Navigate to="/profile" replace />;
   }
 
   const isLocked = !profile?.has_active_subscription;
 
-  // Show loading while fetching Spotify data
-  if (spotifyLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
         <div className="text-center">

@@ -1,72 +1,42 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 interface Profile {
-  user_id: string;
   id: string;
+  user_id: string;
   email: string;
   full_name?: string;
+  plan_tier?: string;
+  has_active_subscription?: boolean;
+  plan_id?: string;
+  used_promo_code?: string;
   spotify_connected?: boolean;
-  spotify_access_token?: string;
-  spotify_refresh_token?: string;
   spotify_user_id?: string;
   spotify_display_name?: string;
   spotify_avatar_url?: string;
+  spotify_access_token?: string;
+  spotify_refresh_token?: string;
   spotify_token_expires_at?: string;
-  has_active_subscription?: boolean;
-  plan_tier?: string;
-  plan_id?: string;
-  plan_start_date?: string;
-  plan_end_date?: string;
   profile_picture_url?: string;
   created_at?: string;
   updated_at?: string;
-}
-
-interface CustomPricing {
-  id: string;
-  user_id: string;
-  email: string;
-  custom_price: number;
-  currency: string;
-  discount_percentage?: number;
-  reason?: string;
-  valid_until?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface UserRole {
-  id: string;
-  user_id: string;
-  role: string;
-  granted_by?: string;
-  granted_at: string;
-  expires_at?: string;
-  created_at: string;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  customPricing: CustomPricing | null;
-  userRole: UserRole | null;
   loading: boolean;
   isUnlocked: boolean;
-  isAdmin: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error?: any }>;
+  signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   connectSpotify: () => void;
-  disconnectSpotify: () => Promise<void>;
-  updateProfile: (updates: Partial<Profile>) => Promise<void>;
-  fetchProfile: () => Promise<void>;
-  getCustomPrice: () => number;
+  updateProfile: (updates: Partial<Profile>) => Promise<Profile>;
   getValidSpotifyToken: () => Promise<string | null>;
+  fetchProfile: () => Promise<Profile | null>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,331 +53,379 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [customPricing, setCustomPricing] = useState<CustomPricing | null>(null);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const authInitialized = useRef(false);
+  const profileFetchInProgress = useRef(false);
 
   const isUnlocked = profile?.has_active_subscription || false;
-  const isAdmin = userRole?.role === 'admin';
 
-  const fetchProfile = async () => {
-    if (!user) return;
+  const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
+  const SPOTIFY_REDIRECT_URI = `${window.location.origin}/spotify-callback`;
 
+  useEffect(() => {
+    let mounted = true;
+    let authSubscription: any = null;
+
+    const initializeAuth = async () => {
+      if (authInitialized.current) return;
+      authInitialized.current = true;
+
+      try {
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          
+          if (initialSession?.user && !profileFetchInProgress.current) {
+            profileFetchInProgress.current = true;
+            await fetchUserProfile(initialSession.user.id);
+            profileFetchInProgress.current = false;
+          }
+        }
+
+        // Set up auth state listener
+        authSubscription = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (!mounted) return;
+
+            console.log('🔄 Auth state changed:', event, session?.user?.email);
+            setSession(session);
+            setUser(session?.user ?? null);
+
+            if (session?.user && event === 'SIGNED_IN' && !profileFetchInProgress.current) {
+              profileFetchInProgress.current = true;
+              setTimeout(async () => {
+                if (mounted) {
+                  await fetchUserProfile(session.user.id);
+                  profileFetchInProgress.current = false;
+                }
+              }, 100);
+            } else if (!session?.user) {
+              setProfile(null);
+              profileFetchInProgress.current = false;
+            }
+          }
+        );
+
+      } catch (error) {
+        console.error('❌ Error initializing auth:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      if (authSubscription?.subscription) {
+        authSubscription.subscription.unsubscribe();
+      }
+    };
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
     try {
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
+      console.log('👤 Fetching profile for user:', userId);
+      
+      const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-      } else {
-        setProfile(profileData);
-      }
-
-      // Fetch custom pricing
-      const { data: pricingData, error: pricingError } = await supabase
-        .from('custom_pricing')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
+        .eq('user_id', userId)
         .maybeSingle();
 
-      if (pricingError) {
-        console.error('Error fetching custom pricing:', pricingError);
-      } else {
-        setCustomPricing(pricingData);
+      if (fetchError) {
+        console.error('❌ Error fetching profile:', fetchError);
+        return;
       }
 
-      // Fetch user role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
-
-      if (roleError) {
-        console.error('Error fetching user role:', roleError);
+      if (existingProfile) {
+        console.log('✅ Found existing profile');
+        setProfile(existingProfile);
       } else {
-        setUserRole(roleData);
+        // Create new profile if none exists
+        console.log('📝 Creating new profile for user:', userId);
+        const newProfileData = {
+          user_id: userId,
+          email: user?.email || '',
+          full_name: user?.user_metadata?.full_name || null,
+          plan_tier: 'free',
+          has_active_subscription: false,
+          plan_id: 'free_tier',
+          spotify_connected: false
+        };
+
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert(newProfileData)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('❌ Error creating profile:', insertError);
+        } else if (newProfile) {
+          console.log('✅ Created new profile');
+          setProfile(newProfile);
+        }
       }
-
-      // Log user activity
-      await supabase.rpc('log_user_activity', {
-        activity_type: 'profile_fetch',
-        activity_data: { timestamp: new Date().toISOString() }
-      });
-
-    } catch (error) {
-      console.error('Error in fetchProfile:', error);
+    } catch (err) {
+      console.error('❌ Profile operation error:', err);
     }
   };
 
-  const getCustomPrice = () => {
-    if (customPricing && customPricing.is_active) {
-      const now = new Date();
-      const validUntil = customPricing.valid_until ? new Date(customPricing.valid_until) : null;
-      
-      if (!validUntil || now <= validUntil) {
-        return customPricing.custom_price;
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    console.log('📝 Attempting signup for:', email);
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: fullName ? { full_name: fullName } : undefined,
+        emailRedirectTo: `${window.location.origin}/dashboard`
       }
+    });
+    
+    console.log('📝 Signup result:', { data, error });
+    return { error };
+  };
+
+  const signIn = async (email: string, password: string) => {
+    console.log('🔑 Attempting signin for:', email);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log('🔑 Signin result:', { error });
+    return { error };
+  };
+
+  const signOut = async () => {
+    try {
+      console.log('👋 Signing out user...');
+      setLoading(true);
+      
+      // Clear state immediately to prevent flashing
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      authInitialized.current = false;
+      profileFetchInProgress.current = false;
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ Error signing out:', error);
+      } else {
+        console.log('✅ Supabase signout successful');
+      }
+      
+      // Clear localStorage
+      localStorage.clear();
+      
+      // Force navigation to home
+      window.location.href = '/';
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      window.location.href = '/';
     }
-    return 99900; // Default price in paise (₹999)
+  };
+
+  const deleteAccount = async () => {
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    try {
+      console.log('🗑️ Deleting account for user:', user.id);
+      
+      // Call the delete-user edge function
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: user.id }
+      });
+
+      if (error) {
+        console.error('❌ Error deleting account:', error);
+        throw error;
+      }
+
+      console.log('✅ Account deleted successfully');
+      
+      // Clear state and redirect
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      authInitialized.current = false;
+      profileFetchInProgress.current = false;
+      localStorage.clear();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('❌ Delete account error:', error);
+      throw error;
+    }
+  };
+
+  const connectSpotify = () => {
+    if (!user) {
+      console.error('❌ User must be logged in to connect Spotify');
+      return;
+    }
+
+    console.log('🎵 Initiating Spotify OAuth...');
+    
+    const scopes = [
+      'user-read-private',
+      'user-read-email',
+      'user-top-read',
+      'user-read-recently-played',
+      'user-read-currently-playing',
+      'playlist-read-private',
+      'playlist-read-collaborative',
+      'playlist-modify-private',
+      'playlist-modify-public'
+    ].join(' ');
+
+    const authUrl = `https://accounts.spotify.com/authorize?` +
+      `client_id=${SPOTIFY_CLIENT_ID}&` +
+      `response_type=code&` +
+      `redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&` +
+      `scope=${encodeURIComponent(scopes)}&` +
+      `state=${user.id}&` +
+      `show_dialog=true`;
+
+    console.log('🔗 Redirecting to Spotify auth URL');
+    window.location.href = authUrl;
+  };
+
+  const updateProfile = async (updates: Partial<Profile>): Promise<Profile> => {
+    if (!user) {
+      console.error('❌ No user found for profile update');
+      throw new Error('No user found for profile update');
+    }
+
+    console.log('🔄 Updating profile for user:', user.id, 'with updates:', Object.keys(updates));
+
+    try {
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ Profile update failed:', updateError);
+        throw updateError;
+      }
+
+      if (!updatedProfile) {
+        console.error('❌ No profile returned from update');
+        throw new Error('No profile returned from update');
+      }
+
+      console.log('✅ Profile updated successfully');
+      setProfile(updatedProfile);
+      return updatedProfile;
+    } catch (error) {
+      console.error('❌ Update profile error:', error);
+      throw error;
+    }
   };
 
   const getValidSpotifyToken = async (): Promise<string | null> => {
-    if (!profile?.spotify_access_token || !profile?.spotify_refresh_token) {
-      console.log('No Spotify tokens available');
+    if (!profile?.spotify_access_token) {
+      console.log('❌ No Spotify access token available');
       return null;
     }
 
     // Check if token is expired
-    const expiresAt = profile.spotify_token_expires_at ? new Date(profile.spotify_token_expires_at) : null;
-    const now = new Date();
-    
-    if (expiresAt && now < expiresAt) {
-      console.log('✅ Using existing valid token');
-      return profile.spotify_access_token;
+    if (profile.spotify_token_expires_at) {
+      const expiresAt = new Date(profile.spotify_token_expires_at);
+      const now = new Date();
+      const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+
+      if (now.getTime() + bufferTime >= expiresAt.getTime()) {
+        console.log('🔄 Token expired or expiring soon, refreshing...');
+        return await refreshSpotifyToken();
+      }
     }
 
-    console.log('🔄 Token expired, refreshing...');
-    
+    console.log('✅ Using existing valid token');
+    return profile.spotify_access_token;
+  };
+
+  const refreshSpotifyToken = async (): Promise<string | null> => {
+    if (!profile?.spotify_refresh_token) {
+      console.error('❌ No refresh token available');
+      return null;
+    }
+
     try {
+      console.log('🔄 Refreshing Spotify token...');
+      
       const { data, error } = await supabase.functions.invoke('spotify-refresh', {
         body: { refresh_token: profile.spotify_refresh_token }
       });
 
       if (error) {
         console.error('❌ Token refresh failed:', error);
-        return null;
-      }
-
-      if (data.access_token) {
-        console.log('✅ Token refreshed successfully');
         
-        // Update profile with new token
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + (data.expires_in || 3600));
-        
+        // If refresh fails, clear connection
         await updateProfile({
-          spotify_access_token: data.access_token,
-          spotify_token_expires_at: newExpiresAt.toISOString()
-        });
-
-        return data.access_token;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('❌ Error refreshing token:', error);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            fetchProfile();
-          }, 0);
-        } else {
-          setProfile(null);
-          setCustomPricing(null);
-          setUserRole(null);
-        }
-        setLoading(false);
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile();
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signUp = async (email: string, password: string, fullName: string) => {
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-
-      if (!error) {
-        await supabase.rpc('log_user_activity', {
-          activity_type: 'signup_attempt',
-          activity_data: { email, timestamp: new Date().toISOString() }
-        });
-      }
-
-      return { error };
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return { error };
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (!error) {
-        await supabase.rpc('log_user_activity', {
-          activity_type: 'login',
-          activity_data: { email, timestamp: new Date().toISOString() }
-        });
-      }
-
-      return { error };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return { error };
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      if (user) {
-        await supabase.rpc('log_user_activity', {
-          activity_type: 'logout',
-          activity_data: { timestamp: new Date().toISOString() }
-        });
-      }
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  };
-
-  const connectSpotify = () => {
-    const clientId = 'your-spotify-client-id';
-    const redirectUri = `${window.location.origin}/spotify-callback`;
-    const scopes = [
-      'user-read-private',
-      'user-read-email',
-      'user-top-read',
-      'user-read-recently-played',
-      'playlist-modify-public',
-      'playlist-modify-private'
-    ].join(' ');
-
-    const spotifyAuthUrl = `https://accounts.spotify.com/authorize?` +
-      `response_type=code&` +
-      `client_id=${clientId}&` +
-      `scope=${encodeURIComponent(scopes)}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `state=${user?.id}`;
-
-    window.location.href = spotifyAuthUrl;
-  };
-
-  const disconnectSpotify = async () => {
-    if (!user || !profile) return;
-
-    // Check if user has active subscription
-    if (profile.has_active_subscription) {
-      toast.error('Premium users cannot disconnect Spotify to ensure continuous access to advanced features.');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
           spotify_connected: false,
           spotify_access_token: null,
           spotify_refresh_token: null,
-          spotify_user_id: null,
-          spotify_display_name: null,
-          spotify_avatar_url: null,
-          spotify_token_expires_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+          spotify_token_expires_at: null
+        });
+        
+        throw new Error('Token refresh failed - please reconnect Spotify');
+      }
 
-      if (error) throw error;
+      console.log('✅ Token refreshed successfully');
+      
+      const expiresAt = new Date(Date.now() + (data.expires_in * 1000));
+      
+      const updates: Partial<Profile> = {
+        spotify_access_token: data.access_token,
+        spotify_token_expires_at: expiresAt.toISOString()
+      };
 
-      await supabase.rpc('log_user_activity', {
-        activity_type: 'spotify_disconnect',
-        activity_data: { timestamp: new Date().toISOString() }
-      });
+      if (data.refresh_token) {
+        updates.spotify_refresh_token = data.refresh_token;
+      }
 
-      await fetchProfile();
-      toast.success('Spotify disconnected successfully');
+      await updateProfile(updates);
+      
+      return data.access_token;
     } catch (error) {
-      console.error('Error disconnecting Spotify:', error);
-      toast.error('Failed to disconnect Spotify');
+      console.error('❌ Token refresh error:', error);
+      return null;
     }
   };
 
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      await supabase.rpc('log_user_activity', {
-        activity_type: 'profile_update',
-        activity_data: { updates, timestamp: new Date().toISOString() }
-      });
-
-      await fetchProfile();
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      throw error;
-    }
+  const fetchProfile = async () => {
+    if (!user) return null;
+    await fetchUserProfile(user.id);
+    return profile;
   };
 
-  const value: AuthContextType = {
+  const value = {
     user,
     session,
     profile,
-    customPricing,
-    userRole,
     loading,
     isUnlocked,
-    isAdmin,
     signUp,
     signIn,
     signOut,
     connectSpotify,
-    disconnectSpotify,
     updateProfile,
-    fetchProfile,
-    getCustomPrice,
     getValidSpotifyToken,
+    fetchProfile,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
