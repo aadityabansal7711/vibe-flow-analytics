@@ -62,7 +62,10 @@ const useSpotifyData = () => {
 
       // Fetch top tracks with error handling
       try {
-        const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { headers });
+        const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { 
+          headers,
+          cache: 'no-store' // Ensure fresh data
+        });
         if (topTracksResponse.ok) {
           const topTracksData = await topTracksResponse.json();
           setTopTracks(topTracksData.items || []);
@@ -76,7 +79,10 @@ const useSpotifyData = () => {
 
       // Fetch top artists with error handling
       try {
-        const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', { headers });
+        const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', { 
+          headers,
+          cache: 'no-store' // Ensure fresh data
+        });
         if (topArtistsResponse.ok) {
           const topArtistsData = await topArtistsResponse.json();
           setTopArtists(topArtistsData.items || []);
@@ -89,7 +95,10 @@ const useSpotifyData = () => {
 
       // Fetch recently played with error handling
       try {
-        const recentResponse = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { headers });
+        const recentResponse = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { 
+          headers,
+          cache: 'no-store' // Ensure fresh data
+        });
         if (recentResponse.ok) {
           const recentData = await recentResponse.json();
           const tracks = recentData.items?.map((item: any) => ({
@@ -118,6 +127,21 @@ const useSpotifyData = () => {
 
   useEffect(() => {
     fetchSpotifyData();
+    
+    // Set up real-time refresh interval (every 10 seconds)
+    const interval = setInterval(fetchSpotifyData, 10000);
+    
+    // Refresh on window focus
+    const handleFocus = () => {
+      fetchSpotifyData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [profile?.spotify_connected, profile?.spotify_access_token, isSpotifyWhitelisted]);
 
   return {

@@ -72,17 +72,23 @@ const SpecialHighlights: React.FC<Props> = ({
       return;
     }
 
+    // Enhanced check for listening history
     if (!topTracks?.length && !topArtists?.length && !recentlyPlayed?.length) {
-      toast.error('Please listen to more music on Spotify to get personalized playlists. We need your listening history to create recommendations.');
+      toast.error('You need to have listening history to generate an AI playlist. Please listen to more music on Spotify first.');
       return;
     }
 
     const seedTracks = topTracks?.slice(0, 5).map(t => t.id) || [];
     const seedArtists = topArtists?.slice(0, 5).map(a => a.id) || [];
 
+    // Fallback to recently played if no top data
     if (seedTracks.length === 0 && seedArtists.length === 0) {
-      toast.error('Not enough listening data available. Please listen to more music on Spotify first.');
-      return;
+      const recentTracks = recentlyPlayed?.slice(0, 3).map(t => t.id) || [];
+      if (recentTracks.length === 0) {
+        toast.error('Not enough listening data available. Please listen to more music on Spotify first.');
+        return;
+      }
+      seedTracks.push(...recentTracks);
     }
 
     setIsCreating(true);

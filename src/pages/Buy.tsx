@@ -21,6 +21,7 @@ import {
 const Buy = () => {
   const { user, profile } = useAuth();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -29,17 +30,29 @@ const Buy = () => {
   const basePrice = 499; // Fixed price of ₹499
 
   useEffect(() => {
-    // Load Razorpay script
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
+    // Load Razorpay script properly
+    const loadRazorpayScript = () => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('Razorpay script loaded');
+        setRazorpayLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('Failed to load Razorpay script');
+      };
+      document.body.appendChild(script);
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      return () => {
+        if (document.body.contains(script)) {
+          document.body.removeChild(script);
+        }
+      };
     };
+
+    const cleanup = loadRazorpayScript();
+    return cleanup;
   }, []);
 
   const features = [
@@ -114,15 +127,24 @@ const Buy = () => {
                   ))}
                 </div>
 
-                {/* Razorpay Payment Button */}
+                {/* Razorpay Payment Button Container */}
                 <div className="mb-6">
-                  <form>
-                    <script 
-                      src="https://checkout.razorpay.com/v1/payment-button.js" 
-                      data-payment_button_id="pl_Qjs2W5AhXxHlni" 
-                      async
-                    ></script>
-                  </form>
+                  <div id="razorpay-container">
+                    {razorpayLoaded ? (
+                      <form>
+                        <script 
+                          src="https://checkout.razorpay.com/v1/payment-button.js" 
+                          data-payment_button_id="pl_Qjs2W5AhXxHlni" 
+                          async
+                        ></script>
+                      </form>
+                    ) : (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Loading payment options...</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <p className="text-center text-muted-foreground text-sm mt-4">

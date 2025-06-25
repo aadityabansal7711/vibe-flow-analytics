@@ -20,7 +20,7 @@ import {
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
-  const { topTracks, topArtists, recentlyPlayed, loading, error } = useSpotifyData();
+  const { topTracks, topArtists, recentlyPlayed, loading, error, refetch } = useSpotifyData();
   const [activeTab, setActiveTab] = useState('core');
 
   if (!user) {
