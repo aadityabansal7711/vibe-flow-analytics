@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Profile {
   id: string;
@@ -29,6 +30,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   isUnlocked: boolean;
+  isSpotifyWhitelisted: boolean;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error?: any }>;
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
@@ -57,6 +59,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authInitialized = useRef(false);
   const profileFetchInProgress = useRef(false);
 
+  // Spotify whitelist for development mode
+  const allowedEmails = ['aadityabansal1112@gmail.com'];
+  const isSpotifyWhitelisted = user?.email ? allowedEmails.includes(user.email) : false;
+
+  // Check subscription status from custom_pricing table
   const isUnlocked = profile?.has_active_subscription || false;
 
   const SPOTIFY_CLIENT_ID = 'fe34af0e9c494464a7a8ba2012f382bb';
@@ -144,8 +151,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (existingProfile) {
-        console.log('✅ Found existing profile');
-        setProfile(existingProfile);
+        // Check custom pricing to update subscription status
+        const { data: customPricing } = await supabase
+          .from('custom_pricing')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        const updatedProfile = {
+          ...existingProfile,
+          has_active_subscription: !!customPricing
+        };
+
+        console.log('✅ Found existing profile with updated subscription status');
+        setProfile(updatedProfile);
       } else {
         // Create new profile if none exists
         console.log('📝 Creating new profile for user:', userId);
@@ -268,6 +288,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const connectSpotify = () => {
     if (!user) {
       console.error('❌ User must be logged in to connect Spotify');
+      return;
+    }
+
+    if (!isSpotifyWhitelisted) {
+      toast.error('Spotify features are temporarily limited. Please contact support to enable full access.');
       return;
     }
 
@@ -418,6 +443,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     loading,
     isUnlocked,
+    isSpotifyWhitelisted,
     signUp,
     signIn,
     signOut,

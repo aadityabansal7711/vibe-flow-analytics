@@ -40,7 +40,7 @@ const Profile = () => {
   }
 
   // Check if user is admin
-  const isAdmin = profile?.email === 'admin@example.com'; // Replace with actual admin check
+  const isAdmin = profile?.email === 'admin@example.com';
 
   const handleUpdateName = async () => {
     if (!fullName.trim()) {
@@ -139,14 +139,6 @@ const Profile = () => {
           >
             <User className="mr-2 h-4 w-4" />
             Profile
-          </Button>
-          <Button
-            variant={activeTab === 'subscription' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('subscription')}
-            className="text-sm"
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            Subscription
           </Button>
           <Button
             variant={activeTab === 'settings' ? 'default' : 'outline'}
@@ -248,10 +240,6 @@ const Profile = () => {
             </>
           )}
 
-          {activeTab === 'subscription' && (
-            <SubscriptionManager />
-          )}
-
           {activeTab === 'settings' && (
             <div className="space-y-6">
               {/* General Settings */}
@@ -272,8 +260,8 @@ const Profile = () => {
                   
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <h4 className="font-medium">Data Privacy</h4>
-                      <p className="text-sm text-muted-foreground">Manage your data and privacy settings</p>
+                      <h4 className="font-medium">Group Management</h4>
+                      <p className="text-sm text-muted-foreground">Manage your music groups and communities</p>
                     </div>
                     <Button variant="outline" size="sm">
                       Configure
@@ -282,8 +270,8 @@ const Profile = () => {
 
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <h4 className="font-medium">Notifications</h4>
-                      <p className="text-sm text-muted-foreground">Control email and app notifications</p>
+                      <h4 className="font-medium">Data Privacy</h4>
+                      <p className="text-sm text-muted-foreground">Manage your data and privacy settings</p>
                     </div>
                     <Button variant="outline" size="sm">
                       Settings

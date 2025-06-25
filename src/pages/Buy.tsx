@@ -2,19 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCustomPricing } from '@/hooks/useCustomPricing';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   Crown, 
   Sparkles, 
   Music, 
   ArrowLeft,
-  Tag,
   Brain,
   Share2,
   Gift,
@@ -23,29 +18,15 @@ import {
   Users
 } from 'lucide-react';
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 const Buy = () => {
   const { user, profile } = useAuth();
-  const { getPrice, getDiscount, hasCustomPricing } = useCustomPricing();
-  const [promoCode, setPromoCode] = useState('');
-  const [promoDiscount, setPromoDiscount] = useState(0);
-  const [promoMessage, setPromoMessage] = useState('');
-  const [checkingPromo, setCheckingPromo] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  const basePrice = getPrice();
-  const customDiscount = getDiscount();
-  const totalDiscount = Math.max(promoDiscount, customDiscount);
-  const discountedPrice = Math.round(basePrice * (1 - totalDiscount / 100));
+  const basePrice = 499; // Fixed price of ₹499
 
   useEffect(() => {
     // Load Razorpay script
@@ -60,131 +41,6 @@ const Buy = () => {
       }
     };
   }, []);
-
-  const validatePromoCode = async () => {
-    if (!promoCode.trim()) {
-      setPromoMessage('');
-      setPromoDiscount(0);
-      return;
-    }
-
-    setCheckingPromo(true);
-    try {
-      const { data, error } = await supabase.rpc('validate_promo_code', {
-        promo_code: promoCode.trim().toUpperCase()
-      });
-
-      if (error) {
-        console.error('Error validating promo code:', error);
-        setPromoMessage('Error validating promo code');
-        setPromoDiscount(0);
-        return;
-      }
-
-      if (data && data.length > 0) {
-        const result = data[0];
-        if (result.valid) {
-          setPromoDiscount(result.discount_percentage);
-          setPromoMessage(`${result.message} - ${result.discount_percentage}% off applied!`);
-        } else {
-          setPromoDiscount(0);
-          setPromoMessage(result.message);
-        }
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setPromoMessage('Error validating promo code');
-      setPromoDiscount(0);
-    } finally {
-      setCheckingPromo(false);
-    }
-  };
-
-  const handleSubscriptionPayment = async () => {
-    if (!window.Razorpay) {
-      alert('Razorpay SDK failed to load. Please refresh the page and try again.');
-      return;
-    }
-
-    setPaymentProcessing(true);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { data: orderData, error } = await supabase.functions.invoke('create-order', {
-        body: {
-          amount: discountedPrice * 100,
-          currency: 'INR',
-          user_id: user.id,
-          promo_code: promoCode || null,
-          discount: totalDiscount
-        }
-      });
-
-      if (error) {
-        throw new Error('Failed to create order');
-      }
-
-      const options = {
-        key: 'rzp_live_spLJgQSWhiE0KB',
-        amount: discountedPrice * 100,
-        currency: 'INR',
-        name: 'MyVibeLytics',
-        description: 'Premium Yearly Subscription',
-        image: '/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png',
-        order_id: orderData.order_id,
-        handler: async function (response: any) {
-          console.log('Payment successful:', response);
-          
-          try {
-            const { error: verifyError } = await supabase.functions.invoke('verify-payment', {
-              body: {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                user_id: user.id,
-                amount: discountedPrice,
-                promo_code: promoCode || null
-              }
-            });
-
-            if (verifyError) {
-              throw new Error('Payment verification failed');
-            }
-
-            window.location.href = '/dashboard?upgraded=true';
-          } catch (error) {
-            console.error('Error verifying payment:', error);
-            alert('Payment successful but verification failed. Please contact support.');
-          }
-        },
-        prefill: {
-          name: profile?.full_name || '',
-          email: profile?.email || '',
-        },
-        notes: {
-          user_id: user.id,
-          promo_code: promoCode || '',
-          discount: totalDiscount
-        },
-        theme: {
-          color: '#6366f1'
-        },
-        modal: {
-          ondismiss: function() {
-            setPaymentProcessing(false);
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (error) {
-      console.error('Error initializing payment:', error);
-      alert('Failed to initialize payment. Please try again.');
-      setPaymentProcessing(false);
-    }
-  };
 
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
@@ -243,26 +99,7 @@ const Buy = () => {
                   </Badge>
                 </div>
                 <div className="flex items-baseline space-x-2">
-                  {(totalDiscount > 0 || hasCustomPricing) ? (
-                    <>
-                      {!hasCustomPricing && (
-                        <span className="text-3xl font-bold text-muted-foreground line-through">₹499</span>
-                      )}
-                      <span className="text-4xl font-bold text-primary">₹{discountedPrice}</span>
-                      {totalDiscount > 0 && (
-                        <Badge variant="destructive" className="ml-2">
-                          {totalDiscount}% OFF
-                        </Badge>
-                      )}
-                      {hasCustomPricing && (
-                        <Badge variant="outline" className="ml-2 text-green-400 border-green-400">
-                          Special Offer
-                        </Badge>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-4xl font-bold text-primary">₹{basePrice}</span>
-                  )}
+                  <span className="text-4xl font-bold text-primary">₹{basePrice}</span>
                   <span className="text-muted-foreground">/year</span>
                 </div>
               </CardHeader>
@@ -277,57 +114,16 @@ const Buy = () => {
                   ))}
                 </div>
 
-                {/* Promo Code Section - only show if no custom pricing */}
-                {!hasCustomPricing && (
-                  <div className="bg-background/30 rounded-lg p-4 mb-6">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <Tag className="h-4 w-4 text-primary" />
-                      <span className="font-medium text-foreground">Have a promo code?</span>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Input
-                        placeholder="Enter promo code"
-                        value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={validatePromoCode}
-                        disabled={checkingPromo || !promoCode.trim()}
-                        variant="outline"
-                        size="sm"
-                        className="transition-all duration-300 hover:scale-105"
-                      >
-                        {checkingPromo ? 'Checking...' : 'Apply'}
-                      </Button>
-                    </div>
-                    {promoMessage && (
-                      <Alert className={`mt-3 ${promoDiscount > 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                        <AlertDescription className={promoDiscount > 0 ? 'text-green-400' : 'text-red-400'}>
-                          {promoMessage}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                )}
-
-                {/* Custom Pricing Notice */}
-                {hasCustomPricing && (
-                  <Alert className="mb-6 border-green-500/20 bg-green-500/5">
-                    <AlertDescription className="text-green-400">
-                      🎉 You have a special offer! Enjoy premium features at a discounted price.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Payment Button */}
-                <Button 
-                  onClick={handleSubscriptionPayment}
-                  disabled={paymentProcessing}
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground text-lg py-6"
-                >
-                  {paymentProcessing ? 'Processing...' : `Pay ₹${discountedPrice}/year`}
-                </Button>
+                {/* Razorpay Payment Button */}
+                <div className="mb-6">
+                  <form>
+                    <script 
+                      src="https://checkout.razorpay.com/v1/payment-button.js" 
+                      data-payment_button_id="pl_Qjs2W5AhXxHlni" 
+                      async
+                    ></script>
+                  </form>
+                </div>
 
                 <p className="text-center text-muted-foreground text-sm mt-4">
                   Secure payment via Razorpay. One-time yearly payment.
@@ -365,10 +161,7 @@ const Buy = () => {
                   <div>
                     <h4 className="font-medium text-foreground">Great Value</h4>
                     <p className="text-sm text-muted-foreground">
-                      {hasCustomPricing 
-                        ? `Special price: ₹${discountedPrice} per year`
-                        : `Only ₹${basePrice} per year - less than ₹${Math.round(basePrice/12)} per month`
-                      }
+                      Only ₹{basePrice} per year - less than ₹{Math.round(basePrice/12)} per month
                     </p>
                   </div>
                 </div>

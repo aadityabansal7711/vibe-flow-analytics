@@ -17,7 +17,6 @@ import {
   Sparkles,
   Share2
 } from 'lucide-react';
-import ShareableCards from '@/components/dashboard/ShareableCards';
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
@@ -49,7 +48,7 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
         <div className="text-center text-white">
-          <h2 className="text-xl mb-4">Error loading data</h2>
+          <h2 className="text-xl mb-4">Unable to load music data</h2>
           <p className="text-muted-foreground">{error}</p>
           <Button onClick={() => window.location.reload()} className="mt-4">
             Retry
@@ -186,13 +185,16 @@ const Dashboard = () => {
         {activeTab === 'cards' && (
           <div className="space-y-8">
             <h2 className="text-2xl font-bold text-foreground mb-6">📱 Shareable Cards</h2>
-            <ShareableCards
-              isLocked={isLocked}
-              profile={profile}
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-            />
+            <Card className="glass-effect border-border/50">
+              <CardContent className="text-center py-20">
+                <div className="text-6xl mb-4">🎁</div>
+                <h3 className="text-2xl font-bold text-foreground mb-2">Shareable Cards</h3>
+                <p className="text-xl font-semibold text-muted-foreground">Coming Soon!</p>
+                <p className="text-sm text-muted-foreground mt-4 max-w-md mx-auto">
+                  Create beautiful cards of your music insights to share with friends and social media.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Sparkles, Music, CheckCircle, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +28,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
   hasActiveSubscription,
   onPlaylistCreated
 }) => {
+  const { isSpotifyWhitelisted } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('');
@@ -41,12 +41,26 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       return;
     }
 
+    if (!isSpotifyWhitelisted) {
+      toast.error('Spotify features are temporarily limited. Please contact support to enable full access.');
+      return;
+    }
+
     if (!spotifyAccessToken) {
       toast.error('Please connect your Spotify account to create playlists');
       return;
     }
 
-    if (topTracks.length === 0 && topArtists.length === 0 && recentlyPlayed.length === 0) {
+    // Check if user has enough listening data
+    if (!topTracks?.length && !topArtists?.length && !recentlyPlayed?.length) {
+      toast.error('Please listen to more music on Spotify to get personalized playlists. We need your listening history to create recommendations.');
+      return;
+    }
+
+    const seedTracks = topTracks?.slice(0, 5).map(t => t.id) || [];
+    const seedArtists = topArtists?.slice(0, 5).map(a => a.id) || [];
+
+    if (seedTracks.length === 0 && seedArtists.length === 0) {
       toast.error('Not enough listening data available. Please listen to more music on Spotify first.');
       return;
     }
@@ -80,7 +94,8 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       });
 
       if (!createRes.ok) {
-        throw new Error(`Failed to create playlist: ${createRes.status}`);
+        const errorData = await createRes.json();
+        throw new Error(`Failed to create playlist: ${errorData.error?.message || createRes.status}`);
       }
 
       const playlist = await createRes.json();
@@ -96,14 +111,14 @@ const AIPlaylistGenerator: React.FC<Props> = ({
         const seedParams = [];
         
         // Use different seeds for variety
-        if (topArtists.length > 0) {
-          const artistIndex = batch % topArtists.length;
-          seedParams.push(`seed_artists=${topArtists[artistIndex].id}`);
+        if (seedArtists.length > 0) {
+          const artistIndex = batch % seedArtists.length;
+          seedParams.push(`seed_artists=${seedArtists[artistIndex]}`);
         }
         
-        if (topTracks.length > 0) {
-          const trackIndex = batch % topTracks.length;
-          seedParams.push(`seed_tracks=${topTracks[trackIndex].id}`);
+        if (seedTracks.length > 0) {
+          const trackIndex = batch % seedTracks.length;
+          seedParams.push(`seed_tracks=${seedTracks[trackIndex]}`);
         }
 
         // Add variety with different audio features
@@ -117,25 +132,31 @@ const AIPlaylistGenerator: React.FC<Props> = ({
         
         const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || ''}`;
         
-        const recommendationsRes = await fetch(recommendationsUrl, {
-          headers: { 
-            'Authorization': `Bearer ${spotifyAccessToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        try {
+          const recommendationsRes = await fetch(recommendationsUrl, {
+            headers: { 
+              'Authorization': `Bearer ${spotifyAccessToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
 
-        if (recommendationsRes.ok) {
-          const recommendations = await recommendationsRes.json();
-          if (recommendations.tracks) {
-            allTracks.push(...recommendations.tracks);
+          if (recommendationsRes.ok) {
+            const recommendations = await recommendationsRes.json();
+            if (recommendations.tracks) {
+              allTracks.push(...recommendations.tracks);
+            }
+          } else {
+            console.warn(`Batch ${batch} failed with status:`, recommendationsRes.status);
           }
+        } catch (err) {
+          console.warn(`Error fetching batch ${batch}:`, err);
         }
 
         setProgress(40 + (batch + 1) * 8);
       }
 
       if (allTracks.length === 0) {
-        throw new Error('No recommendations received from Spotify.');
+        throw new Error('No recommendations received from Spotify. This might be due to limited listening history.');
       }
 
       setMessage(`Adding ${allTracks.length} tracks to your playlist...`);
@@ -162,7 +183,8 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       });
 
       if (!addTracksRes.ok) {
-        throw new Error(`Failed to add tracks to playlist: ${addTracksRes.status}`);
+        const errorData = await addTracksRes.json();
+        throw new Error(`Failed to add tracks to playlist: ${errorData.error?.message || addTracksRes.status}`);
       }
 
       setProgress(100);
@@ -190,6 +212,8 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       
       if (error.message.includes('session expired') || error.message.includes('401')) {
         toast.error('Your Spotify session has expired. Please reconnect your account.');
+      } else if (error.message.includes('403')) {
+        toast.error('Spotify access limited. Please contact support for full access.');
       } else {
         toast.error(`Failed to create playlist: ${error.message}`);
       }
@@ -260,7 +284,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
             
             <Button 
               onClick={createAIPlaylist} 
-              disabled={isLocked || !spotifyAccessToken || !hasActiveSubscription} 
+              disabled={isLocked || !spotifyAccessToken || !hasActiveSubscription || !isSpotifyWhitelisted} 
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
             >
               {isLocked || !hasActiveSubscription ? (
@@ -268,6 +292,8 @@ const AIPlaylistGenerator: React.FC<Props> = ({
                   <Zap className="mr-2 h-4 w-4" />
                   Premium Required
                 </>
+              ) : !isSpotifyWhitelisted ? (
+                'Spotify Access Limited'
               ) : !spotifyAccessToken ? (
                 'Connect Spotify First'
               ) : (
@@ -289,6 +315,12 @@ const AIPlaylistGenerator: React.FC<Props> = ({
         {(!hasActiveSubscription || isLocked) && (
           <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
             <strong>Premium Feature:</strong> Upgrade to Premium to unlock AI playlist generation.
+          </div>
+        )}
+
+        {!isSpotifyWhitelisted && (
+          <div className="text-xs text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-3 rounded-md">
+            <strong>Limited Access:</strong> Spotify features are temporarily limited. Contact support for full access.
           </div>
         )}
       </CardContent>

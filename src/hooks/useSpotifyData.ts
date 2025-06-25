@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface SpotifyTrack {
   id: string;
@@ -26,7 +27,7 @@ interface SpotifyArtist {
 }
 
 const useSpotifyData = () => {
-  const { profile, getValidSpotifyToken } = useAuth();
+  const { profile, getValidSpotifyToken, isSpotifyWhitelisted } = useAuth();
   const [topTracks, setTopTracks] = useState<SpotifyTrack[]>([]);
   const [topArtists, setTopArtists] = useState<SpotifyArtist[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<SpotifyTrack[]>([]);
@@ -36,6 +37,12 @@ const useSpotifyData = () => {
   const fetchSpotifyData = async () => {
     if (!profile?.spotify_connected) {
       setLoading(false);
+      return;
+    }
+
+    if (!isSpotifyWhitelisted) {
+      setLoading(false);
+      setError('Spotify features are temporarily limited. Please contact support.');
       return;
     }
 
@@ -53,34 +60,57 @@ const useSpotifyData = () => {
         'Content-Type': 'application/json',
       };
 
-      // Fetch top tracks
-      const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { headers });
-      if (topTracksResponse.ok) {
-        const topTracksData = await topTracksResponse.json();
-        setTopTracks(topTracksData.items || []);
+      // Fetch top tracks with error handling
+      try {
+        const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { headers });
+        if (topTracksResponse.ok) {
+          const topTracksData = await topTracksResponse.json();
+          setTopTracks(topTracksData.items || []);
+        } else if (topTracksResponse.status === 403) {
+          console.log('User not whitelisted for Spotify API');
+          setError('Spotify access limited. Contact support for full access.');
+        }
+      } catch (err) {
+        console.error('Error fetching top tracks:', err);
       }
 
-      // Fetch top artists
-      const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', { headers });
-      if (topArtistsResponse.ok) {
-        const topArtistsData = await topArtistsResponse.json();
-        setTopArtists(topArtistsData.items || []);
+      // Fetch top artists with error handling
+      try {
+        const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', { headers });
+        if (topArtistsResponse.ok) {
+          const topArtistsData = await topArtistsResponse.json();
+          setTopArtists(topArtistsData.items || []);
+        } else if (topArtistsResponse.status === 403) {
+          console.log('User not whitelisted for Spotify API');
+        }
+      } catch (err) {
+        console.error('Error fetching top artists:', err);
       }
 
-      // Fetch recently played
-      const recentResponse = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { headers });
-      if (recentResponse.ok) {
-        const recentData = await recentResponse.json();
-        const tracks = recentData.items?.map((item: any) => ({
-          ...item.track,
-          played_at: item.played_at
-        })) || [];
-        setRecentlyPlayed(tracks);
+      // Fetch recently played with error handling
+      try {
+        const recentResponse = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { headers });
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json();
+          const tracks = recentData.items?.map((item: any) => ({
+            ...item.track,
+            played_at: item.played_at
+          })) || [];
+          setRecentlyPlayed(tracks);
+        } else if (recentResponse.status === 403) {
+          console.log('User not whitelisted for Spotify API');
+        }
+      } catch (err) {
+        console.error('Error fetching recently played:', err);
       }
 
     } catch (err: any) {
       console.error('Error fetching Spotify data:', err);
-      setError(err.message || 'Failed to load Spotify data');
+      if (err.message.includes('403') || err.message.includes('not whitelisted')) {
+        setError('Spotify features are temporarily limited. Please contact support to enable full access.');
+      } else {
+        setError(err.message || 'Failed to load Spotify data');
+      }
     } finally {
       setLoading(false);
     }
@@ -88,7 +118,7 @@ const useSpotifyData = () => {
 
   useEffect(() => {
     fetchSpotifyData();
-  }, [profile?.spotify_connected, profile?.spotify_access_token]);
+  }, [profile?.spotify_connected, profile?.spotify_access_token, isSpotifyWhitelisted]);
 
   return {
     topTracks,

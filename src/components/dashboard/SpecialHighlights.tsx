@@ -5,9 +5,9 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, MessageCircle, UserPlus, CheckCircle, Music, Zap } from 'lucide-react';
+import { Sparkles, MessageCircle, CheckCircle, Music, Zap } from 'lucide-react';
 import { toast } from 'sonner';
-import ChatModal from '@/components/chat/ChatModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SpotifyTrack {
   id: string;
@@ -49,16 +49,21 @@ const SpecialHighlights: React.FC<Props> = ({
   isLocked,
   hasActiveSubscription,
 }) => {
+  const { isSpotifyWhitelisted } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('');
   const [playlistCreated, setPlaylistCreated] = useState(false);
   const [playlistUrl, setPlaylistUrl] = useState('');
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const createAIPlaylist = async () => {
     if (!hasActiveSubscription || isLocked) {
       toast.error('Premium subscription required to create AI playlists');
+      return;
+    }
+
+    if (!isSpotifyWhitelisted) {
+      toast.error('Spotify features are temporarily limited. Please contact support to enable full access.');
       return;
     }
 
@@ -67,7 +72,15 @@ const SpecialHighlights: React.FC<Props> = ({
       return;
     }
 
-    if (topTracks.length === 0 && topArtists.length === 0 && recentlyPlayed.length === 0) {
+    if (!topTracks?.length && !topArtists?.length && !recentlyPlayed?.length) {
+      toast.error('Please listen to more music on Spotify to get personalized playlists. We need your listening history to create recommendations.');
+      return;
+    }
+
+    const seedTracks = topTracks?.slice(0, 5).map(t => t.id) || [];
+    const seedArtists = topArtists?.slice(0, 5).map(a => a.id) || [];
+
+    if (seedTracks.length === 0 && seedArtists.length === 0) {
       toast.error('Not enough listening data available. Please listen to more music on Spotify first.');
       return;
     }
@@ -78,10 +91,6 @@ const SpecialHighlights: React.FC<Props> = ({
     setProgress(10);
 
     try {
-      // Prepare seeds from user's data
-      const availableArtists = topArtists.length > 0 ? topArtists : [];
-      const availableTracks = topTracks.length > 0 ? topTracks : recentlyPlayed.slice(0, 5);
-      
       const currentDate = new Date();
       const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       const playlistName = `MyVibe AI Mix – ${monthYear}`;
@@ -105,7 +114,8 @@ const SpecialHighlights: React.FC<Props> = ({
       });
 
       if (!createRes.ok) {
-        throw new Error(`Failed to create playlist: ${createRes.status}`);
+        const errorData = await createRes.json();
+        throw new Error(`Failed to create playlist: ${errorData.error?.message || createRes.status}`);
       }
 
       const playlist = await createRes.json();
@@ -114,21 +124,21 @@ const SpecialHighlights: React.FC<Props> = ({
 
       // Generate multiple batches of recommendations to get 100 tracks
       const allTracks = [];
-      const batchSize = 20; // Spotify's limit per request
-      const totalBatches = 5; // 5 batches of 20 = 100 tracks
+      const batchSize = 20;
+      const totalBatches = 5;
 
       for (let batch = 0; batch < totalBatches; batch++) {
         const seedParams = [];
         
         // Rotate seeds for variety
-        if (availableArtists.length > 0) {
-          const artistIndex = batch % availableArtists.length;
-          seedParams.push(`seed_artists=${availableArtists[artistIndex].id}`);
+        if (seedArtists.length > 0) {
+          const artistIndex = batch % seedArtists.length;
+          seedParams.push(`seed_artists=${seedArtists[artistIndex]}`);
         }
         
-        if (availableTracks.length > 0) {
-          const trackIndex = batch % availableTracks.length;
-          seedParams.push(`seed_tracks=${availableTracks[trackIndex].id}`);
+        if (seedTracks.length > 0) {
+          const trackIndex = batch % seedTracks.length;
+          seedParams.push(`seed_tracks=${seedTracks[trackIndex]}`);
         }
 
         // Add variety with different audio features for each batch
@@ -142,21 +152,25 @@ const SpecialHighlights: React.FC<Props> = ({
         
         const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || ''}`;
         
-        const recommendationsRes = await fetch(recommendationsUrl, {
-          headers: { 
-            'Authorization': `Bearer ${spotifyAccessToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        try {
+          const recommendationsRes = await fetch(recommendationsUrl, {
+            headers: { 
+              'Authorization': `Bearer ${spotifyAccessToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
 
-        if (recommendationsRes.ok) {
-          const recommendations = await recommendationsRes.json();
-          if (recommendations.tracks) {
-            allTracks.push(...recommendations.tracks);
+          if (recommendationsRes.ok) {
+            const recommendations = await recommendationsRes.json();
+            if (recommendations.tracks) {
+              allTracks.push(...recommendations.tracks);
+            }
           }
+        } catch (err) {
+          console.warn(`Error fetching batch ${batch}:`, err);
         }
 
-        setProgress(40 + (batch + 1) * 8); // Progress from 40 to 80
+        setProgress(40 + (batch + 1) * 8);
       }
 
       if (allTracks.length === 0) {
@@ -171,7 +185,7 @@ const SpecialHighlights: React.FC<Props> = ({
         index === self.findIndex(t => t.id === track.id)
       );
 
-      // Add tracks to playlist in batches (Spotify limit is 100 tracks per request)
+      // Add tracks to playlist in batches
       const trackUris = uniqueTracks.map(track => track.uri);
       
       const addTracksRes = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
@@ -181,13 +195,14 @@ const SpecialHighlights: React.FC<Props> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          uris: trackUris.slice(0, 100), // Limit to 100 tracks
+          uris: trackUris.slice(0, 100),
           position: 0
         })
       });
 
       if (!addTracksRes.ok) {
-        throw new Error(`Failed to add tracks to playlist: ${addTracksRes.status}`);
+        const errorData = await addTracksRes.json();
+        throw new Error(`Failed to add tracks to playlist: ${errorData.error?.message || addTracksRes.status}`);
       }
 
       setProgress(100);
@@ -210,6 +225,8 @@ const SpecialHighlights: React.FC<Props> = ({
       
       if (error.message.includes('session expired') || error.message.includes('401')) {
         toast.error('Your Spotify session has expired. Please reconnect your account.');
+      } else if (error.message.includes('403')) {
+        toast.error('Spotify access limited. Please contact support for full access.');
       } else {
         toast.error(`Failed to create playlist: ${error.message}`);
       }
@@ -233,163 +250,132 @@ const SpecialHighlights: React.FC<Props> = ({
   };
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-4 flex items-center justify-center">
-            <Zap className="mr-3 h-8 w-8 text-primary" />
-            Special Features
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Premium AI-powered tools and community features to enhance your music experience
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* AI Playlist Generator */}
-          <Card className="card-hover border-primary/20 hover:border-primary/40 transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Sparkles className="mr-2 h-5 w-5 text-purple-500" />
-                AI Playlist Generator
-              </CardTitle>
-              <CardDescription>
-                Create personalized playlists with 100 tracks using advanced AI based on your listening habits
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {(isCreating || playlistCreated) && (
-                <div className="space-y-3">
-                  <Progress value={progress} className="mb-2" />
-                  <p className="text-sm text-muted-foreground flex items-center">
-                    {playlistCreated && <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
-                    {message}
-                  </p>
-                  {playlistCreated && playlistUrl && (
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={() => window.open(playlistUrl, '_blank')}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        <Music className="mr-2 h-4 w-4" />
-                        Open in Spotify
-                      </Button>
-                      <Button
-                        onClick={resetPlaylistCreation}
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        Create Another
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {!isCreating && !playlistCreated && (
-                <>
-                  <div className="text-sm text-muted-foreground space-y-2">
-                    <p>• Uses your top tracks and artists as seeds</p>
-                    <p>• Generates 100 personalized song recommendations</p>
-                    <p>• Uses AI to create variety across different moods</p>
-                    <p>• Saves directly to your Spotify account</p>
-                    <p>• Updates monthly with fresh discoveries</p>
-                  </div>
-                  
-                  <Button 
-                    onClick={createAIPlaylist} 
-                    disabled={isLocked || !spotifyAccessToken || !hasActiveSubscription} 
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                  >
-                    {isLocked || !hasActiveSubscription ? (
-                      'Premium Required'
-                    ) : !spotifyAccessToken ? (
-                      'Connect Spotify First'
-                    ) : (
-                      'Generate AI Playlist (100 tracks)'
-                    )}
-                  </Button>
-                </>
-              )}
-              
-              {!spotifyAccessToken && (
-                <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-md">
-                  <strong>Note:</strong> Spotify connection required for playlist creation. 
-                  Connect your account in the dashboard settings.
-                </div>
-              )}
-              
-              {(!hasActiveSubscription || isLocked) && (
-                <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
-                  <strong>Premium Feature:</strong> Upgrade to Premium to unlock AI playlist generation 
-                  and get unlimited personalized recommendations.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Community Chat */}
-          <Card className="card-hover border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MessageCircle className="mr-2 h-5 w-5 text-blue-500" />
-                MyVibeLytics Community
-              </CardTitle>
-              <CardDescription>
-                Connect with music lovers worldwide - Free for everyone!
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="text-sm p-3 bg-muted/50 rounded-md border-l-2 border-green-400">
-                    <strong>🎶 LofiVibes:</strong> Just discovered an amazing chill-hop track! Anyone else into ambient beats?
-                  </div>
-                  <div className="text-sm p-3 bg-muted/50 rounded-md border-l-2 border-blue-400">
-                    <strong>🔥 MusicLover:</strong> The new indie releases this month are incredible! Drop your favorites 👇
-                  </div>
-                  <div className="text-sm p-3 bg-muted/50 rounded-md border-l-2 border-purple-400">
-                    <strong>🌟 VinyBot:</strong> Looking for underrated artists in electronic music. Help me discover!
-                  </div>
-                </div>
-                
-                <div className="border-t pt-4 space-y-3">
-                  <div className="text-sm text-muted-foreground">
-                    <p><strong>🌟 MyVibeLytics Features:</strong></p>
-                    <ul className="list-disc list-inside ml-2 space-y-1">
-                      <li>Find friends by username & send friend requests</li>
-                      <li>Create and join private music groups</li>
-                      <li>View detailed user profiles & music taste</li>
-                      <li>Real-time messaging with music sharing</li>
-                      <li>Smart moderation & community safety</li>
-                    </ul>
-                  </div>
-                  
-                  <Button 
-                    onClick={() => setIsChatOpen(true)}
-                    className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    <span>Join MyVibeLytics Community</span>
-                  </Button>
-                  
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">
-                      🎉 <strong>Free for all users!</strong> Connect, share, and discover music together
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      ✨ Advanced features • Safe environment • Music-focused discussions
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-foreground mb-4 flex items-center justify-center">
+          <Zap className="mr-3 h-8 w-8 text-primary" />
+          Special Features
+        </h2>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          Premium AI-powered tools and community features to enhance your music experience
+        </p>
       </div>
 
-      <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-    </>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* AI Playlist Generator */}
+        <Card className="card-hover border-primary/20 hover:border-primary/40 transition-all duration-300">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Sparkles className="mr-2 h-5 w-5 text-purple-500" />
+              AI Playlist Generator
+            </CardTitle>
+            <CardDescription>
+              Create personalized playlists with 100 tracks using advanced AI based on your listening habits
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(isCreating || playlistCreated) && (
+              <div className="space-y-3">
+                <Progress value={progress} className="mb-2" />
+                <p className="text-sm text-muted-foreground flex items-center">
+                  {playlistCreated && <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
+                  {message}
+                </p>
+                {playlistCreated && playlistUrl && (
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={() => window.open(playlistUrl, '_blank')}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Music className="mr-2 h-4 w-4" />
+                      Open in Spotify
+                    </Button>
+                    <Button
+                      onClick={resetPlaylistCreation}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Create Another
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {!isCreating && !playlistCreated && (
+              <>
+                <div className="text-sm text-muted-foreground space-y-2">
+                  <p>• Uses your top tracks and artists as seeds</p>
+                  <p>• Generates 100 personalized song recommendations</p>
+                  <p>• Uses AI to create variety across different moods</p>
+                  <p>• Saves directly to your Spotify account</p>
+                  <p>• Updates monthly with fresh discoveries</p>
+                </div>
+                
+                <Button 
+                  onClick={createAIPlaylist} 
+                  disabled={isLocked || !spotifyAccessToken || !hasActiveSubscription || !isSpotifyWhitelisted} 
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                >
+                  {isLocked || !hasActiveSubscription ? (
+                    'Premium Required'
+                  ) : !isSpotifyWhitelisted ? (
+                    'Spotify Access Limited'
+                  ) : !spotifyAccessToken ? (
+                    'Connect Spotify First'
+                  ) : (
+                    'Generate AI Playlist (100 tracks)'
+                  )}
+                </Button>
+              </>
+            )}
+            
+            {!spotifyAccessToken && (
+              <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-md">
+                <strong>Note:</strong> Spotify connection required for playlist creation. 
+                Connect your account in the dashboard settings.
+              </div>
+            )}
+            
+            {(!hasActiveSubscription || isLocked) && (
+              <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
+                <strong>Premium Feature:</strong> Upgrade to Premium to unlock AI playlist generation 
+                and get unlimited personalized recommendations.
+              </div>
+            )}
+
+            {!isSpotifyWhitelisted && (
+              <div className="text-xs text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-3 rounded-md">
+                <strong>Limited Access:</strong> Spotify features are temporarily limited. Contact support for full access.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Community Chat - Coming Soon */}
+        <Card className="card-hover border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <MessageCircle className="mr-2 h-5 w-5 text-blue-500" />
+              MyVibeLytics Community
+            </CardTitle>
+            <CardDescription>
+              Connect with music lovers worldwide
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-10">
+              <div className="text-6xl mb-4">💬</div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Community Chat</h3>
+              <p className="text-lg font-semibold text-muted-foreground">Coming Soon!</p>
+              <p className="text-sm text-muted-foreground mt-4 max-w-sm mx-auto">
+                Connect with fellow music enthusiasts, share discoveries, and discuss your favorite tracks.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 
