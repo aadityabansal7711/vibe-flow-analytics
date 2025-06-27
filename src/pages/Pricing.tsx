@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,16 +76,12 @@ const Pricing = () => {
     navigate('/auth');
   };
 
-  const handleUpgradeToPremium = () => {
-    navigate('/buy');
-  };
-
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
     { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Advanced mood + personality analysis" },
     { icon: <Users className="h-5 w-5 text-blue-500" />, text: "🤝 Compare music taste with friends" },
     { icon: <Music className="h-5 w-5 text-green-500" />, text: "🤖 AI-powered song & playlist insights" },
-    { icon: <Share2 className="h-5 w-5 text-pink-500" />, text: "📤 Unlimited shareable cards" },
+    { icon: <Share2 className="h-5 w-5 text-pink-500" />, text: "📤 Unlimited shareable cards (Coming Soon)" },
     { icon: <Gift className="h-5 w-5 text-yellow-500" />, text: "🎁 Weekly giveaway entries" },
     { icon: <Zap className="h-5 w-5 text-orange-500" />, text: "🚀 Early access to all new features" },
     { icon: <HeadphonesIcon className="h-5 w-5 text-cyan-500" />, text: "🧑‍💼 Priority support" }
@@ -223,17 +220,19 @@ const Pricing = () => {
                 )}
               </div>
 
-              <Button 
-                onClick={handleUpgradeToPremium}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground text-lg py-6"
-                size="lg"
-              >
-                <Crown className="mr-2 h-5 w-5" />
-                Get Premium Now
-              </Button>
+              {/* Razorpay Payment Button */}
+              <div className="w-full mb-4">
+                <form>
+                  <script 
+                    src="https://checkout.razorpay.com/v1/payment-button.js" 
+                    data-payment_button_id="pl_Qjs2W5AhXxHlni" 
+                    async
+                  ></script>
+                </form>
+              </div>
 
               <p className="text-center text-muted-foreground text-sm mt-4">
-                Sign up required to continue with payment
+                Secure payment via Razorpay. One-time yearly payment.
               </p>
             </CardContent>
           </Card>
