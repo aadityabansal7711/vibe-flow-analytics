@@ -57,6 +57,8 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
   };
 
   const getListeningStreak = () => {
+    if (!recentlyPlayed?.length) return { current: 0, longest: 0 };
+
     const playedDates = new Set(
       recentlyPlayed.map(t => {
         try {
@@ -68,38 +70,50 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
       }).filter(Boolean) as string[]
     );
 
+    const sortedDates = Array.from(playedDates)
+      .map(d => new Date(d))
+      .sort((a, b) => b.getTime() - a.getTime()); // Sort descending (most recent first)
+
     let currentStreak = 0;
     let longestStreak = 0;
     let tempStreak = 0;
-    let checkingDate = new Date();
 
-    // Check current streak
-    while (playedDates.has(checkingDate.toDateString())) {
-      currentStreak++;
-      checkingDate.setDate(checkingDate.getDate() - 1);
+    // Calculate current streak (consecutive days from today backwards)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < sortedDates.length; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      
+      if (playedDates.has(checkDate.toDateString())) {
+        currentStreak++;
+      } else {
+        break;
+      }
     }
 
-    // Reset and count longest streak
-    const sortedDates = Array.from(playedDates)
-      .map(d => new Date(d))
-      .sort((a, b) => a.getTime() - b.getTime());
-
+    // Calculate longest streak
+    const allDates = sortedDates.sort((a, b) => a.getTime() - b.getTime()); // Sort ascending for longest streak calc
     let prevDate = null;
-    for (const d of sortedDates) {
+    
+    for (const date of allDates) {
       if (prevDate) {
-        const diff = Math.round((d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diff === 1) {
+        const diffTime = date.getTime() - prevDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
           tempStreak++;
         } else {
           longestStreak = Math.max(longestStreak, tempStreak + 1);
           tempStreak = 0;
         }
       }
-      prevDate = d;
+      prevDate = date;
     }
     longestStreak = Math.max(longestStreak, tempStreak + 1);
 
-    return { current: currentStreak || 1, longest: longestStreak || 1 };
+    return { current: currentStreak, longest: Math.max(longestStreak, currentStreak) };
   };
 
   const getSkipRate = () => {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -60,6 +59,7 @@ const useSpotifyData = () => {
         'Content-Type': 'application/json',
       };
 
+      
       // Fetch top tracks with error handling
       try {
         const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { 
@@ -128,10 +128,7 @@ const useSpotifyData = () => {
   useEffect(() => {
     fetchSpotifyData();
     
-    // Set up real-time refresh interval (every 10 seconds)
-    const interval = setInterval(fetchSpotifyData, 10000);
-    
-    // Refresh on window focus
+    // Reduce refresh interval to avoid constant refreshing - only refresh on window focus
     const handleFocus = () => {
       fetchSpotifyData();
     };
@@ -139,7 +136,6 @@ const useSpotifyData = () => {
     window.addEventListener('focus', handleFocus);
     
     return () => {
-      clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
   }, [profile?.spotify_connected, profile?.spotify_access_token, isSpotifyWhitelisted]);

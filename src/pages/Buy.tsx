@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { 
   Crown, 
   Sparkles, 
@@ -19,7 +21,7 @@ import {
 } from 'lucide-react';
 
 const Buy = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, fetchProfile } = useAuth();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
@@ -55,6 +57,52 @@ const Buy = () => {
     return cleanup;
   }, []);
 
+  // Handle successful payment
+  useEffect(() => {
+    // Listen for payment success messages
+    const handlePaymentSuccess = async (event: MessageEvent) => {
+      if (event.data.type === 'payment_success') {
+        setPaymentProcessing(true);
+        
+        try {
+          // Update user's subscription status
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              has_active_subscription: true,
+              plan_tier: 'premium',
+              plan_start_date: new Date().toISOString(),
+              plan_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+            })
+            .eq('user_id', user.id);
+
+          if (error) throw error;
+
+          // Refresh profile data
+          if (fetchProfile) {
+            await fetchProfile();
+          }
+
+          toast.success('🎉 Premium activated! Welcome to MyVibeLyrics Premium!');
+          
+          // Redirect to dashboard after successful payment
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 2000);
+          
+        } catch (error) {
+          console.error('Error updating subscription:', error);
+          toast.error('Payment successful but there was an error activating premium. Please contact support.');
+        } finally {
+          setPaymentProcessing(false);
+        }
+      }
+    };
+
+    window.addEventListener('message', handlePaymentSuccess);
+    return () => window.removeEventListener('message', handlePaymentSuccess);
+  }, [user.id, fetchProfile]);
+
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
     { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Advanced mood + personality analysis" },
@@ -72,7 +120,7 @@ const Buy = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <div className="text-white text-lg">Processing your payment...</div>
-          <div className="text-muted-foreground">Please complete the payment process</div>
+          <div className="text-muted-foreground">Activating your premium subscription...</div>
         </div>
       </div>
     );
@@ -127,17 +175,19 @@ const Buy = () => {
                   ))}
                 </div>
 
-                {/* Razorpay Payment Button Container */}
+                {/* Payment Button */}
                 <div className="mb-6">
                   <div id="razorpay-container">
                     {razorpayLoaded ? (
-                      <form>
-                        <script 
-                          src="https://checkout.razorpay.com/v1/payment-button.js" 
-                          data-payment_button_id="pl_Qjs2W5AhXxHlni" 
-                          async
-                        ></script>
-                      </form>
+                      <div className="w-full">
+                        <form>
+                          <script 
+                            src="https://checkout.razorpay.com/v1/payment-button.js" 
+                            data-payment_button_id="pl_Qjs2W5AhXxHlni" 
+                            async
+                          ></script>
+                        </form>
+                      </div>
                     ) : (
                       <div className="text-center py-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
