@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,8 @@ interface ListeningBehaviorProps {
 }
 
 const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recentlyPlayed, isLocked }) => {
+  const { profile } = useAuth();
+
   const getTimePreference = () => {
     if (!recentlyPlayed?.length) return { preference: 'No data available', data: [] };
 
@@ -57,61 +60,69 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
   };
 
   const getListeningStreak = () => {
-    if (!recentlyPlayed?.length) return { current: 0, longest: 0 };
+    if (!recentlyPlayed?.length || !profile?.created_at) return { current: 0, longest: 0 };
 
+    // Get the date when Spotify was connected (profile creation date)
+    const spotifyConnectedDate = new Date(profile.created_at);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get unique dates from recently played tracks
     const playedDates = new Set(
       recentlyPlayed.map(t => {
         try {
           const d = new Date(t.played_at || '');
-          return isNaN(d.getTime()) ? null : d.toDateString();
+          if (isNaN(d.getTime())) return null;
+          // Only count dates after Spotify connection
+          if (d < spotifyConnectedDate) return null;
+          return d.toDateString();
         } catch {
           return null;
         }
       }).filter(Boolean) as string[]
     );
 
-    const sortedDates = Array.from(playedDates)
-      .map(d => new Date(d))
-      .sort((a, b) => b.getTime() - a.getTime()); // Sort descending (most recent first)
-
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
-
     // Calculate current streak (consecutive days from today backwards)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    for (let i = 0; i < sortedDates.length; i++) {
+    let currentStreak = 0;
+    for (let i = 0; i < 365; i++) { // Check up to 1 year back
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
       
+      // Don't count dates before Spotify connection
+      if (checkDate < spotifyConnectedDate) break;
+      
       if (playedDates.has(checkDate.toDateString())) {
         currentStreak++;
+      } else if (i === 0) {
+        // If today has no plays, check yesterday and continue
+        continue;
       } else {
         break;
       }
     }
 
     // Calculate longest streak
-    const allDates = sortedDates.sort((a, b) => a.getTime() - b.getTime()); // Sort ascending for longest streak calc
-    let prevDate = null;
+    const sortedDates = Array.from(playedDates)
+      .map(d => new Date(d))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    let longestStreak = 0;
+    let tempStreak = 1;
     
-    for (const date of allDates) {
-      if (prevDate) {
-        const diffTime = date.getTime() - prevDate.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) {
-          tempStreak++;
-        } else {
-          longestStreak = Math.max(longestStreak, tempStreak + 1);
-          tempStreak = 0;
-        }
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = sortedDates[i - 1];
+      const currentDate = sortedDates[i];
+      const diffTime = currentDate.getTime() - prevDate.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
       }
-      prevDate = date;
     }
-    longestStreak = Math.max(longestStreak, tempStreak + 1);
+    longestStreak = Math.max(longestStreak, tempStreak);
 
     return { current: currentStreak, longest: Math.max(longestStreak, currentStreak) };
   };
@@ -136,6 +147,7 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
   };
 
   const mostActiveHour = () => {
+    if (!recentlyPlayed.length) return 'No data';
     const hourCount = Array(24).fill(0);
     for (const t of recentlyPlayed) {
       const d = new Date(t.played_at || '');
@@ -183,7 +195,7 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
             <div className="text-sm text-yellow-300 mb-3">Most Active: {activeTime}</div>
           </FeatureCard>
 
-          <FeatureCard title="Listening Streaks" description="Your consistency tracking" icon={<Activity className="h-6 w-6 text-red-400" />} isLocked={isLocked}>
+          <FeatureCard title="Listening Streaks" description="Your consistency since Spotify connection" icon={<Activity className="h-6 w-6 text-red-400" />} isLocked={isLocked}>
             <div className="space-y-3 text-center">
               <div>
                 <div className="text-3xl font-bold text-red-400 mb-1">{streakData.current}</div>
@@ -192,6 +204,9 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
               <div>
                 <div className="text-xl font-semibold text-red-300 mb-1">{streakData.longest}</div>
                 <div className="text-xs text-red-200">Longest Streak</div>
+              </div>
+              <div className="text-xs text-red-100 mt-2">
+                *Calculated since Spotify connection
               </div>
             </div>
           </FeatureCard>

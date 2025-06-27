@@ -15,7 +15,8 @@ import {
   Clock, 
   Heart, 
   Sparkles,
-  Share2
+  Share2,
+  AlertTriangle
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -28,10 +29,30 @@ const Dashboard = () => {
   }
 
   if (!profile?.spotify_connected) {
-    return <Navigate to="/profile" replace />;
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            <CardTitle className="text-2xl text-foreground">Spotify Connection Required</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-muted-foreground">
+              Please connect your Spotify account to access your music dashboard and analytics.
+            </p>
+            <Link to="/profile">
+              <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+                <Music className="mr-2 h-4 w-4" />
+                Connect Spotify Account
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  const isLocked = !profile?.has_active_subscription;
+  const isLocked = !profile?.has_active_subscription && profile?.plan_tier !== 'premium';
 
   if (loading) {
     return (
@@ -78,7 +99,7 @@ const Dashboard = () => {
                 Weekly Giveaway
               </Button>
             </Link>
-            {profile?.has_active_subscription && (
+            {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
               <Badge variant="outline" className="text-yellow-400 border-yellow-400">
                 <Sparkles className="mr-1 h-3 w-3" />
                 Premium
@@ -177,7 +198,7 @@ const Dashboard = () => {
               topArtists={topArtists}
               recentlyPlayed={recentlyPlayed}
               isLocked={isLocked}
-              hasActiveSubscription={!!profile?.has_active_subscription}
+              hasActiveSubscription={!!(profile?.has_active_subscription || profile?.plan_tier === 'premium')}
             />
           </div>
         )}

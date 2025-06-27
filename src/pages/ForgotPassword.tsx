@@ -5,8 +5,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Lock, CheckCircle } from 'lucide-react';
+import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
 
 const ForgotPassword: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -15,15 +16,15 @@ const ForgotPassword: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const location = useLocation();
 
-  // Extract the access token (one-time token) from URL (provided by Supabase in reset link)
-  const getAccessToken = () => {
-    const params = new URLSearchParams(location.search);
-    return params.get('access_token');
+  // Extract the access token from URL hash (Supabase sends it there)
+  const getTokenFromHash = () => {
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    return hashParams.get('access_token');
   };
-  const accessToken = getAccessToken();
+
+  const accessToken = getTokenFromHash();
 
   useEffect(() => {
     if (!accessToken) {
@@ -56,41 +57,26 @@ const ForgotPassword: React.FC = () => {
     setSubmitting(true);
 
     try {
-      // Dynamically import supabase client to avoid SSR issues
-      const { createClient } = await import('@supabase/supabase-js');
-      // Create a new supabase client for just this operation
-      const supabaseUrl = "https://wxwbfduhveewbuluetpb.supabase.co";
-      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4d2JmZHVodmVld2J1bHVldHBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzODkxNzYsImV4cCI6MjA2NDk2NTE3Nn0.xZYb93_kej1HPbQEKbSrBh_T0Zm27y8WoZ5oxuo7FeA";
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      // Set session with the one-time access token
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: '',
-      });
-
-      if (sessionError) {
-        setError("Invalid or expired reset link. Please request a new password reset.");
-        return;
-      }
-
-      // Use access token to update the user's password
+      // Use the access token to update the user's password directly
       const { error: updateError } = await supabase.auth.updateUser({
-        password
+        password: password
       });
 
       if (updateError) {
-        setError(updateError.message || "Failed to reset password.");
-      } else {
-        setSuccess(true);
-        toast({
-          title: 'Password reset successful!',
-          description: "Your password has been updated. Redirecting to login...",
-        });
-        setTimeout(() => navigate('/auth'), 2000);
+        throw updateError;
       }
-    } catch (e: any) {
-      setError(e.message || "Unexpected error resetting password.");
+
+      setSuccess(true);
+      toast.success('Password reset successful!');
+      
+      setTimeout(() => {
+        navigate('/auth');
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      setError(error.message || "Failed to reset password.");
+      toast.error('Failed to reset password');
     } finally {
       setSubmitting(false);
     }
@@ -110,10 +96,14 @@ const ForgotPassword: React.FC = () => {
         <Card className="glass-effect-strong border-border/50">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10">
-              <Lock className="h-8 w-8 text-primary" />
+              {success ? <CheckCircle className="h-8 w-8 text-green-500" /> : <Lock className="h-8 w-8 text-primary" />}
             </div>
-            <CardTitle className="text-2xl text-foreground">Reset Your Password</CardTitle>
-            <p className="text-muted-foreground">Enter your new password below</p>
+            <CardTitle className="text-2xl text-foreground">
+              {success ? 'Password Reset Complete!' : 'Reset Your Password'}
+            </CardTitle>
+            <p className="text-muted-foreground">
+              {success ? 'Redirecting you to login...' : 'Enter your new password below'}
+            </p>
           </CardHeader>
           <CardContent>
             {!success ? (
@@ -130,6 +120,7 @@ const ForgotPassword: React.FC = () => {
                     onChange={e => setPassword(e.target.value)}
                     className="bg-background/50 border-border text-foreground"
                     placeholder="Enter your new password"
+                    disabled={!accessToken}
                   />
                 </div>
                 <div>
@@ -144,10 +135,13 @@ const ForgotPassword: React.FC = () => {
                     onChange={e => setConfirm(e.target.value)}
                     className="bg-background/50 border-border text-foreground"
                     placeholder="Confirm your new password"
+                    disabled={!accessToken}
                   />
                 </div>
                 {error && (
-                  <div className="text-red-400 text-sm mb-2">{error}</div>
+                  <div className="text-red-400 text-sm mb-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    {error}
+                  </div>
                 )}
                 <Button
                   type="submit"
@@ -161,8 +155,10 @@ const ForgotPassword: React.FC = () => {
                 </div>
               </form>
             ) : (
-              <div className="text-green-500 font-medium text-center">
-                Password updated! Redirecting to login...
+              <div className="text-green-500 font-medium text-center space-y-4">
+                <CheckCircle className="h-16 w-16 mx-auto text-green-500" />
+                <p>Password updated successfully!</p>
+                <p className="text-sm text-muted-foreground">Redirecting to login...</p>
               </div>
             )}
           </CardContent>

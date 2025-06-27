@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import SpotifyConnect from '@/components/SpotifyConnect';
 import DangerZone from '@/pages/profile/DangerZone';
+import EditName from '@/pages/profile/EditName';
 import { 
   User, 
   Crown, 
@@ -92,10 +93,10 @@ const Profile = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Link to="/dashboard">
+            <Link to={profile?.spotify_connected ? "/dashboard" : "/profile"}>
               <Button variant="outline" size="sm" className="transition-all duration-300 hover:scale-105">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
+                {profile?.spotify_connected ? 'Back to Dashboard' : 'Dashboard (Connect Spotify First)'}
               </Button>
             </Link>
             <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
@@ -126,10 +127,7 @@ const Profile = () => {
                 <div className="text-foreground font-medium">{user.email}</div>
               </div>
               
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                <div className="text-foreground font-medium">{profile?.full_name || 'Not set'}</div>
-              </div>
+              <EditName profile={profile} />
 
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Plan</label>
@@ -190,7 +188,7 @@ const Profile = () => {
                         <div className="flex items-start space-x-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                           <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                           <div className="text-xs text-amber-400">
-                            <strong>Warning:</strong> Disconnecting Spotify will immediately revoke your premium subscription and access to all premium features.
+                            <strong>Premium Warning:</strong> Disconnecting Spotify will immediately revoke your premium subscription and access to all premium features. This action cannot be undone.
                           </div>
                         </div>
                       )}

@@ -28,15 +28,30 @@ const AIPlaylistGenerator: React.FC<Props> = ({
   hasActiveSubscription,
   onPlaylistCreated
 }) => {
-  const { isSpotifyWhitelisted } = useAuth();
+  const { profile, isSpotifyWhitelisted } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('');
   const [playlistCreated, setPlaylistCreated] = useState(false);
   const [playlistUrl, setPlaylistUrl] = useState('');
 
+  // Check if user has premium access
+  const hasPremiumAccess = profile?.has_active_subscription || profile?.plan_tier === 'premium';
+
   const createAIPlaylist = async () => {
-    if (!hasActiveSubscription || isLocked) {
+    console.log('🎵 AI Playlist Creation Debug:', {
+      hasPremiumAccess,
+      hasActiveSubscription,
+      isLocked,
+      spotifyAccessToken: !!spotifyAccessToken,
+      spotifyUserId,
+      isSpotifyWhitelisted,
+      topTracksCount: topTracks?.length || 0,
+      topArtistsCount: topArtists?.length || 0,
+      recentPlayedCount: recentlyPlayed?.length || 0
+    });
+
+    if (!hasPremiumAccess) {
       toast.error('Premium subscription required to create AI playlists');
       return;
     }
@@ -83,6 +98,8 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       setProgress(20);
       setMessage('Creating your personalized playlist...');
 
+      console.log('🎵 Creating playlist with name:', playlistName);
+
       // Create playlist
       const createRes = await fetch(`https://api.spotify.com/v1/users/${spotifyUserId}/playlists`, {
         method: 'POST',
@@ -100,27 +117,35 @@ const AIPlaylistGenerator: React.FC<Props> = ({
 
       if (!createRes.ok) {
         const errorData = await createRes.json();
+        console.error('❌ Failed to create playlist:', errorData);
         throw new Error(`Failed to create playlist: ${errorData.error?.message || createRes.status}`);
       }
 
       const playlist = await createRes.json();
+      console.log('✅ Playlist created:', playlist.id);
+      
       setProgress(40);
       setMessage('Generating 100 AI-powered recommendations...');
 
-      // Generate recommendations in batches to get diverse 100 tracks
+      // Generate recommendations in multiple batches to get 100 unique tracks
       const allTracks = [];
       const usedTrackIds = new Set();
-      const batchSize = 20;
-      const totalBatches = 8; // Get more batches to ensure 100 unique tracks
+      const totalBatches = 10; // Increased batches for more variety
 
       for (let batch = 0; batch < totalBatches; batch++) {
+        console.log(`🔄 Processing batch ${batch + 1}/${totalBatches}`);
+        
         const seedParams = [];
         
         // Use different combinations of seeds for variety
         if (seedArtists.length > 0) {
           const artistIndex = batch % seedArtists.length;
           const artistIndex2 = (batch + 1) % seedArtists.length;
-          seedParams.push(`seed_artists=${seedArtists[artistIndex]},${seedArtists[artistIndex2]}`);
+          if (artistIndex !== artistIndex2) {
+            seedParams.push(`seed_artists=${seedArtists[artistIndex]},${seedArtists[artistIndex2]}`);
+          } else {
+            seedParams.push(`seed_artists=${seedArtists[artistIndex]}`);
+          }
         }
         
         if (seedTracks.length > 0) {
@@ -137,9 +162,12 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           'target_danceability=0.9&target_tempo=120&target_popularity=80',
           'target_valence=0.8&target_energy=0.7&target_popularity=60',
           'target_acousticness=0.3&target_energy=0.6&target_tempo=110',
-          'target_liveness=0.3&target_speechiness=0.05&target_popularity=70'
+          'target_liveness=0.3&target_speechiness=0.05&target_popularity=70',
+          'target_energy=0.6&target_valence=0.5&target_tempo=100',
+          'target_danceability=0.5&target_energy=0.5&target_popularity=70'
         ];
         
+        const batchSize = Math.min(20, Math.ceil((100 - allTracks.length) / (totalBatches - batch)));
         const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || audioFeatures[0]}`;
         
         try {
@@ -163,29 +191,36 @@ const AIPlaylistGenerator: React.FC<Props> = ({
                 usedTrackIds.add(track.id);
                 allTracks.push(track);
               });
+
+              console.log(`✅ Batch ${batch + 1} added ${newTracks.length} tracks. Total: ${allTracks.length}`);
             }
           } else {
-            console.warn(`Batch ${batch} failed with status:`, recommendationsRes.status);
+            console.warn(`⚠️ Batch ${batch + 1} failed with status:`, recommendationsRes.status);
           }
         } catch (err) {
-          console.warn(`Error fetching batch ${batch}:`, err);
+          console.warn(`❌ Error fetching batch ${batch + 1}:`, err);
         }
 
-        setProgress(40 + (batch + 1) * 5);
+        setProgress(40 + (batch + 1) * 4);
+
+        // Break if we have enough tracks
+        if (allTracks.length >= 100) break;
       }
+
+      console.log('🎵 Total tracks collected:', allTracks.length);
 
       if (allTracks.length === 0) {
         throw new Error('No recommendations received from Spotify. This might be due to limited listening history.');
       }
 
-      // Shuffle and take exactly 100 tracks
+      // Shuffle and take exactly 100 tracks (or all if less than 100)
       const shuffledTracks = allTracks.sort(() => 0.5 - Math.random());
-      const finalTracks = shuffledTracks.slice(0, 100);
+      const finalTracks = shuffledTracks.slice(0, Math.min(100, shuffledTracks.length));
 
       setMessage(`Adding ${finalTracks.length} tracks to your playlist...`);
       setProgress(85);
 
-      // Add tracks to playlist
+      // Add tracks to playlist in batches (Spotify allows max 100 per request)
       const trackUris = finalTracks.map(track => track.uri);
       
       const addTracksRes = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
@@ -202,8 +237,11 @@ const AIPlaylistGenerator: React.FC<Props> = ({
 
       if (!addTracksRes.ok) {
         const errorData = await addTracksRes.json();
+        console.error('❌ Failed to add tracks:', errorData);
         throw new Error(`Failed to add tracks to playlist: ${errorData.error?.message || addTracksRes.status}`);
       }
+
+      console.log('✅ All tracks added successfully');
 
       setProgress(100);
       setMessage(`✅ Playlist created successfully with ${finalTracks.length} unique tracks!`);
@@ -224,24 +262,10 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       }
       
     } catch (error: any) {
-      console.error('Playlist creation error:', error);
+      console.error('❌ Playlist creation error:', error);
       setProgress(0);
       setMessage('');
-      
-      // Show user-friendly error message instead of technical error
-      if (error.message.includes('session expired') || error.message.includes('401')) {
-        toast.success('Playlist created successfully! Check your Spotify account.');
-      } else if (error.message.includes('403')) {
-        toast.success('Playlist created successfully! Check your Spotify account.');
-      } else {
-        toast.success('Playlist created successfully! Check your Spotify account.');
-      }
-      
-      // Set as successful even if there's an error to avoid confusion
-      setPlaylistCreated(true);
-      setMessage('✅ Playlist created successfully!');
-      setProgress(100);
-      
+      toast.error(`Failed to create playlist: ${error.message}`);
     } finally {
       setTimeout(() => {
         if (!playlistCreated) {
@@ -302,17 +326,17 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           <>
             <div className="text-sm text-muted-foreground space-y-2">
               <p>• Uses your top tracks and artists as seeds</p>
-              <p>• Generates 100 personalized song recommendations</p>
+              <p>• Generates up to 100 personalized song recommendations</p>
               <p>• Uses AI to create variety across different moods</p>
               <p>• Saves directly to your Spotify account</p>
             </div>
             
             <Button 
               onClick={createAIPlaylist} 
-              disabled={isLocked || !spotifyAccessToken || !hasActiveSubscription || !isSpotifyWhitelisted} 
+              disabled={!hasPremiumAccess || !spotifyAccessToken || !isSpotifyWhitelisted} 
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
             >
-              {isLocked || !hasActiveSubscription ? (
+              {!hasPremiumAccess ? (
                 <>
                   <Zap className="mr-2 h-4 w-4" />
                   Premium Required
@@ -337,7 +361,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           </div>
         )}
         
-        {(!hasActiveSubscription || isLocked) && (
+        {!hasPremiumAccess && (
           <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
             <strong>Premium Feature:</strong> Upgrade to Premium to unlock AI playlist generation.
           </div>
