@@ -1,6 +1,4 @@
-// Buy.tsx — Razorpay Button + Webhook Compatible
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,11 +14,25 @@ import {
 const Buy = () => {
   const { user, fetchProfile } = useAuth();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const razorpayRef = useRef<HTMLDivElement>(null);
+  const basePrice = 499;
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  const basePrice = 499;
+  // Inject Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/payment-button.js';
+    script.setAttribute('data-payment_button_id', 'pl_Qjs2W5AhXxHlni');
+    script.async = true;
 
+    if (razorpayRef.current) {
+      razorpayRef.current.innerHTML = ''; // Clean if rerendered
+      razorpayRef.current.appendChild(script);
+    }
+  }, []);
+
+  // Listen for postMessage payment success
   useEffect(() => {
     const handlePaymentSuccess = async (event: MessageEvent) => {
       if (event.data.type === 'payment_success') {
@@ -80,6 +92,7 @@ const Buy = () => {
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
       <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link to="/dashboard">
             <Button variant="outline" size="sm">
@@ -93,6 +106,7 @@ const Buy = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Plan */}
           <div className="lg:col-span-2">
             <Card className="glass-effect border-primary/50">
               <CardHeader className="bg-gradient-to-r from-primary/20 to-purple-600/20 border-b">
@@ -103,22 +117,23 @@ const Buy = () => {
                   </div>
                   <Badge className="animate-pulse">🌟 Most Popular</Badge>
                 </div>
-                <div className="text-4xl font-bold text-primary">₹{basePrice} <span className="text-base">/year</span></div>
+                <div className="text-4xl font-bold text-primary">
+                  ₹{basePrice} <span className="text-base">/year</span>
+                </div>
               </CardHeader>
+
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 gap-4 mb-8">
                   {features.map((f, i) => (
                     <div key={i} className="flex items-center space-x-3">
-                      {f.icon}<span>{f.text}</span>
+                      {f.icon}
+                      <span>{f.text}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="mb-6 text-center">
-                  <form>
-                    <script src="https://checkout.razorpay.com/v1/payment-button.js"
-                            data-payment_button_id="pl_Qjs2W5AhXxHlni" async></script>
-                  </form>
+                  <div ref={razorpayRef}></div>
                 </div>
 
                 <p className="text-center text-muted-foreground text-sm">
@@ -128,6 +143,7 @@ const Buy = () => {
             </Card>
           </div>
 
+          {/* Why Premium */}
           <div className="space-y-6">
             <Card className="glass-effect">
               <CardHeader>
@@ -136,36 +152,15 @@ const Buy = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-muted-foreground">
-                <div className="flex items-start space-x-3">
-                  <Music className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-foreground">Unlimited Analytics</h4>
-                    <p className="text-sm text-muted-foreground">Access all advanced features without limits</p>
+                {features.slice(0, 4).map((f, i) => (
+                  <div key={i} className="flex items-start space-x-3">
+                    {f.icon}
+                    <div>
+                      <h4 className="font-medium text-foreground">{f.text.split(' ')[1]}</h4>
+                      <p className="text-sm">{f.text.split(' ').slice(2).join(' ')}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <Brain className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-foreground">AI Insights</h4>
-                    <p className="text-sm text-muted-foreground">Get personalized AI-powered recommendations</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-foreground">Great Value</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Only ₹{basePrice} per year - less than ₹{Math.round(basePrice/12)} per month
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <Crown className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-foreground">Premium Support</h4>
-                    <p className="text-sm text-muted-foreground">Get priority help when you need it</p>
-                  </div>
-                </div>
+                ))}
               </CardContent>
             </Card>
           </div>
