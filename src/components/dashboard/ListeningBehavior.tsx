@@ -62,12 +62,12 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
   const getListeningStreak = () => {
     if (!recentlyPlayed?.length || !profile?.created_at) return { current: 0, longest: 0 };
 
-    // Get the date when Spotify was connected (profile creation date)
+    // Get the date when Spotify was connected
     const spotifyConnectedDate = new Date(profile.created_at);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get unique dates from recently played tracks
+    // Get unique dates from recently played tracks (only after Spotify connection)
     const playedDates = new Set(
       recentlyPlayed.map(t => {
         try {
@@ -84,7 +84,7 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
 
     // Calculate current streak (consecutive days from today backwards)
     let currentStreak = 0;
-    for (let i = 0; i < 365; i++) { // Check up to 1 year back
+    for (let i = 0; i < 365; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
       
@@ -93,10 +93,8 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
       
       if (playedDates.has(checkDate.toDateString())) {
         currentStreak++;
-      } else if (i === 0) {
-        // If today has no plays, check yesterday and continue
-        continue;
-      } else {
+      } else if (i > 0) {
+        // Break streak if no activity (but allow today to be empty)
         break;
       }
     }
@@ -124,7 +122,10 @@ const ListeningBehavior: React.FC<ListeningBehaviorProps> = ({ topTracks, recent
     }
     longestStreak = Math.max(longestStreak, tempStreak);
 
-    return { current: currentStreak, longest: Math.max(longestStreak, currentStreak) };
+    return { 
+      current: Math.max(currentStreak, longestStreak > currentStreak ? currentStreak : longestStreak), 
+      longest: Math.max(longestStreak, currentStreak) 
+    };
   };
 
   const getSkipRate = () => {

@@ -130,7 +130,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       // Generate recommendations in multiple batches to get 100 unique tracks
       const allTracks = [];
       const usedTrackIds = new Set();
-      const totalBatches = 10; // Increased batches for more variety
+      const totalBatches = 12; // More batches for better variety
 
       for (let batch = 0; batch < totalBatches; batch++) {
         console.log(`🔄 Processing batch ${batch + 1}/${totalBatches}`);
@@ -141,7 +141,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
         if (seedArtists.length > 0) {
           const artistIndex = batch % seedArtists.length;
           const artistIndex2 = (batch + 1) % seedArtists.length;
-          if (artistIndex !== artistIndex2) {
+          if (artistIndex !== artistIndex2 && seedArtists.length > 1) {
             seedParams.push(`seed_artists=${seedArtists[artistIndex]},${seedArtists[artistIndex2]}`);
           } else {
             seedParams.push(`seed_artists=${seedArtists[artistIndex]}`);
@@ -164,10 +164,12 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           'target_acousticness=0.3&target_energy=0.6&target_tempo=110',
           'target_liveness=0.3&target_speechiness=0.05&target_popularity=70',
           'target_energy=0.6&target_valence=0.5&target_tempo=100',
-          'target_danceability=0.5&target_energy=0.5&target_popularity=70'
+          'target_danceability=0.5&target_energy=0.5&target_popularity=70',
+          'target_instrumentalness=0.2&target_acousticness=0.4&target_energy=0.7',
+          'target_speechiness=0.1&target_loudness=-8&target_tempo=140'
         ];
         
-        const batchSize = Math.min(20, Math.ceil((100 - allTracks.length) / (totalBatches - batch)));
+        const batchSize = Math.min(15, Math.ceil((100 - allTracks.length) / (totalBatches - batch)));
         const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || audioFeatures[0]}`;
         
         try {
@@ -220,7 +222,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       setMessage(`Adding ${finalTracks.length} tracks to your playlist...`);
       setProgress(85);
 
-      // Add tracks to playlist in batches (Spotify allows max 100 per request)
+      // Add tracks to playlist
       const trackUris = finalTracks.map(track => track.uri);
       
       const addTracksRes = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {

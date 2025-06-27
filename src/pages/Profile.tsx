@@ -50,9 +50,10 @@ const Profile = () => {
   };
 
   const handleSpotifyDisconnect = async () => {
-    if (profile?.has_active_subscription) {
+    // Show premium warning if user has active subscription
+    if (profile?.has_active_subscription || profile?.plan_tier === 'premium') {
       const confirmed = window.confirm(
-        'Warning: Disconnecting Spotify will revoke your premium subscription immediately. You will lose access to all premium features. Are you sure you want to continue?'
+        '⚠️ PREMIUM SUBSCRIPTION WARNING ⚠️\n\nDisconnecting Spotify will IMMEDIATELY:\n• Cancel your premium subscription\n• Remove access to ALL premium features\n• This action CANNOT be undone\n\nYou will need to purchase a new subscription to regain premium access.\n\nAre you absolutely sure you want to continue?'
       );
       
       if (!confirmed) return;
@@ -77,7 +78,7 @@ const Profile = () => {
 
       if (error) throw error;
 
-      toast.success('Spotify disconnected successfully');
+      toast.success('Spotify disconnected and premium subscription cancelled');
       window.location.reload();
     } catch (error) {
       console.error('Error disconnecting Spotify:', error);
@@ -93,7 +94,12 @@ const Profile = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Link to={profile?.spotify_connected ? "/dashboard" : "/profile"}>
+            <Link to={profile?.spotify_connected ? "/dashboard" : "#"} onClick={(e) => {
+              if (!profile?.spotify_connected) {
+                e.preventDefault();
+                toast.error('Please connect your Spotify account first to access the dashboard');
+              }
+            }}>
               <Button variant="outline" size="sm" className="transition-all duration-300 hover:scale-105">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {profile?.spotify_connected ? 'Back to Dashboard' : 'Dashboard (Connect Spotify First)'}
@@ -103,7 +109,7 @@ const Profile = () => {
             <h1 className="text-3xl font-bold text-gradient">Profile Settings</h1>
           </div>
           <div className="flex items-center gap-4">
-            {profile?.has_active_subscription && (
+            {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
               <Badge variant="outline" className="text-yellow-400 border-yellow-400">
                 <Crown className="mr-1 h-3 w-3" />
                 Premium
@@ -135,7 +141,7 @@ const Profile = () => {
                   <span className="text-foreground font-medium capitalize">
                     {profile?.plan_tier || 'free'}
                   </span>
-                  {profile?.has_active_subscription && (
+                  {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
                     <Crown className="h-4 w-4 text-yellow-400" />
                   )}
                 </div>
@@ -184,11 +190,11 @@ const Profile = () => {
                         Disconnect Spotify
                       </Button>
                       
-                      {profile?.has_active_subscription && (
-                        <div className="flex items-start space-x-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                          <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                          <div className="text-xs text-amber-400">
-                            <strong>Premium Warning:</strong> Disconnecting Spotify will immediately revoke your premium subscription and access to all premium features. This action cannot be undone.
+                      {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
+                        <div className="flex items-start space-x-2 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-red-400">
+                            <strong>⚠️ PREMIUM SUBSCRIPTION WARNING:</strong> Disconnecting Spotify will immediately cancel your premium subscription and remove access to ALL premium features. This action cannot be undone and you will need to purchase a new subscription to regain premium access.
                           </div>
                         </div>
                       )}
