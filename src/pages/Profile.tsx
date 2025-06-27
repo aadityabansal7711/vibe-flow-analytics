@@ -13,7 +13,6 @@ import {
   User, 
   Crown, 
   Music, 
-  Calendar,
   LogOut,
   AlertTriangle,
   CheckCircle
@@ -135,26 +134,6 @@ const Profile = () => {
                   )}
                 </div>
               </div>
-
-              {profile?.plan_start_date && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Subscription Start</label>
-                  <div className="text-foreground font-medium flex items-center">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {new Date(profile.plan_start_date).toLocaleDateString()}
-                  </div>
-                </div>
-              )}
-
-              {profile?.plan_end_date && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Subscription End</label>
-                  <div className="text-foreground font-medium flex items-center">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {new Date(profile.plan_end_date).toLocaleDateString()}
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
