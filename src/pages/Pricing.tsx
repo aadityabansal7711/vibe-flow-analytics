@@ -29,9 +29,42 @@ const Pricing = () => {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoMessage, setPromoMessage] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
   const basePrice = 499;
   const discountedPrice = Math.round(basePrice * (1 - promoDiscount / 100));
+
+  useEffect(() => {
+    // Load Razorpay script
+    const loadRazorpayScript = () => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/payment-button.js';
+      script.setAttribute('data-payment_button_id', 'pl_Qjs2W5AhXxHlni');
+      script.async = true;
+      script.onload = () => {
+        console.log('Razorpay script loaded');
+        setRazorpayLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('Failed to load Razorpay script');
+      };
+      
+      // Find the razorpay container and append script
+      const container = document.getElementById('razorpay-payment-button');
+      if (container) {
+        container.appendChild(script);
+      }
+
+      return () => {
+        if (container && container.contains(script)) {
+          container.removeChild(script);
+        }
+      };
+    };
+
+    const cleanup = loadRazorpayScript();
+    return cleanup;
+  }, []);
 
   const validatePromoCode = async () => {
     if (!promoCode.trim()) {
@@ -221,14 +254,13 @@ const Pricing = () => {
               </div>
 
               {/* Razorpay Payment Button */}
-              <div className="w-full mb-4">
-                <form>
-                  <script 
-                    src="https://checkout.razorpay.com/v1/payment-button.js" 
-                    data-payment_button_id="pl_Qjs2W5AhXxHlni" 
-                    async
-                  />
-                </form>
+              <div id="razorpay-payment-button" className="w-full mb-4">
+                {!razorpayLoaded && (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading payment options...</p>
+                  </div>
+                )}
               </div>
 
               <p className="text-center text-muted-foreground text-sm mt-4">

@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 const Profile = () => {
-  const { user, profile, signOut, loading, fetchProfile } = useAuth();
+  const { user, profile, signOut, loading } = useAuth();
   const [disconnecting, setDisconnecting] = useState(false);
 
   if (!user) {
@@ -40,16 +40,16 @@ const Profile = () => {
     );
   }
 
-  const handleSignOut = useCallback(async () => {
+  const handleSignOut = async () => {
     try {
       await signOut();
       toast.success('Signed out successfully');
     } catch (error) {
       toast.error('Error signing out');
     }
-  }, [signOut]);
+  };
 
-  const handleSpotifyDisconnect = useCallback(async () => {
+  const handleSpotifyDisconnect = async () => {
     // Show premium warning if user has active subscription
     if (profile?.has_active_subscription || profile?.plan_tier === 'premium') {
       const confirmed = window.confirm(
@@ -79,25 +79,14 @@ const Profile = () => {
       if (error) throw error;
 
       toast.success('Spotify disconnected and premium subscription cancelled');
-      
-      // Refresh profile data instead of full page reload
-      if (fetchProfile) {
-        await fetchProfile();
-      }
+      window.location.reload();
     } catch (error) {
       console.error('Error disconnecting Spotify:', error);
       toast.error('Failed to disconnect Spotify');
     } finally {
       setDisconnecting(false);
     }
-  }, [profile, user.id, fetchProfile]);
-
-  const handleDashboardClick = useCallback((e: React.MouseEvent) => {
-    if (!profile?.spotify_connected) {
-      e.preventDefault();
-      toast.error('Please connect your Spotify account first to access the dashboard');
-    }
-  }, [profile?.spotify_connected]);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
@@ -105,7 +94,12 @@ const Profile = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Link to={profile?.spotify_connected ? "/dashboard" : "#"} onClick={handleDashboardClick}>
+            <Link to={profile?.spotify_connected ? "/dashboard" : "#"} onClick={(e) => {
+              if (!profile?.spotify_connected) {
+                e.preventDefault();
+                toast.error('Please connect your Spotify account first to access the dashboard');
+              }
+            }}>
               <Button variant="outline" size="sm" className="transition-all duration-300 hover:scale-105">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {profile?.spotify_connected ? 'Back to Dashboard' : 'Dashboard (Connect Spotify First)'}
@@ -152,18 +146,6 @@ const Profile = () => {
                   )}
                 </div>
               </div>
-
-              {/* Premium Subscription Warning */}
-              {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
-                <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-amber-400">
-                      <strong>⚠️ PREMIUM SUBSCRIPTION WARNING:</strong> Disconnecting Spotify will immediately cancel your premium subscription and remove access to ALL premium features. You cannot reconnect as a premium user - you'll become a free user and need to purchase a new subscription.
-                    </div>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -207,6 +189,15 @@ const Profile = () => {
                         )}
                         Disconnect Spotify
                       </Button>
+                      
+                      {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
+                        <div className="flex items-start space-x-2 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-red-400">
+                            <strong>⚠️ PREMIUM SUBSCRIPTION WARNING:</strong> Disconnecting Spotify will immediately cancel your premium subscription and remove access to ALL premium features. This action cannot be undone and you will need to purchase a new subscription to regain premium access.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

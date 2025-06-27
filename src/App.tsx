@@ -24,10 +24,10 @@ import CancellationPolicy from "./pages/CancellationPolicy";
 import CancellationRefund from "./pages/CancellationRefund";
 import ShippingDelivery from "./pages/ShippingDelivery";
 import About from "./pages/About";
+import Demo from "./pages/Demo";
 import Error from "./pages/Error";
 import ForgotPassword from "./pages/ForgotPassword";
 import WeeklyGiveaway from "./pages/WeeklyGiveaway";
-import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,7 +50,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/demo" element={<Demo />} />
             <Route path="/buy" element={<Buy />} />
             <Route path="/terms" element={<TermsConditions />} />
             <Route path="/privacy" element={<Privacy />} />
