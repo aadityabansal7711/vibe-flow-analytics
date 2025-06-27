@@ -21,7 +21,6 @@ const Buy = () => {
 
   const basePrice = 499;
 
-  // Optional: Razorpay success message listener (only works if you use postMessage in success redirect)
   useEffect(() => {
     const handlePaymentSuccess = async (event: MessageEvent) => {
       if (event.data.type === 'payment_success') {
@@ -57,12 +56,12 @@ const Buy = () => {
 
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
-    { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Mood + personality analysis" },
-    { icon: <Users className="h-5 w-5 text-blue-500" />, text: "🤝 Compare with friends" },
-    { icon: <Music className="h-5 w-5 text-green-500" />, text: "🤖 AI song & playlist insights" },
-    { icon: <Share2 className="h-5 w-5 text-pink-500" />, text: "📤 Shareable cards" },
-    { icon: <Gift className="h-5 w-5 text-yellow-500" />, text: "🎁 Giveaway entries" },
-    { icon: <Zap className="h-5 w-5 text-orange-500" />, text: "🚀 Early feature access" },
+    { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Advanced mood + personality analysis" },
+    { icon: <Users className="h-5 w-5 text-blue-500" />, text: "🤝 Compare music taste with friends" },
+    { icon: <Music className="h-5 w-5 text-green-500" />, text: "🤖 AI-powered song & playlist insights" },
+    { icon: <Share2 className="h-5 w-5 text-pink-500" />, text: "📤 Unlimited shareable cards" },
+    { icon: <Gift className="h-5 w-5 text-yellow-500" />, text: "🎁 Weekly giveaway entries" },
+    { icon: <Zap className="h-5 w-5 text-orange-500" />, text: "🚀 Early access to all new features" },
     { icon: <HeadphonesIcon className="h-5 w-5 text-cyan-500" />, text: "🧑‍💼 Priority support" }
   ];
 
@@ -115,18 +114,11 @@ const Buy = () => {
                   ))}
                 </div>
 
-                {/* Razorpay Payment Button via raw HTML */}
                 <div className="mb-6 text-center">
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: `
-                        <form>
-                          <script src="https://checkout.razorpay.com/v1/payment-button.js"
-                                  data-payment_button_id="pl_Qjs2W5AhXxHlni" async></script>
-                        </form>
-                      `
-                    }}
-                  />
+                  <form>
+                    <script src="https://checkout.razorpay.com/v1/payment-button.js"
+                            data-payment_button_id="pl_Qjs2W5AhXxHlni" async></script>
+                  </form>
                 </div>
 
                 <p className="text-center text-muted-foreground text-sm">
@@ -136,7 +128,6 @@ const Buy = () => {
             </Card>
           </div>
 
-          {/* Why Premium */}
           <div className="space-y-6">
             <Card className="glass-effect">
               <CardHeader>
@@ -145,7 +136,36 @@ const Buy = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-muted-foreground">
-                <p>Access exclusive insights, AI playlists, mood analytics, and more — all for just ₹{basePrice}/year.</p>
+                <div className="flex items-start space-x-3">
+                  <Music className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Unlimited Analytics</h4>
+                    <p className="text-sm text-muted-foreground">Access all advanced features without limits</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <Brain className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">AI Insights</h4>
+                    <p className="text-sm text-muted-foreground">Get personalized AI-powered recommendations</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Great Value</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Only ₹{basePrice} per year - less than ₹{Math.round(basePrice/12)} per month
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <Crown className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-foreground">Premium Support</h4>
+                    <p className="text-sm text-muted-foreground">Get priority help when you need it</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
