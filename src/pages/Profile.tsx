@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -9,13 +9,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import SpotifyConnect from '@/components/SpotifyConnect';
+import DangerZone from '@/pages/profile/DangerZone';
 import { 
   User, 
   Crown, 
   Music, 
   LogOut,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  ArrowLeft
 } from 'lucide-react';
 
 const Profile = () => {
@@ -67,7 +69,7 @@ const Profile = () => {
           spotify_user_id: null,
           spotify_display_name: null,
           spotify_avatar_url: null,
-          has_active_subscription: false, // Revoke premium if disconnecting
+          has_active_subscription: false,
           plan_tier: 'free'
         })
         .eq('user_id', user.id);
@@ -90,6 +92,12 @@ const Profile = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
+            <Link to="/dashboard">
+              <Button variant="outline" size="sm" className="transition-all duration-300 hover:scale-105">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </Link>
             <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
             <h1 className="text-3xl font-bold text-gradient">Profile Settings</h1>
           </div>
@@ -200,15 +208,21 @@ const Profile = () => {
             <CardTitle>Account Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between items-center">
-              <div>
-                <h4 className="font-medium text-foreground">Sign Out</h4>
-                <p className="text-sm text-muted-foreground">Sign out of your account</p>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-medium text-foreground">Sign Out</h4>
+                  <p className="text-sm text-muted-foreground">Sign out of your account</p>
+                </div>
+                <Button onClick={handleSignOut} variant="outline">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
               </div>
-              <Button onClick={handleSignOut} variant="outline">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </Button>
+              
+              <Separator />
+              
+              <DangerZone profile={profile} />
             </div>
           </CardContent>
         </Card>

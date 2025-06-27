@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,7 +76,6 @@ const Pricing = () => {
   };
 
   const handleUpgradeToPremium = () => {
-    // Redirect to buy page which handles authentication
     navigate('/buy');
   };
 
@@ -227,8 +225,10 @@ const Pricing = () => {
 
               <Button 
                 onClick={handleUpgradeToPremium}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground"
+                className="w-full bg-gradient-to-r from-primary to-accent hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl text-primary-foreground text-lg py-6"
+                size="lg"
               >
+                <Crown className="mr-2 h-5 w-5" />
                 Get Premium Now
               </Button>
 
