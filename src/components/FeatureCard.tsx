@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Lock, Sparkles } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -10,8 +11,8 @@ interface FeatureCardProps {
   title: string;
   description: string;
   icon: React.ReactNode;
-  isLocked: boolean;
   children?: React.ReactNode;
+  isLocked?: boolean;
   className?: string;
 }
 
@@ -19,46 +20,53 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   title,
   description,
   icon,
-  isLocked,
   children,
+  isLocked = false,
   className = ""
 }) => {
   const { profile } = useAuth();
   
-  // Check if user has premium subscription
-  const hasPremium = profile?.has_active_subscription || profile?.plan_tier === 'premium';
-  const shouldShowLocked = isLocked && !hasPremium;
+  // Check if user has premium access
+  const isPremium = profile?.has_active_subscription || profile?.plan_tier === 'premium';
+  const shouldShowLocked = isLocked && !isPremium;
 
   return (
-    <Card className={`relative overflow-hidden glass-effect hover:bg-primary/10 transition-all duration-300 ${className}`}>
-      {shouldShowLocked && (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
-          <div className="text-center">
-            <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-foreground mb-4 font-semibold">Premium Feature</p>
-            <Link to="/pricing">
-              <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground">
-                <Sparkles className="mr-2 h-4 w-4" />
-                Unlock All Features
-              </Button>
-            </Link>
-          </div>
-        </div>
-      )}
-      
+    <Card className={`glass-effect border-border/50 overflow-hidden card-hover ${className}`}>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center space-x-2 text-foreground">
-          {icon}
-          <span>{title}</span>
-        </CardTitle>
-        <p className="text-muted-foreground text-sm">{description}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            {icon}
+            <CardTitle className="text-lg text-foreground">{title}</CardTitle>
+          </div>
+          {shouldShowLocked && (
+            <Badge variant="secondary" className="text-xs">
+              <Lock className="w-3 h-3 mr-1" />
+              Premium
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </CardHeader>
       
-      {children && (
-        <CardContent className={shouldShowLocked ? 'blur-sm' : ''}>
-          {children}
-        </CardContent>
-      )}
+      <CardContent className="pt-0">
+        {shouldShowLocked ? (
+          <div className="text-center py-8 space-y-4">
+            <Lock className="w-12 h-12 text-muted-foreground mx-auto opacity-50" />
+            <div>
+              <p className="text-sm text-muted-foreground mb-3">
+                This feature is available with Premium
+              </p>
+              <Link to="/buy">
+                <Button size="sm" className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
+                  Unlock All Features
+                </Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
+      </CardContent>
     </Card>
   );
 };

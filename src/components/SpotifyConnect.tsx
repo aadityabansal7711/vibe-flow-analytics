@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Music, User, Crown, AlertTriangle, CheckCircle } from 'lucide-react';
@@ -10,6 +10,7 @@ const SpotifyConnect = () => {
   const { user, profile, connectSpotify, loading, isUnlocked, fetchProfile } = useAuth();
   const [searchParams] = useSearchParams();
   const [justConnected, setJustConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Check for connection success or error in URL params
   useEffect(() => {
@@ -18,8 +19,11 @@ const SpotifyConnect = () => {
 
     if (spotifyConnected === 'true') {
       setJustConnected(true);
-      // Clear the URL parameter
-      window.history.replaceState({}, '', '/dashboard');
+      // Clear the URL parameter without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('spotify_connected');
+      window.history.replaceState({}, '', url.toString());
+      
       // Fetch fresh profile data
       if (fetchProfile) {
         fetchProfile();
@@ -28,10 +32,23 @@ const SpotifyConnect = () => {
 
     if (spotifyError) {
       console.error('Spotify connection error:', spotifyError);
-      // Clear the error parameter
-      window.history.replaceState({}, '', '/dashboard');
+      // Clear the error parameter without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('spotify_error');
+      window.history.replaceState({}, '', url.toString());
     }
   }, [searchParams, fetchProfile]);
+
+  const handleConnect = useCallback(async () => {
+    setIsConnecting(true);
+    try {
+      await connectSpotify();
+    } catch (error) {
+      console.error('Connection error:', error);
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [connectSpotify]);
 
   if (loading) {
     return (
@@ -131,11 +148,21 @@ const SpotifyConnect = () => {
         </div>
 
         <Button 
-          onClick={connectSpotify}
+          onClick={handleConnect}
+          disabled={isConnecting}
           className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
         >
-          <Music className="mr-2 h-5 w-5" />
-          Connect with Spotify
+          {isConnecting ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              Connecting...
+            </>
+          ) : (
+            <>
+              <Music className="mr-2 h-5 w-5" />
+              Connect with Spotify
+            </>
+          )}
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">
