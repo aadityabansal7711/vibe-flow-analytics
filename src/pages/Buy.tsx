@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,10 +6,10 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { 
-  Crown, 
-  Sparkles, 
-  Music, 
+import {
+  Crown,
+  Sparkles,
+  Music,
   ArrowLeft,
   Brain,
   Share2,
@@ -23,49 +22,36 @@ import {
 const Buy = () => {
   const { user, profile, fetchProfile } = useAuth();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  const basePrice = 499; // Fixed price of ₹499
+  const basePrice = 499;
 
+  // Razorpay script loader
   useEffect(() => {
-    // Load Razorpay script properly
-    const loadRazorpayScript = () => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('Razorpay script loaded');
-        setRazorpayLoaded(true);
-      };
-      script.onerror = () => {
-        console.error('Failed to load Razorpay script');
-      };
-      document.body.appendChild(script);
-
-      return () => {
-        if (document.body.contains(script)) {
-          document.body.removeChild(script);
-        }
-      };
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/payment-button.js';
+    script.async = true;
+    script.setAttribute('data-payment_button_id', 'pl_Qjs2W5AhXxHlni');
+    script.onload = () => {
+      console.log('Razorpay script loaded successfully');
     };
-
-    const cleanup = loadRazorpayScript();
-    return cleanup;
+    const container = document.getElementById('razorpay-script-target');
+    if (container) {
+      container.innerHTML = ''; // Clear any existing
+      container.appendChild(script);
+    }
   }, []);
 
-  // Handle successful payment
+  // Listen for successful payment (optional if using Razorpay dashboard webhooks)
   useEffect(() => {
-    // Listen for payment success messages
     const handlePaymentSuccess = async (event: MessageEvent) => {
       if (event.data.type === 'payment_success') {
         setPaymentProcessing(true);
-        
+
         try {
-          // Update user's subscription status
           const { error } = await supabase
             .from('profiles')
             .update({
@@ -77,22 +63,13 @@ const Buy = () => {
             .eq('user_id', user.id);
 
           if (error) throw error;
+          if (fetchProfile) await fetchProfile();
 
-          // Refresh profile data
-          if (fetchProfile) {
-            await fetchProfile();
-          }
-
-          toast.success('🎉 Premium activated! Welcome to MyVibeLyrics Premium!');
-          
-          // Redirect to dashboard after successful payment
-          setTimeout(() => {
-            window.location.href = '/dashboard';
-          }, 2000);
-          
-        } catch (error) {
-          console.error('Error updating subscription:', error);
-          toast.error('Payment successful but there was an error activating premium. Please contact support.');
+          toast.success('🎉 Premium activated!');
+          setTimeout(() => (window.location.href = '/dashboard'), 2000);
+        } catch (err) {
+          console.error('Subscription update error:', err);
+          toast.error('Payment succeeded, but activation failed. Contact support.');
         } finally {
           setPaymentProcessing(false);
         }
@@ -101,7 +78,7 @@ const Buy = () => {
 
     window.addEventListener('message', handlePaymentSuccess);
     return () => window.removeEventListener('message', handlePaymentSuccess);
-  }, [user.id, fetchProfile]);
+  }, [user?.id, fetchProfile]);
 
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
@@ -129,7 +106,6 @@ const Buy = () => {
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <Link to="/dashboard">
@@ -175,26 +151,9 @@ const Buy = () => {
                   ))}
                 </div>
 
-                {/* Payment Button */}
-                <div className="mb-6">
-                  <div id="razorpay-container">
-                    {razorpayLoaded ? (
-                      <div className="w-full">
-                        <form>
-                          <script 
-                            src="https://checkout.razorpay.com/v1/payment-button.js" 
-                            data-payment_button_id="pl_Qjs2W5AhXxHlni" 
-                            async
-                          ></script>
-                        </form>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                        <p className="text-sm text-muted-foreground">Loading payment options...</p>
-                      </div>
-                    )}
-                  </div>
+                {/* Razorpay Button */}
+                <div className="mb-6 text-center">
+                  <div id="razorpay-script-target" />
                 </div>
 
                 <p className="text-center text-muted-foreground text-sm mt-4">
@@ -204,7 +163,7 @@ const Buy = () => {
             </Card>
           </div>
 
-          {/* Benefits Section */}
+          {/* Benefits */}
           <div className="space-y-6">
             <Card className="glass-effect border-border/50 card-hover">
               <CardHeader>
@@ -215,30 +174,30 @@ const Buy = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
-                  <Music className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <Music className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h4 className="font-medium text-foreground">Unlimited Analytics</h4>
                     <p className="text-sm text-muted-foreground">Access all advanced features without limits</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <Brain className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <Brain className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h4 className="font-medium text-foreground">AI Insights</h4>
                     <p className="text-sm text-muted-foreground">Get personalized AI-powered recommendations</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <Gift className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <Gift className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h4 className="font-medium text-foreground">Great Value</h4>
                     <p className="text-sm text-muted-foreground">
-                      Only ₹{basePrice} per year - less than ₹{Math.round(basePrice/12)} per month
+                      Only ₹{basePrice} per year — less than ₹{Math.round(basePrice / 12)} per month
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <Crown className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <Crown className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h4 className="font-medium text-foreground">Premium Support</h4>
                     <p className="text-sm text-muted-foreground">Get priority help when you need it</p>
