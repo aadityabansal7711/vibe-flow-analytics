@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,60 +12,106 @@ import {
   Brain, Share2, Gift, Zap, HeadphonesIcon, Users
 } from 'lucide-react';
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 const Buy = () => {
   const { user, fetchProfile } = useAuth();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const razorpayRef = useRef<HTMLDivElement>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
   const basePrice = 499;
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  // Inject Razorpay script
+  // Load Razorpay script
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/payment-button.js';
-    script.setAttribute('data-payment_button_id', 'pl_Qjs2W5AhXxHlni');
-    script.async = true;
-
-    if (razorpayRef.current) {
-      razorpayRef.current.innerHTML = ''; // Clean if rerendered
-      razorpayRef.current.appendChild(script);
-    }
-  }, []);
-
-  // Listen for postMessage payment success
-  useEffect(() => {
-    const handlePaymentSuccess = async (event: MessageEvent) => {
-      if (event.data.type === 'payment_success') {
-        setPaymentProcessing(true);
-        try {
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              has_active_subscription: true,
-              plan_tier: 'premium',
-              plan_start_date: new Date().toISOString(),
-              plan_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-            })
-            .eq('user_id', user.id);
-
-          if (error) throw error;
-          if (fetchProfile) await fetchProfile();
-
-          toast.success('🎉 Premium activated!');
-          setTimeout(() => (window.location.href = '/dashboard'), 2000);
-        } catch (err) {
-          console.error('Subscription update error:', err);
-          toast.error('Payment succeeded, but activation failed. Contact support.');
-        } finally {
-          setPaymentProcessing(false);
+    const loadRazorpayScript = () => {
+      return new Promise((resolve) => {
+        const existingScript = document.getElementById('razorpay-script');
+        if (existingScript) {
+          setScriptLoaded(true);
+          resolve(true);
+          return;
         }
-      }
+
+        const script = document.createElement('script');
+        script.id = 'razorpay-script';
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => {
+          setScriptLoaded(true);
+          resolve(true);
+        };
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
     };
 
-    window.addEventListener('message', handlePaymentSuccess);
-    return () => window.removeEventListener('message', handlePaymentSuccess);
-  }, [user?.id, fetchProfile]);
+    loadRazorpayScript();
+  }, []);
+
+  const handlePayment = async () => {
+    if (!scriptLoaded || !window.Razorpay) {
+      toast.error('Payment system is loading. Please try again in a moment.');
+      return;
+    }
+
+    setPaymentProcessing(true);
+
+    try {
+      const options = {
+        key: 'rzp_test_YOUR_KEY_HERE', // Replace with your actual Razorpay key
+        amount: basePrice * 100, // Amount in paise
+        currency: 'INR',
+        name: 'MyVibeLyrics',
+        description: 'Premium Subscription - Annual Plan',
+        image: '/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png',
+        handler: async function (response: any) {
+          try {
+            // Update user subscription status
+            const { error } = await supabase
+              .from('profiles')
+              .update({
+                has_active_subscription: true,
+                plan_tier: 'premium',
+                plan_start_date: new Date().toISOString(),
+                plan_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+              })
+              .eq('user_id', user.id);
+
+            if (error) throw error;
+            
+            if (fetchProfile) await fetchProfile();
+            toast.success('🎉 Premium activated successfully!');
+            setTimeout(() => (window.location.href = '/dashboard'), 2000);
+          } catch (err) {
+            console.error('Subscription update error:', err);
+            toast.error('Payment succeeded, but activation failed. Contact support.');
+          }
+        },
+        prefill: {
+          email: user.email,
+        },
+        theme: {
+          color: '#10b981'
+        },
+        modal: {
+          ondismiss: function() {
+            setPaymentProcessing(false);
+          }
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (err) {
+      console.error('Payment initialization error:', err);
+      toast.error('Failed to initialize payment. Please try again.');
+      setPaymentProcessing(false);
+    }
+  };
 
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
@@ -133,7 +180,29 @@ const Buy = () => {
                 </div>
 
                 <div className="mb-6 text-center">
-                  <div ref={razorpayRef}></div>
+                  <Button 
+                    onClick={handlePayment}
+                    disabled={paymentProcessing || !scriptLoaded}
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold py-4 text-lg"
+                  >
+                    {paymentProcessing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Processing...
+                      </>
+                    ) : !scriptLoaded ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Loading Payment...
+                      </>
+                    ) : (
+                      <>
+                        <Crown className="mr-2 h-5 w-5" />
+                        Upgrade to Premium - ₹{basePrice}
+                      </>
+                    )}
+                  </Button>
                 </div>
 
                 <p className="text-center text-muted-foreground text-sm">
