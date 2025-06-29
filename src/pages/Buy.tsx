@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,107 +9,62 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Crown, Sparkles, Music, ArrowLeft,
-  Brain, Share2, Gift, Zap, HeadphonesIcon, Users
+  Brain, Share2, Gift, Zap, HeadphonesIcon, Users,
+  CheckCircle, Clock
 } from 'lucide-react';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
 
 const Buy = () => {
   const { user, fetchProfile } = useAuth();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
-  const basePrice = 499;
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  // Load Razorpay script
-  useEffect(() => {
-    const loadRazorpayScript = () => {
-      return new Promise((resolve) => {
-        const existingScript = document.getElementById('razorpay-script');
-        if (existingScript) {
-          setScriptLoaded(true);
-          resolve(true);
-          return;
-        }
-
-        const script = document.createElement('script');
-        script.id = 'razorpay-script';
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.onload = () => {
-          setScriptLoaded(true);
-          resolve(true);
-        };
-        script.onerror = () => resolve(false);
-        document.body.appendChild(script);
-      });
+  const handlePayment = (duration: '3months' | '1year') => {
+    setPaymentProcessing(true);
+    
+    const paymentLinks = {
+      '3months': 'https://rzp.io/rzp/78Yfxf5v',
+      '1year': 'https://rzp.io/rzp/pttq9Cd'
     };
 
-    loadRazorpayScript();
+    // Open payment link in same tab
+    window.location.href = paymentLinks[duration];
+  };
+
+  // Check for successful payment on page load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment_success') === 'true') {
+      const duration = urlParams.get('duration');
+      if (duration) {
+        handleSuccessfulPayment(duration as '3months' | '1year');
+      }
+    }
   }, []);
 
-  const handlePayment = async () => {
-    if (!scriptLoaded || !window.Razorpay) {
-      toast.error('Payment system is loading. Please try again in a moment.');
-      return;
-    }
-
-    setPaymentProcessing(true);
-
+  const handleSuccessfulPayment = async (duration: '3months' | '1year') => {
     try {
-      const options = {
-        key: 'rzp_test_YOUR_KEY_HERE', // Replace with your actual Razorpay key
-        amount: basePrice * 100, // Amount in paise
-        currency: 'INR',
-        name: 'MyVibeLyrics',
-        description: 'Premium Subscription - Annual Plan',
-        image: '/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png',
-        handler: async function (response: any) {
-          try {
-            // Update user subscription status
-            const { error } = await supabase
-              .from('profiles')
-              .update({
-                has_active_subscription: true,
-                plan_tier: 'premium',
-                plan_start_date: new Date().toISOString(),
-                plan_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-              })
-              .eq('user_id', user.id);
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + (duration === '3months' ? 3 : 12));
 
-            if (error) throw error;
-            
-            if (fetchProfile) await fetchProfile();
-            toast.success('🎉 Premium activated successfully!');
-            setTimeout(() => (window.location.href = '/dashboard'), 2000);
-          } catch (err) {
-            console.error('Subscription update error:', err);
-            toast.error('Payment succeeded, but activation failed. Contact support.');
-          }
-        },
-        prefill: {
-          email: user.email,
-        },
-        theme: {
-          color: '#10b981'
-        },
-        modal: {
-          ondismiss: function() {
-            setPaymentProcessing(false);
-          }
-        }
-      };
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          has_active_subscription: true,
+          plan_tier: 'premium',
+          plan_start_date: new Date().toISOString(),
+          plan_end_date: endDate.toISOString()
+        })
+        .eq('user_id', user.id);
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
+      if (error) throw error;
+      
+      if (fetchProfile) await fetchProfile();
+      toast.success(`🎉 Premium activated successfully for ${duration === '3months' ? '3 months' : '1 year'}!`);
+      setTimeout(() => (window.location.href = '/dashboard'), 2000);
     } catch (err) {
-      console.error('Payment initialization error:', err);
-      toast.error('Failed to initialize payment. Please try again.');
-      setPaymentProcessing(false);
+      console.error('Subscription update error:', err);
+      toast.error('Payment succeeded, but activation failed. Contact support.');
     }
   };
 
@@ -129,8 +84,7 @@ const Buy = () => {
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-white text-lg">Processing your payment...</div>
-          <div className="text-muted-foreground">Activating your subscription...</div>
+          <div className="text-white text-lg">Redirecting to payment...</div>
         </div>
       </div>
     );
@@ -138,11 +92,11 @@ const Buy = () => {
 
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link to="/dashboard">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="hover:scale-105 transition-transform">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
           </Link>
@@ -152,87 +106,119 @@ const Buy = () => {
           </h1>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Plan */}
-          <div className="lg:col-span-2">
-            <Card className="glass-effect border-primary/50">
-              <CardHeader className="bg-gradient-to-r from-primary/20 to-purple-600/20 border-b">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <Crown className="h-6 w-6 text-primary" />
-                    <CardTitle className="text-2xl text-foreground">Premium Plan</CardTitle>
-                  </div>
-                  <Badge className="animate-pulse">🌟 Most Popular</Badge>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* 3 Months Plan */}
+          <Card className="glass-effect border-blue-500/50 hover:border-blue-500/70 transition-all duration-300 hover:scale-105">
+            <CardHeader className="bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border-b">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-6 w-6 text-blue-500" />
+                  <CardTitle className="text-2xl text-foreground">3 Months Plan</CardTitle>
                 </div>
-                <div className="text-4xl font-bold text-primary">
-                  ₹{basePrice} <span className="text-base">/year</span>
-                </div>
-              </CardHeader>
+                <Badge className="animate-pulse bg-blue-600">💫 Best Value</Badge>
+              </div>
+              <div className="text-4xl font-bold text-blue-500">
+                ₹149 <span className="text-base">/3 months</span>
+              </div>
+            </CardHeader>
 
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 gap-4 mb-8">
-                  {features.map((f, i) => (
-                    <div key={i} className="flex items-center space-x-3">
-                      {f.icon}
-                      <span>{f.text}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mb-6 text-center">
-                  <Button 
-                    onClick={handlePayment}
-                    disabled={paymentProcessing || !scriptLoaded}
-                    size="lg"
-                    className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold py-4 text-lg"
-                  >
-                    {paymentProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Processing...
-                      </>
-                    ) : !scriptLoaded ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Loading Payment...
-                      </>
-                    ) : (
-                      <>
-                        <Crown className="mr-2 h-5 w-5" />
-                        Upgrade to Premium - ₹{basePrice}
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                <p className="text-center text-muted-foreground text-sm">
-                  Secure one-time yearly payment via Razorpay.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Why Premium */}
-          <div className="space-y-6">
-            <Card className="glass-effect">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Sparkles className="mr-2 h-5 w-5 text-primary" /> Why Premium?
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground">
-                {features.slice(0, 4).map((f, i) => (
-                  <div key={i} className="flex items-start space-x-3">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 gap-4 mb-8">
+                {features.map((f, i) => (
+                  <div key={i} className="flex items-center space-x-3">
                     {f.icon}
-                    <div>
-                      <h4 className="font-medium text-foreground">{f.text.split(' ')[1]}</h4>
-                      <p className="text-sm">{f.text.split(' ').slice(2).join(' ')}</p>
-                    </div>
+                    <span>{f.text}</span>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+
+              <Button 
+                onClick={() => handlePayment('3months')}
+                disabled={paymentProcessing}
+                size="lg"
+                className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-4 text-lg hover:scale-105 transition-all duration-300"
+              >
+                <Crown className="mr-2 h-5 w-5" />
+                Get 3 Months Premium - ₹149
+              </Button>
+
+              <p className="text-center text-muted-foreground text-sm mt-4">
+                Secure payment via Razorpay. Best value for trying premium features.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 1 Year Plan */}
+          <Card className="glass-effect border-primary/50 hover:border-primary/70 transition-all duration-300 hover:scale-105">
+            <CardHeader className="bg-gradient-to-r from-primary/20 to-purple-600/20 border-b">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                  <Crown className="h-6 w-6 text-primary" />
+                  <CardTitle className="text-2xl text-foreground">Annual Plan</CardTitle>
+                </div>
+                <Badge className="animate-pulse bg-primary">🌟 Most Popular</Badge>
+              </div>
+              <div className="text-4xl font-bold text-primary">
+                ₹499 <span className="text-base">/year</span>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 gap-4 mb-8">
+                {features.map((f, i) => (
+                  <div key={i} className="flex items-center space-x-3">
+                    {f.icon}
+                    <span>{f.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button 
+                onClick={() => handlePayment('1year')}
+                disabled={paymentProcessing}
+                size="lg"
+                className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold py-4 text-lg hover:scale-105 transition-all duration-300"
+              >
+                <Crown className="mr-2 h-5 w-5" />
+                Get Annual Premium - ₹499
+              </Button>
+
+              <p className="text-center text-muted-foreground text-sm mt-4">
+                Secure payment via Razorpay. Save more with annual billing.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Features comparison */}
+        <div className="mt-16">
+          <Card className="glass-effect">
+            <CardHeader>
+              <CardTitle className="text-center text-2xl">Why Choose Premium?</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">AI Playlists</h3>
+                <p className="text-sm text-muted-foreground">100 unique songs curated by AI</p>
+              </div>
+              <div className="text-center">
+                <Brain className="h-12 w-12 text-purple-500 mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">Personality Analysis</h3>
+                <p className="text-sm text-muted-foreground">Deep insights into your music DNA</p>
+              </div>
+              <div className="text-center">
+                <Users className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">Social Features</h3>
+                <p className="text-sm text-muted-foreground">Compare with friends & community</p>
+              </div>
+              <div className="text-center">
+                <Gift className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">Weekly Giveaways</h3>
+                <p className="text-sm text-muted-foreground">Exclusive premium member rewards</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

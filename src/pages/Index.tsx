@@ -32,100 +32,76 @@ import {
 const Index = () => {
   const features = [
     {
-      icon: <Music className="h-6 w-6 text-green-500" />,
+      icon: <Music className="h-8 w-8 text-green-500" />,
       title: "AI Curated Playlists",
       description: "Get personalized playlists with 100 unique songs tailored to your taste using advanced AI algorithms.",
-      isPremium: true
+      category: "AI Features"
     },
     {
-      icon: <BarChart3 className="h-6 w-6 text-blue-500" />,
+      icon: <BarChart3 className="h-8 w-8 text-blue-500" />,
       title: "Advanced Analytics",
       description: "Comprehensive charts and visualizations showing your listening trends, peak hours, and detailed musical journey insights.",
-      isPremium: true
+      category: "Analytics"
     },
     {
-      icon: <Heart className="h-6 w-6 text-red-500" />,
+      icon: <Heart className="h-8 w-8 text-red-500" />,
       title: "Mood & Emotion Tracking",
       description: "Understand how your music reflects your emotions with sophisticated mood analysis and emotional pattern recognition.",
-      isPremium: true
+      category: "Psychology"
     },
     {
-      icon: <Users className="h-6 w-6 text-purple-500" />,
+      icon: <Users className="h-8 w-8 text-purple-500" />,
       title: "Music Community",
       description: "Connect with fellow music lovers, share your taste, and discover new songs through our vibrant community features.",
-      isPremium: false
+      category: "Social"
     },
     {
-      icon: <Activity className="h-6 w-6 text-orange-500" />,
+      icon: <Activity className="h-8 w-8 text-orange-500" />,
       title: "Listening Streaks",
       description: "Track your daily listening habits and maintain streaks to stay motivated in your musical journey.",
-      isPremium: false
+      category: "Gamification"
     },
     {
-      icon: <Clock className="h-6 w-6 text-yellow-500" />,
+      icon: <Clock className="h-8 w-8 text-yellow-500" />,
       title: "Temporal Music Patterns",
       description: "Discover how your music taste changes throughout the day, week, and seasons with detailed temporal analysis.",
-      isPremium: true
+      category: "Analytics"
     },
     {
-      icon: <HeadphonesIcon className="h-6 w-6 text-cyan-500" />,
+      icon: <HeadphonesIcon className="h-8 w-8 text-cyan-500" />,
       title: "Audio Feature Analysis",
       description: "Deep technical analysis of your preferred audio characteristics like tempo, energy, danceability, and acoustics.",
-      isPremium: true
+      category: "Technical"
     },
     {
-      icon: <Target className="h-6 w-6 text-indigo-500" />,
+      icon: <Target className="h-8 w-8 text-indigo-500" />,
       title: "Music Goals & Tracking",
       description: "Set and track music discovery goals, listening targets and personal challenges to expand your musical horizons.",
-      isPremium: true
+      category: "Goals"
     },
     {
-      icon: <Zap className="h-6 w-6 text-green-400" />,
+      icon: <Zap className="h-8 w-8 text-green-400" />,
       title: "Real-time Insights",
       description: "Live updates and instant analysis as you listen, providing immediate feedback and insights about your current session.",
-      isPremium: true
+      category: "Live Features"
     },
     {
-      icon: <Share2 className="h-6 w-6 text-pink-500" />,
+      icon: <Share2 className="h-8 w-8 text-pink-500" />,
       title: "Shareable Music Cards",
       description: "Create beautiful, shareable cards showcasing your music stats, top tracks, and listening achievements for social media.",
-      isPremium: true
+      category: "Social"
     },
     {
-      icon: <Brain className="h-6 w-6 text-purple-600" />,
+      icon: <Brain className="h-8 w-8 text-purple-600" />,
       title: "Personality Analysis",
       description: "Discover your musical personality type based on your listening habits, genre preferences, and emotional connections.",
-      isPremium: true
+      category: "Psychology"
     },
     {
-      icon: <MessageCircle className="h-6 w-6 text-green-600" />,
+      icon: <MessageCircle className="h-8 w-8 text-green-600" />,
       title: "Community Chat Rooms",
       description: "Join real-time discussions in themed rooms like 'Top Tracks Talk', 'Mood Check', and 'Vibe Swap' with fellow music lovers.",
-      isPremium: true
-    },
-    {
-      icon: <Award className="h-6 w-6 text-red-600" />,
-      title: "Mood-Based Recommendations",
-      description: "Get song suggestions based on your current emotional state and desired mood transitions throughout your day.",
-      isPremium: true
-    },
-    {
-      icon: <Globe className="h-6 w-6 text-blue-600" />,
-      title: "Global Music Trends",
-      description: "Compare your taste with worldwide trends and discover what's popular in different regions and cultures.",
-      isPremium: true
-    },
-    {
-      icon: <Calendar className="h-6 w-6 text-amber-500" />,
-      title: "Listening Activity Timeline",
-      description: "Visual timeline of your music journey showing how your taste evolved over months and years.",
-      isPremium: true
-    },
-    {
-      icon: <Mic className="h-6 w-6 text-rose-500" />,
-      title: "Music Achievements",
-      description: "Unlock badges and achievements for discovering new genres, maintaining listening streaks, and exploring diverse music.",
-      isPremium: true
+      category: "Social"
     }
   ];
 
@@ -141,12 +117,12 @@ const Index = () => {
             </div>
             <div className="flex items-center space-x-4">
               <Link to="/pricing">
-                <Button variant="ghost" className="text-foreground hover:text-primary">
+                <Button variant="ghost" className="text-foreground hover:text-primary transition-colors">
                   Pricing
                 </Button>
               </Link>
               <Link to="/auth">
-                <Button className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
+                <Button className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg">
                   <Music className="mr-2 h-4 w-4" />
                   Get Started
                 </Button>
@@ -161,11 +137,11 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 text-amber-400">
-              <Crown className="h-5 w-5" />
+              <Crown className="h-5 w-5 animate-pulse" />
               <span className="font-medium">Weekly Premium Giveaway - Premium Users Only!</span>
             </div>
             <Link to="/weekly-giveaway">
-              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">
+              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white hover:scale-105 transition-all duration-200">
                 Premium Entry
               </Button>
             </Link>
@@ -174,31 +150,31 @@ const Index = () => {
       </div>
 
       {/* Hero Section */}
-      <section className="relative px-4 py-20 sm:px-6 lg:px-8">
+      <section className="relative px-4 py-24 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <Badge className="mb-6 bg-primary/10 text-primary border-primary/20">
+          <Badge className="mb-8 bg-primary/10 text-primary border-primary/20 text-lg px-4 py-2 animate-fade-in">
             🎵 AI-Powered Music Analytics Platform
           </Badge>
-          <h1 className="text-4xl sm:text-6xl font-bold text-gradient mb-6">
+          <h1 className="text-5xl sm:text-7xl font-bold text-gradient mb-8 animate-fade-in">
             Discover Your
             <br />
-            <span className="text-primary">Music DNA</span>
+            <span className="text-primary animate-pulse">Music DNA</span>
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground mb-10 max-w-4xl mx-auto leading-relaxed animate-fade-in">
             Unlock deep insights into your Spotify listening habits with cutting-edge AI analytics. 
             Discover patterns, moods, and hidden connections in your music that you never knew existed.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center animate-scale-in">
             <Link to="/auth">
-              <Button size="lg" className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
-                <Music className="mr-2 h-6 w-6" />
+              <Button size="lg" className="bg-gradient-spotify hover:scale-110 transform transition-all duration-300 shadow-xl text-lg px-8 py-4">
+                <Music className="mr-3 h-6 w-6" />
                 Start Your Analysis
               </Button>
             </Link>
-            <Link to="/buy">
-              <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                <Crown className="mr-2 h-5 w-5" />
-                Go Premium
+            <Link to="/pricing">
+              <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:scale-105 transition-all duration-300 text-lg px-8 py-4">
+                <Crown className="mr-3 h-5 w-5" />
+                View Pricing
               </Button>
             </Link>
           </div>
@@ -206,34 +182,36 @@ const Index = () => {
       </section>
 
       {/* Features Grid */}
-      <section className="px-4 py-20 sm:px-6 lg:px-8">
+      <section className="px-4 py-24 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
               Unlock Your Music Analytics
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               From basic insights to advanced AI-powered analysis of your musical journey
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className={`glass-effect card-hover relative ${feature.isPremium ? 'border-primary/30' : 'border-border/50'}`}>
-                {feature.isPremium && (
-                  <Badge className="absolute top-4 right-4 bg-primary text-primary-foreground text-xs">
-                    <Crown className="mr-1 h-3 w-3" />
-                    Premium
-                  </Badge>
-                )}
-                <CardHeader className="pb-3">
-                  <div className="flex items-center space-x-3 mb-2">
-                    {feature.icon}
-                    <CardTitle className="text-lg text-foreground">{feature.title}</CardTitle>
+              <Card key={index} className="glass-effect card-hover relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-2xl border-border/50 hover:border-primary/30">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                <CardHeader className="pb-4 relative z-10">
+                  <div className="flex items-center space-x-4 mb-3">
+                    <div className="p-2 rounded-lg bg-background/50 group-hover:scale-110 transition-transform duration-300">
+                      {feature.icon}
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl text-foreground group-hover:text-primary transition-colors duration-300">{feature.title}</CardTitle>
+                      <Badge variant="secondary" className="text-xs mt-1 opacity-70">
+                        {feature.category}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                <CardContent className="pt-0 relative z-10">
+                  <p className="text-sm text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors duration-300">
                     {feature.description}
                   </p>
                 </CardContent>
@@ -244,19 +222,20 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="px-4 py-20 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-r from-primary/20 to-accent/20 p-8 rounded-2xl">
-            <h2 className="text-3xl font-bold text-gradient mb-4">
+      <section className="px-4 py-24 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto text-center">
+          <div className="bg-gradient-to-r from-primary/20 to-accent/20 p-12 rounded-3xl backdrop-blur-sm border border-primary/20 hover:border-primary/40 transition-all duration-300">
+            <h2 className="text-4xl font-bold text-gradient mb-6">
               Ready to Discover Your Music DNA?
             </h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-8 text-lg max-w-2xl mx-auto">
               Connect your Spotify account and start exploring your musical personality today.
             </p>
             <Link to="/auth">
-              <Button size="lg" className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200">
-                <Music className="mr-2 h-6 w-6" />
+              <Button size="lg" className="bg-gradient-spotify hover:scale-110 transform transition-all duration-300 shadow-xl text-lg px-10 py-5">
+                <Music className="mr-3 h-6 w-6" />
                 Get Started Now
+                <ArrowRight className="ml-3 h-5 w-5" />
               </Button>
             </Link>
           </div>
@@ -265,16 +244,16 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="border-t border-border/50 bg-background/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-6 w-6" />
-              <span className="text-lg font-semibold text-foreground">MyVibeLyrics</span>
+            <div className="flex items-center space-x-3 mb-6 md:mb-0">
+              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
+              <span className="text-xl font-semibold text-foreground">MyVibeLyrics</span>
             </div>
-            <div className="flex space-x-6 text-sm text-muted-foreground">
-              <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-              <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-              <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <div className="flex space-x-8 text-sm text-muted-foreground">
+              <Link to="/privacy" className="hover:text-foreground transition-colors hover:scale-105 transform duration-200">Privacy</Link>
+              <Link to="/terms" className="hover:text-foreground transition-colors hover:scale-105 transform duration-200">Terms</Link>
+              <Link to="/contact" className="hover:text-foreground transition-colors hover:scale-105 transform duration-200">Contact</Link>
             </div>
           </div>
         </div>

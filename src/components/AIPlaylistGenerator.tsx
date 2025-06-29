@@ -35,7 +35,6 @@ const AIPlaylistGenerator: React.FC<Props> = ({
   const [playlistCreated, setPlaylistCreated] = useState(false);
   const [playlistUrl, setPlaylistUrl] = useState('');
 
-  // Check if user has premium access
   const hasPremiumAccess = profile?.has_active_subscription || profile?.plan_tier === 'premium';
 
   const createAIPlaylist = async () => {
@@ -57,32 +56,13 @@ const AIPlaylistGenerator: React.FC<Props> = ({
     }
 
     if (!isSpotifyWhitelisted) {
-      toast.error('Spotify features are temporarily limited. Please contact support to enable full access.');
+      toast.error('Spotify features are temporarily limited. Please contact support for full access.');
       return;
     }
 
     if (!spotifyAccessToken) {
       toast.error('Please connect your Spotify account to create playlists');
       return;
-    }
-
-    // Enhanced check for listening history
-    if (!topTracks?.length && !topArtists?.length && !recentlyPlayed?.length) {
-      toast.error('You need to have listening history to generate an AI playlist. Please listen to more music on Spotify first.');
-      return;
-    }
-
-    const seedTracks = topTracks?.slice(0, 5).map(t => t.id) || [];
-    const seedArtists = topArtists?.slice(0, 5).map(a => a.id) || [];
-
-    // Fallback to recently played if no top data
-    if (seedTracks.length === 0 && seedArtists.length === 0) {
-      const recentTracks = recentlyPlayed?.slice(0, 3).map(t => t.id) || [];
-      if (recentTracks.length === 0) {
-        toast.error('Not enough listening data available. Please listen to more music on Spotify first.');
-        return;
-      }
-      seedTracks.push(...recentTracks);
     }
 
     setIsCreating(true);
@@ -127,49 +107,74 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       setProgress(40);
       setMessage('Generating 100 AI-powered recommendations...');
 
-      // Generate recommendations in multiple batches to get 100 unique tracks
+      // Get all genres from top artists for seed variety
+      const allGenres = new Set<string>();
+      topArtists?.forEach(artist => {
+        artist.genres?.forEach((genre: string) => allGenres.add(genre));
+      });
+      const genreArray = Array.from(allGenres).slice(0, 5);
+
+      // Generate recommendations in multiple batches with different seeds
       const allTracks = [];
       const usedTrackIds = new Set();
-      const totalBatches = 12; // More batches for better variety
+      const totalBatches = 15; // More batches for better variety
 
       for (let batch = 0; batch < totalBatches; batch++) {
         console.log(`🔄 Processing batch ${batch + 1}/${totalBatches}`);
         
         const seedParams = [];
         
-        // Use different combinations of seeds for variety
-        if (seedArtists.length > 0) {
-          const artistIndex = batch % seedArtists.length;
-          const artistIndex2 = (batch + 1) % seedArtists.length;
-          if (artistIndex !== artistIndex2 && seedArtists.length > 1) {
-            seedParams.push(`seed_artists=${seedArtists[artistIndex]},${seedArtists[artistIndex2]}`);
+        // Use different combinations of seeds for maximum variety
+        if (topArtists?.length > 0 && batch % 3 === 0) {
+          const artistIndex = batch % topArtists.length;
+          const artistIndex2 = (batch + 1) % topArtists.length;
+          if (artistIndex !== artistIndex2 && topArtists.length > 1) {
+            seedParams.push(`seed_artists=${topArtists[artistIndex].id},${topArtists[artistIndex2].id}`);
           } else {
-            seedParams.push(`seed_artists=${seedArtists[artistIndex]}`);
+            seedParams.push(`seed_artists=${topArtists[artistIndex].id}`);
           }
         }
         
-        if (seedTracks.length > 0) {
-          const trackIndex = batch % seedTracks.length;
-          seedParams.push(`seed_tracks=${seedTracks[trackIndex]}`);
+        if (topTracks?.length > 0 && batch % 3 === 1) {
+          const trackIndex = batch % topTracks.length;
+          seedParams.push(`seed_tracks=${topTracks[trackIndex].id}`);
+        }
+
+        if (genreArray.length > 0 && batch % 3 === 2) {
+          const genreIndex = batch % genreArray.length;
+          const genreIndex2 = (batch + 1) % genreArray.length;
+          if (genreIndex !== genreIndex2 && genreArray.length > 1) {
+            seedParams.push(`seed_genres=${encodeURIComponent(genreArray[genreIndex])},${encodeURIComponent(genreArray[genreIndex2])}`);
+          } else {
+            seedParams.push(`seed_genres=${encodeURIComponent(genreArray[genreIndex])}`);
+          }
+        }
+
+        // Ensure we have at least one seed
+        if (seedParams.length === 0 && topArtists?.length > 0) {
+          seedParams.push(`seed_artists=${topArtists[0].id}`);
         }
 
         // Add variety with different audio features for each batch
         const audioFeatures = [
-          'target_energy=0.8&target_danceability=0.7&target_valence=0.6',
-          'target_energy=0.4&target_acousticness=0.7&target_valence=0.3',
-          'target_energy=0.9&target_loudness=-5&target_tempo=130',
-          'target_energy=0.3&target_instrumentalness=0.8&target_valence=0.4',
-          'target_danceability=0.9&target_tempo=120&target_popularity=80',
-          'target_valence=0.8&target_energy=0.7&target_popularity=60',
-          'target_acousticness=0.3&target_energy=0.6&target_tempo=110',
-          'target_liveness=0.3&target_speechiness=0.05&target_popularity=70',
-          'target_energy=0.6&target_valence=0.5&target_tempo=100',
-          'target_danceability=0.5&target_energy=0.5&target_popularity=70',
-          'target_instrumentalness=0.2&target_acousticness=0.4&target_energy=0.7',
-          'target_speechiness=0.1&target_loudness=-8&target_tempo=140'
+          'target_energy=0.8&target_danceability=0.7&target_valence=0.6&min_popularity=30&max_popularity=90',
+          'target_energy=0.4&target_acousticness=0.7&target_valence=0.3&min_popularity=20&max_popularity=80',
+          'target_energy=0.9&target_loudness=-5&target_tempo=130&min_popularity=40&max_popularity=95',
+          'target_energy=0.3&target_instrumentalness=0.8&target_valence=0.4&min_popularity=10&max_popularity=70',
+          'target_danceability=0.9&target_tempo=120&target_popularity=80&min_energy=0.5',
+          'target_valence=0.8&target_energy=0.7&min_popularity=60&max_popularity=100',
+          'target_acousticness=0.3&target_energy=0.6&target_tempo=110&min_popularity=30',
+          'target_liveness=0.3&target_speechiness=0.05&min_popularity=70&max_popularity=95',
+          'target_energy=0.6&target_valence=0.5&target_tempo=100&min_popularity=25',
+          'target_danceability=0.5&target_energy=0.5&min_popularity=70&max_popularity=90',
+          'target_instrumentalness=0.2&target_acousticness=0.4&target_energy=0.7&min_popularity=50',
+          'target_speechiness=0.1&target_loudness=-8&target_tempo=140&min_popularity=60',
+          'target_valence=0.2&target_energy=0.3&target_acousticness=0.6&min_popularity=40',
+          'target_danceability=0.8&target_valence=0.9&target_energy=0.8&min_popularity=70',
+          'target_tempo=90&target_energy=0.4&target_valence=0.6&min_popularity=30'
         ];
         
-        const batchSize = Math.min(15, Math.ceil((100 - allTracks.length) / (totalBatches - batch)));
+        const batchSize = Math.min(20, Math.ceil((100 - allTracks.length) / (totalBatches - batch)));
         const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || audioFeatures[0]}`;
         
         try {
@@ -186,7 +191,8 @@ const AIPlaylistGenerator: React.FC<Props> = ({
               // Filter out duplicates and tracks already in user's top tracks
               const newTracks = recommendations.tracks.filter((track: any) => 
                 !usedTrackIds.has(track.id) && 
-                !topTracks.some(t => t.id === track.id)
+                !topTracks?.some(t => t.id === track.id) &&
+                !recentlyPlayed?.some(t => t.id === track.id)
               );
               
               newTracks.forEach((track: any) => {
@@ -203,23 +209,23 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           console.warn(`❌ Error fetching batch ${batch + 1}:`, err);
         }
 
-        setProgress(40 + (batch + 1) * 4);
+        setProgress(40 + (batch + 1) * 3);
 
         // Break if we have enough tracks
         if (allTracks.length >= 100) break;
       }
 
-      console.log('🎵 Total tracks collected:', allTracks.length);
+      console.log('🎵 Total unique tracks collected:', allTracks.length);
 
       if (allTracks.length === 0) {
-        throw new Error('No recommendations received from Spotify. This might be due to limited listening history.');
+        throw new Error('No recommendations received from Spotify. Please try again or contact support.');
       }
 
       // Shuffle and take exactly 100 tracks (or all if less than 100)
       const shuffledTracks = allTracks.sort(() => 0.5 - Math.random());
       const finalTracks = shuffledTracks.slice(0, Math.min(100, shuffledTracks.length));
 
-      setMessage(`Adding ${finalTracks.length} tracks to your playlist...`);
+      setMessage(`Adding ${finalTracks.length} unique tracks to your playlist...`);
       setProgress(85);
 
       // Add tracks to playlist
@@ -327,9 +333,10 @@ const AIPlaylistGenerator: React.FC<Props> = ({
         {!isCreating && !playlistCreated && (
           <>
             <div className="text-sm text-muted-foreground space-y-2">
-              <p>• Uses your top tracks and artists as seeds</p>
-              <p>• Generates up to 100 personalized song recommendations</p>
-              <p>• Uses AI to create variety across different moods</p>
+              <p>• Uses your top tracks, artists, and genres as seeds</p>
+              <p>• Generates up to 100 unique song recommendations</p>
+              <p>• AI creates variety across different moods and styles</p>
+              <p>• Filters out your already known tracks for discovery</p>
               <p>• Saves directly to your Spotify account</p>
             </div>
             
@@ -350,7 +357,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate AI Playlist (100 tracks)
+                  Generate AI Playlist (100 unique tracks)
                 </>
               )}
             </Button>

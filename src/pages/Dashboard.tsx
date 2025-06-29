@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,22 +16,33 @@ import {
   Heart, 
   Sparkles,
   Share2,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
   const { topTracks, topArtists, recentlyPlayed, loading, error, refetch } = useSpotifyData();
   const [activeTab, setActiveTab] = useState('core');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch]);
+
   if (!profile?.spotify_connected) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
-        <Card className="max-w-md w-full">
+        <Card className="max-w-md w-full glass-effect">
           <CardHeader className="text-center">
             <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
             <CardTitle className="text-2xl text-foreground">Spotify Connection Required</CardTitle>
@@ -41,7 +52,7 @@ const Dashboard = () => {
               Please connect your Spotify account to access your music dashboard and analytics.
             </p>
             <Link to="/profile">
-              <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+              <Button className="w-full bg-green-600 hover:bg-green-700 text-white hover:scale-105 transition-all duration-200">
                 <Music className="mr-2 h-4 w-4" />
                 Connect Spotify Account
               </Button>
@@ -60,6 +71,7 @@ const Dashboard = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <div className="text-white text-xl">Loading your music insights...</div>
+          <div className="text-muted-foreground mt-2">This may take a few moments...</div>
         </div>
       </div>
     );
@@ -67,14 +79,38 @@ const Dashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <div className="text-center text-white">
-          <h2 className="text-xl mb-4">Unable to load music data</h2>
-          <p className="text-muted-foreground">{error}</p>
-          <Button onClick={() => window.location.reload()} className="mt-4">
-            Retry
-          </Button>
-        </div>
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
+        <Card className="max-w-md w-full glass-effect">
+          <CardContent className="text-center py-8">
+            <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl mb-4 text-foreground">Unable to load music data</h2>
+            <p className="text-muted-foreground mb-6">{error}</p>
+            <div className="space-y-2">
+              <Button 
+                onClick={handleRefresh} 
+                disabled={isRefreshing}
+                className="w-full"
+              >
+                {isRefreshing ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry
+                  </>
+                )}
+              </Button>
+              <Link to="/profile">
+                <Button variant="outline" className="w-full">
+                  Check Spotify Connection
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -85,22 +121,35 @@ const Dashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
-            <h1 className="text-3xl font-bold text-gradient">Music Dashboard</h1>
+            <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-10 w-10" />
+            <h1 className="text-4xl font-bold text-gradient">Music Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
+            <Button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              variant="outline"
+              size="sm"
+              className="border-border text-foreground hover:bg-muted"
+            >
+              {isRefreshing ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
             <Link to="/profile">
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
+              <Button variant="outline" className="border-border text-foreground hover:bg-muted hover:scale-105 transition-all duration-200">
                 Profile Settings
               </Button>
             </Link>
             <Link to="/weekly-giveaway">
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
+              <Button variant="outline" className="border-border text-foreground hover:bg-muted hover:scale-105 transition-all duration-200">
                 Weekly Giveaway
               </Button>
             </Link>
             {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
-              <Badge variant="outline" className="text-yellow-400 border-yellow-400">
+              <Badge variant="outline" className="text-yellow-400 border-yellow-400 animate-pulse">
                 <Sparkles className="mr-1 h-3 w-3" />
                 Premium
               </Badge>
@@ -108,44 +157,44 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-8">
+        {/* Enhanced Tabs */}
+        <div className="flex flex-wrap gap-3 mb-8 p-1 bg-background/20 rounded-lg backdrop-blur-sm">
           <Button
-            variant={activeTab === 'core' ? 'default' : 'outline'}
+            variant={activeTab === 'core' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('core')}
-            className="text-sm"
+            className="text-sm hover:scale-105 transition-all duration-200"
           >
             <Music className="mr-2 h-4 w-4" />
             Core Insights
           </Button>
           <Button
-            variant={activeTab === 'behavior' ? 'default' : 'outline'}
+            variant={activeTab === 'behavior' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('behavior')}
-            className="text-sm"
+            className="text-sm hover:scale-105 transition-all duration-200"
           >
             <Clock className="mr-2 h-4 w-4" />
             Listening Behavior
           </Button>
           <Button
-            variant={activeTab === 'personality' ? 'default' : 'outline'}
+            variant={activeTab === 'personality' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('personality')}
-            className="text-sm"
+            className="text-sm hover:scale-105 transition-all duration-200"
           >
             <Heart className="mr-2 h-4 w-4" />
             Personality & Mood
           </Button>
           <Button
-            variant={activeTab === 'highlights' ? 'default' : 'outline'}
+            variant={activeTab === 'highlights' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('highlights')}
-            className="text-sm"
+            className="text-sm hover:scale-105 transition-all duration-200"
           >
             <Sparkles className="mr-2 h-4 w-4" />
             Special Highlights
           </Button>
           <Button
-            variant={activeTab === 'cards' ? 'default' : 'outline'}
+            variant={activeTab === 'cards' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('cards')}
-            className="text-sm"
+            className="text-sm hover:scale-105 transition-all duration-200"
           >
             <Share2 className="mr-2 h-4 w-4" />
             Shareable Cards
@@ -153,71 +202,83 @@ const Dashboard = () => {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'core' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🎧 Core Listening Insights</h2>
-            <CoreInsights
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-            />
-          </div>
-        )}
+        <div className="animate-fade-in">
+          {activeTab === 'core' && (
+            <div className="space-y-8">
+              <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center">
+                🎧 <span className="ml-2">Core Listening Insights</span>
+              </h2>
+              <CoreInsights
+                topTracks={topTracks}
+                topArtists={topArtists}
+                recentlyPlayed={recentlyPlayed}
+                isLocked={isLocked}
+              />
+            </div>
+          )}
 
-        {activeTab === 'behavior' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🕒 Listening Behavior & Patterns</h2>
-            <ListeningBehavior
-              topTracks={topTracks}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-            />
-          </div>
-        )}
+          {activeTab === 'behavior' && (
+            <div className="space-y-8">
+              <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center">
+                🕒 <span className="ml-2">Listening Behavior & Patterns</span>
+              </h2>
+              <ListeningBehavior
+                topTracks={topTracks}
+                recentlyPlayed={recentlyPlayed}
+                isLocked={isLocked}
+              />
+            </div>
+          )}
 
-        {activeTab === 'personality' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🎭 Personality & Mood Analytics</h2>
-            <PersonalityAnalytics
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-            />
-          </div>
-        )}
+          {activeTab === 'personality' && (
+            <div className="space-y-8">
+              <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center">
+                🎭 <span className="ml-2">Personality & Mood Analytics</span>
+              </h2>
+              <PersonalityAnalytics
+                topTracks={topTracks}
+                topArtists={topArtists}
+                recentlyPlayed={recentlyPlayed}
+                isLocked={isLocked}
+              />
+            </div>
+          )}
 
-        {activeTab === 'highlights' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">🌟 Special Highlights</h2>
-            <SpecialHighlights
-              spotifyAccessToken={profile?.spotify_access_token || ''}
-              spotifyUserId={profile?.spotify_user_id || ''}
-              topTracks={topTracks}
-              topArtists={topArtists}
-              recentlyPlayed={recentlyPlayed}
-              isLocked={isLocked}
-              hasActiveSubscription={!!(profile?.has_active_subscription || profile?.plan_tier === 'premium')}
-            />
-          </div>
-        )}
+          {activeTab === 'highlights' && (
+            <div className="space-y-8">
+              <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center">
+                🌟 <span className="ml-2">Special Highlights</span>
+              </h2>
+              <SpecialHighlights
+                spotifyAccessToken={profile?.spotify_access_token || ''}
+                spotifyUserId={profile?.spotify_user_id || ''}
+                topTracks={topTracks}
+                topArtists={topArtists}
+                recentlyPlayed={recentlyPlayed}
+                isLocked={isLocked}
+                hasActiveSubscription={!!(profile?.has_active_subscription || profile?.plan_tier === 'premium')}
+              />
+            </div>
+          )}
 
-        {activeTab === 'cards' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground mb-6">📱 Shareable Cards</h2>
-            <Card className="glass-effect border-border/50">
-              <CardContent className="text-center py-20">
-                <div className="text-6xl mb-4">🎁</div>
-                <h3 className="text-2xl font-bold text-foreground mb-2">Shareable Cards</h3>
-                <p className="text-xl font-semibold text-muted-foreground">Coming Soon!</p>
-                <p className="text-sm text-muted-foreground mt-4 max-w-md mx-auto">
-                  Create beautiful cards of your music insights to share with friends and social media.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          {activeTab === 'cards' && (
+            <div className="space-y-8">
+              <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center">
+                📱 <span className="ml-2">Shareable Cards</span>
+              </h2>
+              <Card className="glass-effect border-border/50 hover:border-primary/30 transition-all duration-300">
+                <CardContent className="text-center py-20">
+                  <div className="text-8xl mb-6 animate-pulse">🎁</div>
+                  <h3 className="text-3xl font-bold text-foreground mb-4">Shareable Cards</h3>
+                  <p className="text-xl font-semibold text-primary mb-2">Coming Soon!</p>
+                  <p className="text-sm text-muted-foreground mt-4 max-w-md mx-auto leading-relaxed">
+                    Create beautiful cards of your music insights to share with friends and social media.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
