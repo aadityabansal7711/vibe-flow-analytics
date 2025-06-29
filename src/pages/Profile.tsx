@@ -18,7 +18,8 @@ import {
   LogOut,
   AlertTriangle,
   CheckCircle,
-  ArrowLeft
+  ArrowLeft,
+  Calendar
 } from 'lucide-react';
 
 const Profile = () => {
@@ -99,6 +100,15 @@ const Profile = () => {
     }
   }, [profile?.spotify_connected]);
 
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-dark p-6">
       <div className="max-w-4xl mx-auto">
@@ -152,6 +162,30 @@ const Profile = () => {
                   )}
                 </div>
               </div>
+
+              {/* Subscription Dates */}
+              {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
+                <div className="space-y-3 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                  <div className="flex items-center space-x-2 text-primary">
+                    <Calendar className="h-4 w-4" />
+                    <span className="font-medium">Subscription Details</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Started: </span>
+                      <span className="text-foreground font-medium">
+                        {formatDate(profile?.plan_start_date)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Expires: </span>
+                      <span className="text-foreground font-medium">
+                        {formatDate(profile?.plan_end_date)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Premium Subscription Warning */}
               {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (

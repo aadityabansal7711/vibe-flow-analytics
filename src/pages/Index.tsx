@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -153,12 +152,12 @@ const Index = () => {
       <section className="relative px-4 py-24 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <Badge className="mb-8 bg-primary/10 text-primary border-primary/20 text-lg px-4 py-2 animate-fade-in">
-            🎵 AI-Powered Music Analytics Platform
+            🎵 Music Analytics Platform
           </Badge>
           <h1 className="text-5xl sm:text-7xl font-bold text-gradient mb-8 animate-fade-in">
             Discover Your
             <br />
-            <span className="text-primary animate-pulse">Music DNA</span>
+            <span className="text-white animate-pulse">Music DNA</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-10 max-w-4xl mx-auto leading-relaxed animate-fade-in">
             Unlock deep insights into your Spotify listening habits with cutting-edge AI analytics. 

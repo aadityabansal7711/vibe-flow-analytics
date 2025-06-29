@@ -46,9 +46,9 @@ const Buy = () => {
         try {
           const paymentInfo = JSON.parse(pendingPayment);
           
-          // Check if payment was made recently (within last 10 minutes)
+          // Check if payment was made recently (within last 15 minutes to account for payment processing time)
           const timeDiff = Date.now() - paymentInfo.timestamp;
-          if (timeDiff < 10 * 60 * 1000) { // 10 minutes
+          if (timeDiff < 15 * 60 * 1000) { // 15 minutes
             toast.info('Checking payment status...');
             await handleSuccessfulPayment(paymentInfo.duration);
           }
@@ -110,11 +110,6 @@ const Buy = () => {
     }
   };
 
-  // Manual activation button for testing
-  const handleManualActivation = async () => {
-    await handleSuccessfulPayment('3months');
-  };
-
   const features = [
     { icon: <Sparkles className="h-5 w-5 text-primary" />, text: "🔓 Unlimited music analytics" },
     { icon: <Brain className="h-5 w-5 text-purple-500" />, text: "🎭 Advanced mood + personality analysis" },
@@ -151,18 +146,6 @@ const Buy = () => {
             <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="Logo" className="h-8 w-8" />
             <span>Upgrade to Premium</span>
           </h1>
-        </div>
-
-        {/* Debug section - remove this after testing */}
-        <div className="mb-4">
-          <Button 
-            onClick={handleManualActivation}
-            variant="outline" 
-            size="sm"
-            className="bg-green-600 text-white"
-          >
-            🔧 Activate 3 Months Premium (Debug)
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

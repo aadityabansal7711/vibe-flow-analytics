@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Badge } from "@/components/ui/badge";
-import { User } from "lucide-react";
+import { User, Calendar } from "lucide-react";
 
 interface Props {
   profile: any;
@@ -22,6 +22,15 @@ const ProfileInfo: React.FC<Props> = ({ profile }) => {
       </div>
     );
   }
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   return (
     <div className="flex items-center space-x-4">
@@ -52,6 +61,12 @@ const ProfileInfo: React.FC<Props> = ({ profile }) => {
             </Badge>
           )}
         </div>
+        {(profile.has_active_subscription || profile.plan_tier === 'premium') && profile.plan_end_date && (
+          <div className="flex items-center space-x-1 mt-2 text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            <span>Expires: {formatDate(profile.plan_end_date)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
