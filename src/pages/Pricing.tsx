@@ -117,6 +117,7 @@ const Pricing = () => {
                 ₹149 <span className="text-lg font-normal">/3 months</span>
               </div>
               <p className="text-muted-foreground">Try premium features</p>
+              <p className="text-xs text-muted-foreground">*Including GST</p>
             </CardHeader>
 
             <CardContent className="space-y-6 pt-6">
@@ -152,6 +153,7 @@ const Pricing = () => {
                 ₹499 <span className="text-lg font-normal">/year</span>
               </div>
               <p className="text-muted-foreground">Complete experience</p>
+              <p className="text-xs text-muted-foreground">*Including GST</p>
             </CardHeader>
 
             <CardContent className="space-y-6 pt-6">
@@ -174,7 +176,7 @@ const Pricing = () => {
           </Card>
         </div>
 
-        {/* Feature Comparison */}
+        {/* Features comparison */}
         <div className="mt-20">
           <h3 className="text-3xl font-bold text-center text-foreground mb-12">
             Compare Features
@@ -216,7 +218,7 @@ const Pricing = () => {
                 <Users className="h-12 w-12 text-green-500 mx-auto mb-4" />
                 <CardTitle className="text-xl">Community Features</CardTitle>
               </CardHeader>
-              <CardContent className="text-center text-sm text-muted-foreground">
+              <CardContent className="text-center text-sm text-muted-foreforeground">
                 <div className="mb-4">
                   <strong className="text-foreground">Free:</strong> Basic access
                 </div>

@@ -120,6 +120,7 @@ const Buy = () => {
               <div className="text-4xl font-bold text-blue-500">
                 ₹149 <span className="text-base">/3 months</span>
               </div>
+              <p className="text-sm text-muted-foreground">*Including GST</p>
             </CardHeader>
 
             <CardContent className="p-6">
@@ -161,6 +162,7 @@ const Buy = () => {
               <div className="text-4xl font-bold text-primary">
                 ₹499 <span className="text-base">/year</span>
               </div>
+              <p className="text-sm text-muted-foreground">*Including GST</p>
             </CardHeader>
 
             <CardContent className="p-6">
