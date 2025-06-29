@@ -17,14 +17,27 @@ import {
   Sparkles,
   Share2,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, profile } = useAuth();
-  const { topTracks, topArtists, recentlyPlayed, loading, error, refetch } = useSpotifyData();
+  const { user, profile, loading: authLoading } = useAuth();
+  const { topTracks, topArtists, recentlyPlayed, loading: dataLoading, error, refetch } = useSpotifyData();
   const [activeTab, setActiveTab] = useState('core');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showConnectingMessage, setShowConnectingMessage] = useState(false);
+
+  // Show connecting message for 3 seconds when profile loads but spotify isn't connected yet
+  useEffect(() => {
+    if (profile && !profile.spotify_connected && !authLoading) {
+      setShowConnectingMessage(true);
+      const timer = setTimeout(() => {
+        setShowConnectingMessage(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [profile, authLoading]);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -39,24 +52,47 @@ const Dashboard = () => {
     }
   }, [refetch]);
 
-  if (!profile?.spotify_connected) {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <div className="text-white text-xl">Loading your account...</div>
+          <div className="text-muted-foreground mt-2">Please wait...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showConnectingMessage || (!profile?.spotify_connected && !dataLoading)) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
         <Card className="max-w-md w-full glass-effect">
           <CardHeader className="text-center">
-            <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
-            <CardTitle className="text-2xl text-foreground">Spotify Connection Required</CardTitle>
+            {showConnectingMessage ? (
+              <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+            ) : (
+              <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            )}
+            <CardTitle className="text-2xl text-foreground">
+              {showConnectingMessage ? 'Setting up your account...' : 'Spotify Connection Required'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-muted-foreground">
-              Please connect your Spotify account to access your music dashboard and analytics.
+              {showConnectingMessage 
+                ? 'Please wait while we prepare your dashboard...'
+                : 'Please connect your Spotify account to access your music dashboard and analytics.'
+              }
             </p>
-            <Link to="/profile">
-              <Button className="w-full bg-green-600 hover:bg-green-700 text-white hover:scale-105 transition-all duration-200">
-                <Music className="mr-2 h-4 w-4" />
-                Connect Spotify Account
-              </Button>
-            </Link>
+            {!showConnectingMessage && (
+              <Link to="/profile">
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white hover:scale-105 transition-all duration-200">
+                  <Music className="mr-2 h-4 w-4" />
+                  Connect Spotify Account
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -65,7 +101,7 @@ const Dashboard = () => {
 
   const isLocked = !profile?.has_active_subscription && profile?.plan_tier !== 'premium';
 
-  if (loading) {
+  if (dataLoading) {
     return (
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
         <div className="text-center">
@@ -82,9 +118,11 @@ const Dashboard = () => {
       <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
         <Card className="max-w-md w-full glass-effect">
           <CardContent className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <h2 className="text-xl mb-4 text-foreground">Unable to load music data</h2>
-            <p className="text-muted-foreground mb-6">{error}</p>
+            <Music className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl mb-4 text-foreground">Getting your music ready...</h2>
+            <p className="text-muted-foreground mb-6">
+              We're setting up your personalized analytics. This usually takes just a moment.
+            </p>
             <div className="space-y-2">
               <Button 
                 onClick={handleRefresh} 
@@ -94,12 +132,12 @@ const Dashboard = () => {
                 {isRefreshing ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Retrying...
+                    Loading...
                   </>
                 ) : (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    Retry
+                    Continue
                   </>
                 )}
               </Button>

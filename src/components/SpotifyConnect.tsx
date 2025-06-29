@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Music, User, Crown, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Music, User, Crown, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ const SpotifyConnect = () => {
   const [searchParams] = useSearchParams();
   const [justConnected, setJustConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionLoading, setConnectionLoading] = useState(false);
 
   // Check for connection success or error in URL params
   useEffect(() => {
@@ -19,6 +20,7 @@ const SpotifyConnect = () => {
 
     if (spotifyConnected === 'true') {
       setJustConnected(true);
+      setConnectionLoading(false);
       // Clear the URL parameter without reload
       const url = new URL(window.location.href);
       url.searchParams.delete('spotify_connected');
@@ -32,6 +34,7 @@ const SpotifyConnect = () => {
 
     if (spotifyError) {
       console.error('Spotify connection error:', spotifyError);
+      setConnectionLoading(false);
       // Clear the error parameter without reload
       const url = new URL(window.location.href);
       url.searchParams.delete('spotify_error');
@@ -39,12 +42,25 @@ const SpotifyConnect = () => {
     }
   }, [searchParams, fetchProfile]);
 
+  // Show connection loading for a few seconds after connecting
+  useEffect(() => {
+    if (profile?.spotify_connected && !justConnected) {
+      setConnectionLoading(true);
+      const timer = setTimeout(() => {
+        setConnectionLoading(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [profile?.spotify_connected, justConnected]);
+
   const handleConnect = useCallback(async () => {
     setIsConnecting(true);
+    setConnectionLoading(true);
     try {
       await connectSpotify();
     } catch (error) {
       console.error('Connection error:', error);
+      setConnectionLoading(false);
     } finally {
       setIsConnecting(false);
     }
@@ -54,7 +70,10 @@ const SpotifyConnect = () => {
     return (
       <Card className="glass-effect border-border/50">
         <CardContent className="flex items-center justify-center p-6">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="flex items-center space-x-3">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-muted-foreground">Loading...</span>
+          </div>
         </CardContent>
       </Card>
     );
@@ -83,6 +102,27 @@ const SpotifyConnect = () => {
     );
   }
 
+  if (connectionLoading) {
+    return (
+      <Card className="glass-effect border-border/50">
+        <CardHeader className="text-center">
+          <CardTitle className="text-foreground flex items-center justify-center">
+            <Loader2 className="mr-2 h-6 w-6 animate-spin text-primary" />
+            Connecting Spotify...
+          </CardTitle>
+          <CardDescription>
+            Please wait while we establish your connection
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-sm text-muted-foreground">
+            This may take a few moments...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (profile?.spotify_connected || justConnected) {
     return (
       <Card className="glass-effect border-border/50">
@@ -100,7 +140,7 @@ const SpotifyConnect = () => {
         </CardHeader>
         <CardContent>
           <div className="text-center text-sm text-muted-foreground">
-            You can now view your personalized music insights below!
+            You can now view your personalized music insights!
           </div>
           {isUnlocked && (
             <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
@@ -154,7 +194,7 @@ const SpotifyConnect = () => {
         >
           {isConnecting ? (
             <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               Connecting...
             </>
           ) : (

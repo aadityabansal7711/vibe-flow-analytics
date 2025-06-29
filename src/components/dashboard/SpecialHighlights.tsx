@@ -113,7 +113,7 @@ const SpecialHighlights: React.FC<Props> = ({
         },
         body: JSON.stringify({
           name: playlistName,
-          description: `AI-generated playlist with 100 tracks based on your music taste. Created by MyVibeLyrics on ${currentDate.toLocaleDateString()}. Discover new music that matches your vibe!`,
+          description: `AI-generated playlist with 50+ unique tracks based on your music taste. Created by MyVibeLyrics on ${currentDate.toLocaleDateString()}. Discover new music that matches your vibe!`,
           public: false,
           collaborative: false
         })
@@ -126,37 +126,49 @@ const SpecialHighlights: React.FC<Props> = ({
 
       const playlist = await createRes.json();
       setProgress(40);
-      setMessage('Generating 100 AI-powered recommendations...');
+      setMessage('Generating 50+ AI-powered unique recommendations...');
 
-      // Generate multiple batches of recommendations to get 100 tracks
-      const allTracks = [];
+      // Generate multiple batches of recommendations with more variety
+      const allTracks = new Map(); // Use Map to ensure uniqueness by track ID
       const batchSize = 20;
       const totalBatches = 5;
 
       for (let batch = 0; batch < totalBatches; batch++) {
         const seedParams = [];
         
-        // Rotate seeds for variety
+        // Rotate seeds for variety and use different combinations
         if (seedArtists.length > 0) {
-          const artistIndex = batch % seedArtists.length;
-          seedParams.push(`seed_artists=${seedArtists[artistIndex]}`);
+          const artistIndex1 = batch % seedArtists.length;
+          const artistIndex2 = (batch + 1) % seedArtists.length;
+          if (artistIndex1 !== artistIndex2 && seedArtists.length > 1) {
+            seedParams.push(`seed_artists=${seedArtists[artistIndex1]},${seedArtists[artistIndex2]}`);
+          } else {
+            seedParams.push(`seed_artists=${seedArtists[artistIndex1]}`);
+          }
         }
         
-        if (seedTracks.length > 0) {
+        if (seedTracks.length > 0 && batch < 3) { // Use tracks as seeds only for first 3 batches
           const trackIndex = batch % seedTracks.length;
           seedParams.push(`seed_tracks=${seedTracks[trackIndex]}`);
         }
 
-        // Add variety with different audio features for each batch
+        // Add genre seeds for more variety
+        const genres = ['pop', 'rock', 'indie', 'electronic', 'hip-hop', 'alternative', 'folk', 'jazz', 'classical', 'r-n-b'];
+        const randomGenres = genres.sort(() => 0.5 - Math.random()).slice(0, 2);
+        if (batch >= 3) { // Use genre seeds for later batches
+          seedParams.push(`seed_genres=${randomGenres.join(',')}`);
+        }
+
+        // Enhanced audio features with more variation
         const audioFeatures = [
-          'target_energy=0.8&target_danceability=0.7',
-          'target_valence=0.6&target_acousticness=0.3',
-          'target_instrumentalness=0.1&target_loudness=-8',
-          'target_speechiness=0.1&target_tempo=120',
-          'target_liveness=0.2&target_popularity=70'
+          'target_energy=0.8&target_danceability=0.7&target_valence=0.6',
+          'target_energy=0.6&target_acousticness=0.4&target_valence=0.8',
+          'target_energy=0.9&target_loudness=-6&target_tempo=130',
+          'target_speechiness=0.1&target_instrumentalness=0.2&target_popularity=60',
+          'target_liveness=0.3&target_danceability=0.8&target_energy=0.7'
         ];
         
-        const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || ''}`;
+        const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || ''}&market=US`;
         
         try {
           const recommendationsRes = await fetch(recommendationsUrl, {
@@ -169,7 +181,12 @@ const SpecialHighlights: React.FC<Props> = ({
           if (recommendationsRes.ok) {
             const recommendations = await recommendationsRes.json();
             if (recommendations.tracks) {
-              allTracks.push(...recommendations.tracks);
+              // Add tracks to Map to ensure uniqueness
+              recommendations.tracks.forEach((track: SpotifyTrack) => {
+                if (!allTracks.has(track.id)) {
+                  allTracks.set(track.id, track);
+                }
+              });
             }
           }
         } catch (err) {
@@ -179,19 +196,16 @@ const SpecialHighlights: React.FC<Props> = ({
         setProgress(40 + (batch + 1) * 8);
       }
 
-      if (allTracks.length === 0) {
+      const uniqueTracks = Array.from(allTracks.values());
+
+      if (uniqueTracks.length === 0) {
         throw new Error('No recommendations received from Spotify.');
       }
 
-      setMessage(`Adding ${allTracks.length} tracks to your playlist...`);
+      setMessage(`Adding ${uniqueTracks.length} unique tracks to your playlist...`);
       setProgress(85);
 
-      // Remove duplicates based on track ID
-      const uniqueTracks = allTracks.filter((track, index, self) => 
-        index === self.findIndex(t => t.id === track.id)
-      );
-
-      // Add tracks to playlist in batches
+      // Add tracks to playlist
       const trackUris = uniqueTracks.map(track => track.uri);
       
       const addTracksRes = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
@@ -201,7 +215,7 @@ const SpecialHighlights: React.FC<Props> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          uris: trackUris.slice(0, 100),
+          uris: trackUris,
           position: 0
         })
       });
@@ -212,11 +226,11 @@ const SpecialHighlights: React.FC<Props> = ({
       }
 
       setProgress(100);
-      setMessage(`✅ Playlist created with ${Math.min(trackUris.length, 100)} tracks!`);
+      setMessage(`✅ Playlist created with ${uniqueTracks.length} unique tracks!`);
       setPlaylistUrl(playlist.external_urls.spotify);
       setPlaylistCreated(true);
       
-      toast.success(`🎉 "${playlistName}" created with ${Math.min(trackUris.length, 100)} tracks!`, {
+      toast.success(`🎉 "${playlistName}" created with ${uniqueTracks.length} unique tracks!`, {
         duration: 5000,
         action: {
           label: 'Open in Spotify',
@@ -276,7 +290,7 @@ const SpecialHighlights: React.FC<Props> = ({
               AI Playlist Generator
             </CardTitle>
             <CardDescription>
-              Create personalized playlists with 100 tracks using advanced AI based on your listening habits
+              Create personalized playlists with 50+ unique tracks using advanced AI based on your listening habits
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -312,8 +326,9 @@ const SpecialHighlights: React.FC<Props> = ({
               <>
                 <div className="text-sm text-muted-foreground space-y-2">
                   <p>• Uses your top tracks and artists as seeds</p>
-                  <p>• Generates 100 personalized song recommendations</p>
+                  <p>• Generates 50+ unique personalized recommendations</p>
                   <p>• Uses AI to create variety across different moods</p>
+                  <p>• Ensures track uniqueness with advanced filtering</p>
                   <p>• Saves directly to your Spotify account</p>
                   <p>• Updates monthly with fresh discoveries</p>
                 </div>
@@ -330,7 +345,7 @@ const SpecialHighlights: React.FC<Props> = ({
                   ) : !spotifyAccessToken ? (
                     'Connect Spotify First'
                   ) : (
-                    'Generate AI Playlist (100 tracks)'
+                    'Generate AI Playlist (50+ unique tracks)'
                   )}
                 </Button>
               </>

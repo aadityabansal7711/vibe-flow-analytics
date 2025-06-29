@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -33,7 +34,7 @@ const useSpotifyData = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSpotifyData = async () => {
+  const fetchSpotifyData = useCallback(async () => {
     if (!profile?.spotify_connected) {
       setLoading(false);
       return;
@@ -123,22 +124,23 @@ const useSpotifyData = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.spotify_connected, profile?.spotify_access_token, isSpotifyWhitelisted, getValidSpotifyToken]);
 
   useEffect(() => {
-    fetchSpotifyData();
+    let mounted = true;
     
-    // Reduce refresh interval to avoid constant refreshing - only refresh on window focus
-    const handleFocus = () => {
-      fetchSpotifyData();
+    const fetchData = async () => {
+      if (mounted) {
+        await fetchSpotifyData();
+      }
     };
-    
-    window.addEventListener('focus', handleFocus);
+
+    fetchData();
     
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      mounted = false;
     };
-  }, [profile?.spotify_connected, profile?.spotify_access_token, isSpotifyWhitelisted]);
+  }, [fetchSpotifyData]);
 
   return {
     topTracks,
