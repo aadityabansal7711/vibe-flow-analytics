@@ -27,25 +27,57 @@ const Buy = () => {
       '1year': 'https://rzp.io/rzp/pttq9Cd'
     };
 
+    // Store payment info in localStorage for callback
+    localStorage.setItem('pending_payment', JSON.stringify({
+      duration,
+      userId: user.id,
+      timestamp: Date.now()
+    }));
+
     // Open payment link in same tab
     window.location.href = paymentLinks[duration];
   };
 
   // Check for successful payment on page load
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('payment_success') === 'true') {
-      const duration = urlParams.get('duration');
-      if (duration) {
-        handleSuccessfulPayment(duration as '3months' | '1year');
+    const checkPendingPayment = async () => {
+      const pendingPayment = localStorage.getItem('pending_payment');
+      if (pendingPayment) {
+        try {
+          const paymentInfo = JSON.parse(pendingPayment);
+          
+          // Check if payment was made recently (within last 10 minutes)
+          const timeDiff = Date.now() - paymentInfo.timestamp;
+          if (timeDiff < 10 * 60 * 1000) { // 10 minutes
+            toast.info('Checking payment status...');
+            await handleSuccessfulPayment(paymentInfo.duration);
+          }
+        } catch (error) {
+          console.error('Error parsing pending payment:', error);
+        } finally {
+          localStorage.removeItem('pending_payment');
+        }
       }
-    }
+
+      // Also check URL params for payment success
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success') {
+        const duration = urlParams.get('duration');
+        if (duration) {
+          await handleSuccessfulPayment(duration as '3months' | '1year');
+        }
+      }
+    };
+
+    checkPendingPayment();
   }, []);
 
   const handleSuccessfulPayment = async (duration: '3months' | '1year') => {
     try {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + (duration === '3months' ? 3 : 12));
+
+      console.log('Updating subscription for user:', user.id, 'Duration:', duration);
 
       const { error } = await supabase
         .from('profiles')
@@ -57,15 +89,30 @@ const Buy = () => {
         })
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Subscription update error:', error);
+        throw error;
+      }
+      
+      console.log('Subscription updated successfully');
       
       if (fetchProfile) await fetchProfile();
-      toast.success(`🎉 Premium activated successfully for ${duration === '3months' ? '3 months' : '1 year'}!`);
+      
+      const durationText = duration === '3months' ? '3 months' : '1 year';
+      toast.success(`🎉 Premium activated successfully for ${durationText}!`);
+      
+      // Clear URL params and redirect to dashboard
+      window.history.replaceState({}, document.title, window.location.pathname);
       setTimeout(() => (window.location.href = '/dashboard'), 2000);
     } catch (err) {
       console.error('Subscription update error:', err);
-      toast.error('Payment succeeded, but activation failed. Contact support.');
+      toast.error('Payment succeeded, but activation failed. Please contact support.');
     }
+  };
+
+  // Manual activation button for testing
+  const handleManualActivation = async () => {
+    await handleSuccessfulPayment('3months');
   };
 
   const features = [
@@ -104,6 +151,18 @@ const Buy = () => {
             <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="Logo" className="h-8 w-8" />
             <span>Upgrade to Premium</span>
           </h1>
+        </div>
+
+        {/* Debug section - remove this after testing */}
+        <div className="mb-4">
+          <Button 
+            onClick={handleManualActivation}
+            variant="outline" 
+            size="sm"
+            className="bg-green-600 text-white"
+          >
+            🔧 Activate 3 Months Premium (Debug)
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
