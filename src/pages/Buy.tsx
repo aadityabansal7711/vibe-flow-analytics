@@ -1,13 +1,27 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Crown, Music, CheckCircle, ArrowLeft, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
+import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCustomPricing } from '@/hooks/useCustomPricing';
+import { usePromoCode } from '@/hooks/usePromoCode';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  CheckCircle, 
+  Star, 
+  Zap, 
+  Crown, 
+  Gift,
+  Percent,
+  X,
+  Loader2,
+  ArrowLeft
+} from 'lucide-react';
 
 declare global {
   interface Window {
@@ -15,339 +29,428 @@ declare global {
   }
 }
 
-const Buy: React.FC = () => {
-  const { user, profile, updateProfile } = useAuth();
+const Buy = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user, profile } = useAuth();
+  const { customPricing } = useCustomPricing();
+  const {
+    promoCode,
+    promoDiscount,
+    promoMessage,
+    validatingPromo,
+    applyPromoCode,
+    clearPromoCode,
+    calculateDiscountedPrice
+  } = usePromoCode();
+
+  const [selectedPlan, setSelectedPlan] = useState<'3_month' | '1_year'>('1_year');
   const [loading, setLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [error, setError] = useState('');
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+
+  const planFromUrl = searchParams.get('plan');
 
   useEffect(() => {
-    // Load Razorpay script
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  // Check if user already has an active subscription
-  const hasActiveSubscription = profile?.has_active_subscription || profile?.plan_tier === 'premium';
-
-  const plans = [
-    {
-      id: '3month_premium',
-      name: '3 Month Premium',
-      price: 199,
-      originalPrice: 299,
-      duration: '3 months',
-      features: [
-        'AI Curated Playlists (100 tracks)',
-        'Advanced Analytics & Insights',
-        'Mood & Personality Analysis',
-        'Premium Community Access',
-        'Priority Support',
-        'Export Data Features'
-      ],
-      popular: true,
-      disabled: hasActiveSubscription
-    },
-    {
-      id: '1year_premium',
-      name: '1 Year Premium',
-      price: 699,
-      originalPrice: 999,
-      duration: '12 months',
-      features: [
-        'Everything in 3 Month Plan',
-        'Advanced AI Recommendations',
-        'Unlimited Playlist Generation',
-        'Premium Analytics Dashboard',
-        'Early Access to New Features',
-        'Dedicated Account Manager'
-      ],
-      popular: false,
-      disabled: hasActiveSubscription
+    if (planFromUrl === '3_month' || planFromUrl === '1_year') {
+      setSelectedPlan(planFromUrl);
     }
-  ];
+  }, [planFromUrl]);
 
-  const handlePayment = async (plan: typeof plans[0]) => {
+  useEffect(() => {
     if (!user) {
-      toast.error('Please log in to purchase');
-      navigate('/auth');
+      navigate('/auth?redirect=/buy');
       return;
     }
+  }, [user, navigate]);
 
-    if (hasActiveSubscription) {
-      toast.error('You already have an active subscription');
+  const getPrice = (plan: '3_month' | '1_year') => {
+    if (customPricing?.is_active) {
+      return customPricing.custom_price;
+    }
+    return plan === '3_month' ? 499 : 999;
+  };
+
+  const originalPrice = getPrice(selectedPlan);
+  const finalPrice = calculateDiscountedPrice(originalPrice);
+  const savings = originalPrice - finalPrice;
+
+  const handlePromoCodeSubmit = async () => {
+    if (!promoCodeInput.trim()) return;
+    
+    const result = await applyPromoCode(promoCodeInput);
+    if (!result.valid) {
+      setError(result.message);
+    } else {
+      setError('');
+    }
+  };
+
+  const handlePayment = async () => {
+    if (!user) {
+      navigate('/auth?redirect=/buy');
       return;
     }
 
     setLoading(true);
-    setSelectedPlan(plan.id);
+    setError('');
 
     try {
-      console.log('💳 Creating Razorpay order for plan:', plan.id);
-      
-      const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
+      const { data, error: orderError } = await supabase.functions.invoke('create-order', {
         body: {
-          amount: plan.price * 100,
-          currency: 'INR',
-          receipt: `receipt_${plan.id}_${Date.now()}`,
-          plan_id: plan.id,
-          user_id: user.id
+          plan_type: selectedPlan,
+          user_id: user.id,
+          promo_code: promoCode || null
         }
       });
 
       if (orderError) {
-        console.error('❌ Order creation failed:', orderError);
-        throw new Error(orderError.message || 'Failed to create order');
+        throw new Error(orderError.message);
       }
 
-      if (!orderData?.id) {
-        console.error('❌ No order ID received:', orderData);
-        throw new Error('Invalid order response from server');
+      if (!data?.order_id || !data?.amount) {
+        throw new Error('Invalid order data received');
       }
-
-      console.log('✅ Order created successfully:', orderData.id);
 
       const options = {
-        key: 'rzp_live_kVGmkkGPGHT2kI',
-        amount: plan.price * 100,
+        key: 'rzp_live_LmiVXaXJlfkUke',
+        amount: data.amount,
         currency: 'INR',
-        name: 'MyVibeLyrics',
-        description: `${plan.name} Subscription`,
-        order_id: orderData.id,
+        name: 'MyVibeLytics',
+        description: `${selectedPlan === '3_month' ? '3 Month' : '1 Year'} Premium Plan${promoCode ? ` (${promoCode} applied)` : ''}`,
+        order_id: data.order_id,
         handler: async function (response: any) {
-          console.log('💰 Payment successful:', response);
-          
           try {
-            // Verify payment
-            const { data: verificationData, error: verificationError } = await supabase.functions.invoke('verify-payment', {
+            const verifyResult = await supabase.functions.invoke('verify-payment', {
               body: {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
                 user_id: user.id,
-                plan_id: plan.id
+                plan_type: selectedPlan,
+                promo_code: promoCode || null
               }
             });
 
-            if (verificationError) {
-              console.error('❌ Payment verification failed:', verificationError);
-              toast.error('Payment verification failed. Please contact support.');
-              return;
+            if (verifyResult.error) {
+              throw new Error('Payment verification failed');
             }
 
-            console.log('✅ Payment verified successfully');
-
-            // Calculate subscription end date
-            const startDate = new Date();
-            const endDate = new Date();
-            if (plan.id === '3month_premium') {
-              endDate.setMonth(endDate.getMonth() + 3);
-            } else if (plan.id === '1year_premium') {
-              endDate.setFullYear(endDate.getFullYear() + 1);
+            // Use promo code if it was applied
+            if (promoCode) {
+              await supabase.rpc('use_promo_code', {
+                promo_code: promoCode
+              });
             }
 
-            // Update user profile with subscription details
-            await updateProfile({
-              plan_tier: 'premium',
-              has_active_subscription: true,
-              plan_id: plan.id,
-              plan_start_date: startDate.toISOString(),
-              plan_end_date: endDate.toISOString()
-            });
-
-            console.log('✅ Profile updated with subscription details');
-            
-            toast.success('🎉 Premium subscription activated successfully!', {
-              duration: 5000
-            });
-            
-            // Redirect to dashboard after a short delay
-            setTimeout(() => {
-              navigate('/dashboard');
-            }, 2000);
-
-          } catch (error: any) {
-            console.error('❌ Post-payment processing error:', error);
-            toast.error('Payment successful but activation failed. Please contact support.');
+            navigate('/dashboard?payment=success');
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            setError('Payment verification failed. Please contact support.');
           }
         },
         prefill: {
           name: profile?.full_name || '',
-          email: user.email || '',
+          email: user.email || ''
         },
         theme: {
-          color: '#1DB954'
+          color: '#8B5CF6'
         },
         modal: {
           ondismiss: function() {
-            console.log('💰 Payment modal dismissed');
             setLoading(false);
-            setSelectedPlan('');
           }
         }
       };
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-
     } catch (error: any) {
-      console.error('❌ Payment initialization error:', error);
-      toast.error(error.message || 'Failed to initialize payment');
+      console.error('Payment error:', error);
+      setError(error.message || 'Payment failed. Please try again.');
+    } finally {
       setLoading(false);
-      setSelectedPlan('');
     }
   };
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-6">
-        <Card className="max-w-md w-full glass-effect">
-          <CardContent className="text-center py-8">
-            <Music className="h-16 w-16 text-primary mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-4 text-foreground">Login Required</h2>
-            <p className="text-muted-foreground mb-6">Please log in to purchase a premium subscription</p>
-            <Link to="/auth">
-              <Button className="w-full bg-gradient-spotify">
-                <Music className="mr-2 h-4 w-4" />
-                Login to Continue
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return null;
   }
 
+  // Don't show payment options if user already has active subscription for the selected plan
+  const hasActivePlan = profile?.has_active_subscription;
+
   return (
-    <div className="min-h-screen bg-gradient-dark p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Link to="/pricing">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Pricing
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-gradient">Choose Your Plan</h1>
-              <p className="text-muted-foreground">Unlock premium features and analytics</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
-            <span className="text-xl font-bold text-gradient">MyVibeLyrics</span>
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/pricing')}
+            className="text-white hover:bg-white/10"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Pricing
+          </Button>
+          <div className="flex items-center space-x-3">
+            <Crown className="h-8 w-8 text-yellow-400" />
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+              Premium Checkout
+            </h1>
           </div>
         </div>
 
-        {/* Active Subscription Notice */}
-        {hasActiveSubscription && (
-          <Card className="mb-8 border-green-500/30 bg-green-500/10">
-            <CardContent className="flex items-center space-x-4 py-6">
-              <CheckCircle className="h-8 w-8 text-green-500" />
-              <div>
-                <h3 className="text-lg font-semibold text-green-400">Active Premium Subscription</h3>
-                <p className="text-green-300 text-sm">
-                  You already have an active premium subscription. 
-                  {profile?.plan_end_date && ` Expires on ${new Date(profile.plan_end_date).toLocaleDateString()}`}
-                </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Plan Selection */}
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <Star className="mr-2 h-5 w-5 text-yellow-400" />
+                Choose Your Plan
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* 3 Month Plan */}
+              <div 
+                className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                  selectedPlan === '3_month' 
+                    ? 'border-primary bg-primary/10' 
+                    : 'border-border hover:border-primary/50'
+                }`}
+                onClick={() => !hasActivePlan && setSelectedPlan('3_month')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-foreground">3 Month Plan</h3>
+                    <p className="text-sm text-muted-foreground">Perfect for trying premium features</p>
+                  </div>
+                  <div className="text-right">
+                    {promoCode && selectedPlan === '3_month' ? (
+                      <div>
+                        <div className="text-sm text-muted-foreground line-through">₹{getPrice('3_month')}</div>
+                        <div className="text-xl font-bold text-foreground">₹{calculateDiscountedPrice(getPrice('3_month'))}</div>
+                        <Badge variant="secondary" className="text-xs">
+                          {promoDiscount}% OFF
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="text-xl font-bold text-foreground">₹{getPrice('3_month')}</div>
+                    )}
+                  </div>
+                </div>
+                {hasActivePlan && selectedPlan === '3_month' && (
+                  <Badge className="mt-2 bg-green-500/20 text-green-400">
+                    Currently Active
+                  </Badge>
+                )}
+              </div>
+
+              {/* 1 Year Plan */}
+              <div 
+                className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                  selectedPlan === '1_year' 
+                    ? 'border-primary bg-primary/10' 
+                    : 'border-border hover:border-primary/50'
+                }`}
+                onClick={() => !hasActivePlan && setSelectedPlan('1_year')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-foreground">1 Year Plan</h3>
+                      <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs">
+                        POPULAR
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Best value - Save more with annual billing</p>
+                  </div>
+                  <div className="text-right">
+                    {promoCode && selectedPlan === '1_year' ? (
+                      <div>
+                        <div className="text-sm text-muted-foreground line-through">₹{getPrice('1_year')}</div>
+                        <div className="text-xl font-bold text-foreground">₹{calculateDiscountedPrice(getPrice('1_year'))}</div>
+                        <Badge variant="secondary" className="text-xs">
+                          {promoDiscount}% OFF
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="text-xl font-bold text-foreground">₹{getPrice('1_year')}</div>
+                    )}
+                  </div>
+                </div>
+                {hasActivePlan && selectedPlan === '1_year' && (
+                  <Badge className="mt-2 bg-green-500/20 text-green-400">
+                    Currently Active
+                  </Badge>
+                )}
+              </div>
+
+              {/* Promo Code Section */}
+              <div className="border-t border-border pt-4">
+                <Label className="text-sm font-medium text-muted-foreground mb-2 flex items-center">
+                  <Gift className="w-4 h-4 mr-2" />
+                  Have a promo code?
+                </Label>
+                
+                {promoCode ? (
+                  <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <div className="flex items-center">
+                      <Percent className="w-4 h-4 text-green-400 mr-2" />
+                      <span className="font-medium text-green-400">{promoCode}</span>
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        {promoDiscount}% OFF
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearPromoCode}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter promo code"
+                      value={promoCodeInput}
+                      onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handlePromoCodeSubmit}
+                      disabled={validatingPromo || !promoCodeInput.trim()}
+                      variant="outline"
+                    >
+                      {validatingPromo ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Apply'
+                      )}
+                    </Button>
+                  </div>
+                )}
+                
+                {promoMessage && !promoCode && (
+                  <p className="text-sm text-red-400 mt-2">{promoMessage}</p>
+                )}
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Plans Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {plans.map((plan) => (
-            <Card key={plan.id} className={`relative glass-effect transition-all duration-300 ${
-              plan.popular 
-                ? 'border-primary/50 hover:border-primary/70 scale-105' 
-                : 'border-border/50 hover:border-primary/30'
-            } ${plan.disabled ? 'opacity-60' : 'hover:shadow-2xl hover:scale-105'}`}>
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-gradient-spotify text-white px-4 py-1">
-                    <Sparkles className="mr-1 h-3 w-3" />
-                    Most Popular
-                  </Badge>
+          {/* Order Summary */}
+          <Card className="glass-effect border-border/50">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center">
+                <Zap className="mr-2 h-5 w-5 text-yellow-400" />
+                Order Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    {selectedPlan === '3_month' ? '3 Month' : '1 Year'} Premium Plan
+                  </span>
+                  <span className="text-foreground">₹{originalPrice}</span>
                 </div>
-              )}
-              
-              <CardHeader className="text-center pb-4">
-                <CardTitle className="text-2xl text-foreground mb-2">{plan.name}</CardTitle>
-                <CardDescription className="text-muted-foreground">{plan.duration}</CardDescription>
-                <div className="flex items-center justify-center space-x-2 mt-4">
-                  <span className="text-4xl font-bold text-primary">₹{plan.price}</span>
-                  {plan.originalPrice > plan.price && (
-                    <span className="text-lg text-muted-foreground line-through">₹{plan.originalPrice}</span>
-                  )}
-                </div>
-                {plan.originalPrice > plan.price && (
-                  <Badge variant="outline" className="text-green-400 border-green-400 mt-2">
-                    {Math.round(((plan.originalPrice - plan.price) / plan.originalPrice) * 100)}% OFF
-                  </Badge>
-                )}
-              </CardHeader>
-              
-              <CardContent className="space-y-6">
-                <ul className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-muted-foreground">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
                 
+                {promoCode && (
+                  <>
+                    <div className="flex justify-between text-green-400">
+                      <span>Promo Code ({promoCode})</span>
+                      <span>-₹{savings}</span>
+                    </div>
+                    <Separator className="bg-border/50" />
+                  </>
+                )}
+                
+                <div className="flex justify-between text-lg font-bold">
+                  <span className="text-foreground">Total</span>
+                  <span className="text-foreground">₹{finalPrice}</span>
+                </div>
+                
+                {savings > 0 && (
+                  <div className="text-center">
+                    <Badge className="bg-green-500/20 text-green-400">
+                      You save ₹{savings}!
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              {error && (
+                <Alert className="border-red-500/50 bg-red-500/10">
+                  <AlertDescription className="text-red-400">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {hasActivePlan ? (
+                <Alert className="border-green-500/50 bg-green-500/10">
+                  <CheckCircle className="h-4 w-4 text-green-400" />
+                  <AlertDescription className="text-green-400">
+                    You already have an active premium subscription!
+                  </AlertDescription>
+                </Alert>
+              ) : (
                 <Button
-                  onClick={() => handlePayment(plan)}
-                  disabled={loading || plan.disabled}
-                  className={`w-full ${
-                    plan.popular 
-                      ? 'bg-gradient-spotify hover:scale-105' 
-                      : 'bg-primary hover:bg-primary/90'
-                  } transition-all duration-300`}
+                  onClick={handlePayment}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-3"
+                  size="lg"
                 >
-                  {loading && selectedPlan === plan.id ? (
+                  {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processing...
                     </>
-                  ) : plan.disabled ? (
-                    <>
-                      <Crown className="mr-2 h-4 w-4" />
-                      Already Subscribed
-                    </>
                   ) : (
                     <>
                       <Crown className="mr-2 h-4 w-4" />
-                      Choose {plan.name}
+                      Pay ₹{finalPrice} & Upgrade Now
                     </>
                   )}
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
+              )}
+
+              <div className="text-center space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Secure payment powered by Razorpay
+                </p>
+                <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
+                  <span>• 256-bit SSL encrypted</span>
+                  <span>• PCI DSS compliant</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Security Notice */}
-        <Card className="mt-8 glass-effect border-blue-500/20">
-          <CardContent className="text-center py-6">
-            <div className="flex items-center justify-center space-x-2 text-blue-400 mb-2">
-              <CheckCircle className="h-5 w-5" />
-              <span className="font-medium">Secure Payment</span>
+        {/* Features included */}
+        <Card className="glass-effect border-border/50 mt-8">
+          <CardContent className="pt-6">
+            <h3 className="text-lg font-bold text-foreground mb-4 text-center">
+              What's included in Premium:
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                'Advanced Music Analytics',
+                'Personalized Insights Dashboard',
+                'AI-Powered Recommendations',
+                'Unlimited Data Export',
+                'Social Sharing Features',
+                'Priority Customer Support',
+                'Weekly Giveaway Participation',
+                'Exclusive Beta Features'
+              ].map((feature, index) => (
+                <div key={index} className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2 flex-shrink-0" />
+                  <span className="text-muted-foreground text-sm">{feature}</span>
+                </div>
+              ))}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Your payment is secured by Razorpay with 256-bit SSL encryption. 
-              We don't store your payment information.
-            </p>
           </CardContent>
         </Card>
       </div>

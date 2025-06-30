@@ -1,260 +1,255 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { 
   Music, 
-  BarChart3, 
-  Brain, 
+  TrendingUp, 
   Users, 
-  Crown, 
   Sparkles, 
-  ArrowRight,
   Star,
-  CheckCircle,
-  HeadphonesIcon,
-  TrendingUp,
-  Zap,
-  Clock,
+  ArrowRight,
+  Play,
+  Headphones,
+  BarChart3,
   Heart,
-  Share2,
-  Target,
-  Activity,
-  MessageCircle,
-  Award,
-  Calendar,
-  Globe,
-  Mic
+  Zap,
+  Crown
 } from 'lucide-react';
 
 const Index = () => {
-  const features = [
-    {
-      icon: <Music className="h-8 w-8 text-green-500" />,
-      title: "AI Curated Playlists",
-      description: "Get personalized playlists with 100 unique songs tailored to your taste using advanced AI algorithms.",
-      category: "AI Features"
-    },
-    {
-      icon: <BarChart3 className="h-8 w-8 text-blue-500" />,
-      title: "Advanced Analytics",
-      description: "Comprehensive charts and visualizations showing your listening trends, peak hours, and detailed musical journey insights.",
-      category: "Analytics"
-    },
-    {
-      icon: <Heart className="h-8 w-8 text-red-500" />,
-      title: "Mood & Emotion Tracking",
-      description: "Understand how your music reflects your emotions with sophisticated mood analysis and emotional pattern recognition.",
-      category: "Psychology"
-    },
-    {
-      icon: <Users className="h-8 w-8 text-purple-500" />,
-      title: "Music Community",
-      description: "Connect with fellow music lovers, share your taste, and discover new songs through our vibrant community features.",
-      category: "Social"
-    },
-    {
-      icon: <Activity className="h-8 w-8 text-orange-500" />,
-      title: "Listening Streaks",
-      description: "Track your daily listening habits and maintain streaks to stay motivated in your musical journey.",
-      category: "Gamification"
-    },
-    {
-      icon: <Clock className="h-8 w-8 text-yellow-500" />,
-      title: "Temporal Music Patterns",
-      description: "Discover how your music taste changes throughout the day, week, and seasons with detailed temporal analysis.",
-      category: "Analytics"
-    },
-    {
-      icon: <HeadphonesIcon className="h-8 w-8 text-cyan-500" />,
-      title: "Audio Feature Analysis",
-      description: "Deep technical analysis of your preferred audio characteristics like tempo, energy, danceability, and acoustics.",
-      category: "Technical"
-    },
-    {
-      icon: <Target className="h-8 w-8 text-indigo-500" />,
-      title: "Music Goals & Tracking",
-      description: "Set and track music discovery goals, listening targets and personal challenges to expand your musical horizons.",
-      category: "Goals"
-    },
-    {
-      icon: <Zap className="h-8 w-8 text-green-400" />,
-      title: "Real-time Insights",
-      description: "Live updates and instant analysis as you listen, providing immediate feedback and insights about your current session.",
-      category: "Live Features"
-    },
-    {
-      icon: <Share2 className="h-8 w-8 text-pink-500" />,
-      title: "Shareable Music Cards",
-      description: "Create beautiful, shareable cards showcasing your music stats, top tracks, and listening achievements for social media.",
-      category: "Social"
-    },
-    {
-      icon: <Brain className="h-8 w-8 text-purple-600" />,
-      title: "Personality Analysis",
-      description: "Discover your musical personality type based on your listening habits, genre preferences, and emotional connections.",
-      category: "Psychology"
-    },
-    {
-      icon: <MessageCircle className="h-8 w-8 text-green-600" />,
-      title: "Community Chat Rooms",
-      description: "Join real-time discussions in themed rooms like 'Top Tracks Talk', 'Mood Check', and 'Vibe Swap' with fellow music lovers.",
-      category: "Social"
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-dark">
-      {/* Header */}
-      <nav className="border-b border-border/50 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gradient">MyVibeLyrics</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/pricing">
-                <Button variant="ghost" className="text-foreground hover:text-primary transition-colors">
-                  Pricing
-                </Button>
-              </Link>
-              <Link to="/auth">
-                <Button className="bg-gradient-spotify hover:scale-105 transform transition-all duration-200 shadow-lg">
-                  <Music className="mr-2 h-4 w-4" />
-                  Get Started
-                </Button>
-              </Link>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      {/* Navigation */}
+      <nav className="relative z-10 flex items-center justify-between p-6 max-w-7xl mx-auto">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <Music className="h-6 w-6 text-white" />
           </div>
+          <span className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+            MyVibeLytics
+          </span>
+        </div>
+        <div className="flex items-center space-x-4">
+          <Link to="/auth">
+            <Button variant="ghost" className="text-white hover:bg-white/10">
+              Sign In
+            </Button>
+          </Link>
+          <Link to="/pricing">
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white">
+              Get Started
+            </Button>
+          </Link>
         </div>
       </nav>
 
-      {/* Weekly Giveaway Banner */}
-      <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-b border-amber-500/30">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-amber-400">
-              <Crown className="h-5 w-5 animate-pulse" />
-              <span className="font-medium">Weekly Premium Giveaway - Premium Users Only!</span>
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute top-40 right-20 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-500"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-32">
+          <div className="text-center mb-16">
+            <Badge className="mb-6 bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-300 border-pink-500/30 px-4 py-2">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Discover Your Music DNA
+            </Badge>
+            
+            <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold mb-8 leading-tight">
+              <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                Music DNA
+              </span>
+              <br />
+              <span className="text-white">Analytics</span>
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
+              Unlock the secrets of your musical taste with AI-powered analytics. 
+              Discover patterns, get personalized insights, and explore your unique music DNA.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+              <Link to="/pricing">
+                <Button size="lg" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 text-lg">
+                  <Play className="w-5 h-5 mr-2" />
+                  Start Your Journey
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+              <Link to="/demo">
+                <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 px-8 py-4 text-lg">
+                  <BarChart3 className="w-5 h-5 mr-2" />
+                  View Demo
+                </Button>
+              </Link>
             </div>
-            <Link to="/weekly-giveaway">
-              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white hover:scale-105 transition-all duration-200">
-                Premium Entry
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white mb-2">10K+</div>
+                <div className="text-gray-400">Music Lovers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white mb-2">1M+</div>
+                <div className="text-gray-400">Songs Analyzed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white mb-2">500+</div>
+                <div className="text-gray-400">Artists Discovered</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Features Section */}
+      <div className="relative py-32 bg-black/20 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Discover Your Musical
+              <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent"> Identity</span>
+            </h2>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Our AI-powered platform analyzes your Spotify data to reveal hidden patterns and insights about your music taste.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card className="bg-gradient-to-br from-pink-500/10 to-purple-500/10 border-pink-500/20 backdrop-blur-sm group hover:scale-105 transition-all duration-300">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Headphones className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">Listening Patterns</h3>
+                <p className="text-gray-300">
+                  Discover when, how, and what you listen to with detailed temporal analysis and mood tracking.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-500/20 backdrop-blur-sm group hover:scale-105 transition-all duration-300">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <TrendingUp className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">Trend Analysis</h3>
+                <p className="text-gray-300">
+                  Track how your music taste evolves over time with comprehensive trend analysis and predictions.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20 backdrop-blur-sm group hover:scale-105 transition-all duration-300">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Zap className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">AI Recommendations</h3>
+                <p className="text-gray-300">
+                  Get personalized music recommendations powered by advanced AI algorithms and your unique taste.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/20 backdrop-blur-sm group hover:scale-105 transition-all duration-300">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Heart className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">Mood Insights</h3>
+                <p className="text-gray-300">
+                  Understand your emotional connection to music with detailed mood analysis and correlation patterns.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 backdrop-blur-sm group hover:scale-105 transition-all duration-300">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">Social Sharing</h3>
+                <p className="text-gray-300">
+                  Share your music DNA with friends and discover how your tastes compare with beautiful visualizations.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 backdrop-blur-sm group hover:scale-105 transition-all duration-300">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Crown className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">Premium Features</h3>
+                <p className="text-gray-300">
+                  Unlock advanced analytics, unlimited exports, and exclusive insights with our premium plans.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* CTA Section */}
+      <div className="relative py-32">
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-purple-500/20"></div>
+        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
+          <div className="mb-8">
+            <Star className="w-16 h-16 text-yellow-400 mx-auto mb-6" />
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Ready to Discover Your
+              <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent"> Music DNA</span>?
+            </h2>
+            <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto">
+              Join thousands of music lovers who have already unlocked the secrets of their musical taste.
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/pricing">
+              <Button size="lg" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 text-lg">
+                <Sparkles className="w-5 h-5 mr-2" />
+                Get Started Now
+              </Button>
+            </Link>
+            <Link to="/about">
+              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 px-12 py-4 text-lg">
+                Learn More
               </Button>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Hero Section */}
-      <section className="relative px-4 py-24 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <Badge className="mb-8 bg-gradient-to-r from-green-500/20 to-blue-500/20 text-green-400 border-green-400/30 text-lg px-6 py-3 animate-fade-in font-semibold backdrop-blur-sm">
-            🎵 Music Analytics Platform
-          </Badge>
-          <h1 className="text-5xl sm:text-7xl font-bold text-gradient mb-8 animate-fade-in">
-            Discover Your
-            <br />
-            <span className="text-transparent bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text animate-pulse drop-shadow-lg">Music DNA</span>
-          </h1>
-          <p className="text-xl text-muted-foreground mb-10 max-w-4xl mx-auto leading-relaxed animate-fade-in">
-            Unlock deep insights into your Spotify listening habits with cutting-edge AI analytics. 
-            Discover patterns, moods, and hidden connections in your music that you never knew existed.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center animate-scale-in">
-            <Link to="/auth">
-              <Button size="lg" className="bg-gradient-spotify hover:scale-110 transform transition-all duration-300 shadow-xl text-lg px-8 py-4">
-                <Music className="mr-3 h-6 w-6" />
-                Start Your Analysis
-              </Button>
-            </Link>
-            <Link to="/pricing">
-              <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:scale-105 transition-all duration-300 text-lg px-8 py-4">
-                <Crown className="mr-3 h-5 w-5" />
-                View Pricing
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="px-4 py-24 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
-              Unlock Your Music Analytics
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              From basic insights to advanced AI-powered analysis of your musical journey
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="glass-effect card-hover relative overflow-hidden group transition-all duration-300 hover:scale-105 hover:shadow-2xl border-border/50 hover:border-primary/30">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                <CardHeader className="pb-4 relative z-10">
-                  <div className="flex items-center space-x-4 mb-3">
-                    <div className="p-2 rounded-lg bg-background/50 group-hover:scale-110 transition-transform duration-300">
-                      {feature.icon}
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl text-foreground group-hover:text-primary transition-colors duration-300">{feature.title}</CardTitle>
-                      <Badge variant="secondary" className="text-xs mt-1 opacity-70">
-                        {feature.category}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 relative z-10">
-                  <p className="text-sm text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors duration-300">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="px-4 py-24 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="bg-gradient-to-r from-primary/20 to-accent/20 p-12 rounded-3xl backdrop-blur-sm border border-primary/20 hover:border-primary/40 transition-all duration-300">
-            <h2 className="text-4xl font-bold text-gradient mb-6">
-              Ready to Discover Your Music DNA?
-            </h2>
-            <p className="text-muted-foreground mb-8 text-lg max-w-2xl mx-auto">
-              Connect your Spotify account and start exploring your musical personality today.
-            </p>
-            <Link to="/auth">
-              <Button size="lg" className="bg-gradient-spotify hover:scale-110 transform transition-all duration-300 shadow-xl text-lg px-10 py-5">
-                <Music className="mr-3 h-6 w-6" />
-                Get Started Now
-                <ArrowRight className="ml-3 h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="border-t border-border/50 bg-background/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+      <footer className="bg-black/40 backdrop-blur-sm border-t border-white/10 py-12">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-3 mb-6 md:mb-0">
-              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
-              <span className="text-xl font-semibold text-foreground">MyVibeLyrics</span>
+              <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Music className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                MyVibeLytics
+              </span>
             </div>
-            <div className="flex space-x-8 text-sm text-muted-foreground">
-              <Link to="/privacy" className="hover:text-foreground transition-colors hover:scale-105 transform duration-200">Privacy</Link>
-              <Link to="/terms" className="hover:text-foreground transition-colors hover:scale-105 transform duration-200">Terms</Link>
-              <Link to="/contact" className="hover:text-foreground transition-colors hover:scale-105 transform duration-200">Contact</Link>
+            <div className="flex space-x-8 text-gray-400">
+              <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+              <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+              <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
             </div>
+          </div>
+          <div className="mt-8 pt-8 border-t border-white/10 text-center text-gray-400">
+            <p>&copy; 2024 MyVibeLytics. All rights reserved.</p>
           </div>
         </div>
       </footer>
