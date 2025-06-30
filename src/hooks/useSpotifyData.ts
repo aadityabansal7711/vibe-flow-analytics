@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -33,8 +33,10 @@ const useSpotifyData = () => {
   const [recentlyPlayed, setRecentlyPlayed] = useState<SpotifyTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastFetchTime = useRef<number>(0);
+  const isInitialized = useRef(false);
 
-  const fetchSpotifyData = useCallback(async () => {
+  const fetchSpotifyData = useCallback(async (force = false) => {
     if (!profile?.spotify_connected) {
       setLoading(false);
       return;
@@ -46,9 +48,16 @@ const useSpotifyData = () => {
       return;
     }
 
+    // Prevent excessive API calls - only fetch if more than 30 seconds have passed
+    const now = Date.now();
+    if (!force && now - lastFetchTime.current < 30000 && isInitialized.current) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      lastFetchTime.current = now;
 
       const token = await getValidSpotifyToken();
       if (!token) {
@@ -60,59 +69,84 @@ const useSpotifyData = () => {
         'Content-Type': 'application/json',
       };
 
+      const fetchPromises = [];
+
+      // Fetch top tracks
+      fetchPromises.push(
+        fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { 
+          headers,
+          cache: 'no-store'
+        }).then(response => {
+          if (response.ok) {
+            return response.json().then(data => ({ type: 'tracks', data: data.items || [] }));
+          } else if (response.status === 403) {
+            console.log('User not whitelisted for Spotify API - tracks');
+            return { type: 'tracks', data: [] };
+          }
+          return { type: 'tracks', data: [] };
+        }).catch(err => {
+          console.error('Error fetching top tracks:', err);
+          return { type: 'tracks', data: [] };
+        })
+      );
+
+      // Fetch top artists
+      fetchPromises.push(
+        fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', { 
+          headers,
+          cache: 'no-store'
+        }).then(response => {
+          if (response.ok) {
+            return response.json().then(data => ({ type: 'artists', data: data.items || [] }));
+          } else if (response.status === 403) {
+            console.log('User not whitelisted for Spotify API - artists');
+            return { type: 'artists', data: [] };
+          }
+          return { type: 'artists', data: [] };
+        }).catch(err => {
+          console.error('Error fetching top artists:', err);
+          return { type: 'artists', data: [] };
+        })
+      );
+
+      // Fetch recently played
+      fetchPromises.push(
+        fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { 
+          headers,
+          cache: 'no-store'
+        }).then(response => {
+          if (response.ok) {
+            return response.json().then(data => ({
+              type: 'recent',
+              data: data.items?.map((item: any) => ({
+                ...item.track,
+                played_at: item.played_at
+              })) || []
+            }));
+          } else if (response.status === 403) {
+            console.log('User not whitelisted for Spotify API - recent');
+            return { type: 'recent', data: [] };
+          }
+          return { type: 'recent', data: [] };
+        }).catch(err => {
+          console.error('Error fetching recently played:', err);
+          return { type: 'recent', data: [] };
+        })
+      );
+
+      const results = await Promise.all(fetchPromises);
       
-      // Fetch top tracks with error handling
-      try {
-        const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term', { 
-          headers,
-          cache: 'no-store' // Ensure fresh data
-        });
-        if (topTracksResponse.ok) {
-          const topTracksData = await topTracksResponse.json();
-          setTopTracks(topTracksData.items || []);
-        } else if (topTracksResponse.status === 403) {
-          console.log('User not whitelisted for Spotify API');
-          setError('Spotify access limited. Contact support for full access.');
+      results.forEach(result => {
+        if (result.type === 'tracks') {
+          setTopTracks(result.data);
+        } else if (result.type === 'artists') {
+          setTopArtists(result.data);
+        } else if (result.type === 'recent') {
+          setRecentlyPlayed(result.data);
         }
-      } catch (err) {
-        console.error('Error fetching top tracks:', err);
-      }
+      });
 
-      // Fetch top artists with error handling
-      try {
-        const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term', { 
-          headers,
-          cache: 'no-store' // Ensure fresh data
-        });
-        if (topArtistsResponse.ok) {
-          const topArtistsData = await topArtistsResponse.json();
-          setTopArtists(topArtistsData.items || []);
-        } else if (topArtistsResponse.status === 403) {
-          console.log('User not whitelisted for Spotify API');
-        }
-      } catch (err) {
-        console.error('Error fetching top artists:', err);
-      }
-
-      // Fetch recently played with error handling
-      try {
-        const recentResponse = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { 
-          headers,
-          cache: 'no-store' // Ensure fresh data
-        });
-        if (recentResponse.ok) {
-          const recentData = await recentResponse.json();
-          const tracks = recentData.items?.map((item: any) => ({
-            ...item.track,
-            played_at: item.played_at
-          })) || [];
-          setRecentlyPlayed(tracks);
-        } else if (recentResponse.status === 403) {
-          console.log('User not whitelisted for Spotify API');
-        }
-      } catch (err) {
-        console.error('Error fetching recently played:', err);
-      }
+      isInitialized.current = true;
 
     } catch (err: any) {
       console.error('Error fetching Spotify data:', err);
@@ -140,6 +174,10 @@ const useSpotifyData = () => {
     return () => {
       mounted = false;
     };
+  }, [profile?.spotify_connected, profile?.user_id]); // Only depend on connection status and user ID
+
+  const refetch = useCallback(() => {
+    return fetchSpotifyData(true);
   }, [fetchSpotifyData]);
 
   return {
@@ -148,7 +186,7 @@ const useSpotifyData = () => {
     recentlyPlayed,
     loading,
     error,
-    refetch: fetchSpotifyData
+    refetch
   };
 };
 

@@ -35,6 +35,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
   const [playlistCreated, setPlaylistCreated] = useState(false);
   const [playlistUrl, setPlaylistUrl] = useState('');
 
+  // Check if user has premium access
   const hasPremiumAccess = profile?.has_active_subscription || profile?.plan_tier === 'premium';
 
   const createAIPlaylist = async () => {
@@ -89,7 +90,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
         },
         body: JSON.stringify({
           name: playlistName,
-          description: `AI-generated playlist with 100 tracks based on your music taste. Created by MyVibeLyrics on ${currentDate.toLocaleDateString()}. Discover new music that matches your vibe!`,
+          description: `AI-generated playlist with 50+ tracks based on your music taste. Created by MyVibeLyrics on ${currentDate.toLocaleDateString()}. Discover new music that matches your vibe!`,
           public: false,
           collaborative: false
         })
@@ -105,7 +106,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       console.log('✅ Playlist created:', playlist.id);
       
       setProgress(40);
-      setMessage('Generating 100 AI-powered recommendations...');
+      setMessage('Generating 50+ AI-powered recommendations...');
 
       // Get all genres from top artists for seed variety
       const allGenres = new Set<string>();
@@ -117,7 +118,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
       // Generate recommendations in multiple batches with different seeds
       const allTracks = [];
       const usedTrackIds = new Set();
-      const totalBatches = 15; // More batches for better variety
+      const totalBatches = 10; // Reduced for efficiency
 
       for (let batch = 0; batch < totalBatches; batch++) {
         console.log(`🔄 Processing batch ${batch + 1}/${totalBatches}`);
@@ -166,16 +167,11 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           'target_acousticness=0.3&target_energy=0.6&target_tempo=110&min_popularity=30',
           'target_liveness=0.3&target_speechiness=0.05&min_popularity=70&max_popularity=95',
           'target_energy=0.6&target_valence=0.5&target_tempo=100&min_popularity=25',
-          'target_danceability=0.5&target_energy=0.5&min_popularity=70&max_popularity=90',
-          'target_instrumentalness=0.2&target_acousticness=0.4&target_energy=0.7&min_popularity=50',
-          'target_speechiness=0.1&target_loudness=-8&target_tempo=140&min_popularity=60',
-          'target_valence=0.2&target_energy=0.3&target_acousticness=0.6&min_popularity=40',
-          'target_danceability=0.8&target_valence=0.9&target_energy=0.8&min_popularity=70',
-          'target_tempo=90&target_energy=0.4&target_valence=0.6&min_popularity=30'
+          'target_danceability=0.5&target_energy=0.5&min_popularity=70&max_popularity=90'
         ];
         
-        const batchSize = Math.min(20, Math.ceil((100 - allTracks.length) / (totalBatches - batch)));
-        const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || audioFeatures[0]}`;
+        const batchSize = Math.min(20, Math.ceil((60 - allTracks.length) / (totalBatches - batch)));
+        const recommendationsUrl = `https://api.spotify.com/v1/recommendations?limit=${batchSize}&${seedParams.join('&')}&${audioFeatures[batch] || audioFeatures[0]}&market=US`;
         
         try {
           const recommendationsRes = await fetch(recommendationsUrl, {
@@ -209,10 +205,10 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           console.warn(`❌ Error fetching batch ${batch + 1}:`, err);
         }
 
-        setProgress(40 + (batch + 1) * 3);
+        setProgress(40 + (batch + 1) * 4);
 
         // Break if we have enough tracks
-        if (allTracks.length >= 100) break;
+        if (allTracks.length >= 50) break;
       }
 
       console.log('🎵 Total unique tracks collected:', allTracks.length);
@@ -221,9 +217,9 @@ const AIPlaylistGenerator: React.FC<Props> = ({
         throw new Error('No recommendations received from Spotify. Please try again or contact support.');
       }
 
-      // Shuffle and take exactly 100 tracks (or all if less than 100)
+      // Shuffle and take exactly 50 tracks (or all if less than 50)
       const shuffledTracks = allTracks.sort(() => 0.5 - Math.random());
-      const finalTracks = shuffledTracks.slice(0, Math.min(100, shuffledTracks.length));
+      const finalTracks = shuffledTracks.slice(0, Math.min(50, shuffledTracks.length));
 
       setMessage(`Adding ${finalTracks.length} unique tracks to your playlist...`);
       setProgress(85);
@@ -334,7 +330,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
           <>
             <div className="text-sm text-muted-foreground space-y-2">
               <p>• Uses your top tracks, artists, and genres as seeds</p>
-              <p>• Generates up to 100 unique song recommendations</p>
+              <p>• Generates up to 50 unique song recommendations</p>
               <p>• AI creates variety across different moods and styles</p>
               <p>• Filters out your already known tracks for discovery</p>
               <p>• Saves directly to your Spotify account</p>
@@ -357,7 +353,7 @@ const AIPlaylistGenerator: React.FC<Props> = ({
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate AI Playlist (100 unique tracks)
+                  Generate AI Playlist (50 unique tracks)
                 </>
               )}
             </Button>

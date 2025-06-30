@@ -39,6 +39,9 @@ const WeeklyGiveaway = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
+  // Check if user has premium access
+  const hasPremiumAccess = profile?.has_active_subscription || profile?.plan_tier === 'premium';
+
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
@@ -131,11 +134,11 @@ const WeeklyGiveaway = () => {
               </Button>
             </Link>
             <div className="flex items-center space-x-2">
-              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLytics" className="h-8 w-8" />
+              <img src="/lovable-uploads/2cc35839-88fd-49dd-a53e-9bd266701d1b.png" alt="MyVibeLyrics" className="h-8 w-8" />
               <h1 className="text-3xl font-bold text-gradient">Weekly Giveaways</h1>
             </div>
           </div>
-          {profile?.has_active_subscription && (
+          {hasPremiumAccess && (
             <Badge variant="outline" className="text-yellow-400 border-yellow-400">
               <Crown className="mr-1 h-3 w-3" />
               Premium Member
@@ -150,7 +153,7 @@ const WeeklyGiveaway = () => {
         )}
 
         {/* Premium Status */}
-        {!profile?.has_active_subscription && (
+        {!hasPremiumAccess && (
           <Card className="glass-effect border-border/50 mb-8">
             <CardContent className="p-6 text-center">
               <XCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
@@ -168,7 +171,7 @@ const WeeklyGiveaway = () => {
           </Card>
         )}
 
-        {profile?.has_active_subscription && (
+        {hasPremiumAccess && (
           <Card className="glass-effect border-green-500/20 mb-8">
             <CardContent className="p-6 text-center">
               <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
@@ -233,7 +236,7 @@ const WeeklyGiveaway = () => {
                       </div>
                     </div>
 
-                    {profile?.has_active_subscription ? (
+                    {hasPremiumAccess ? (
                       <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
                         <div className="flex items-center text-green-400">
                           <CheckCircle className="mr-2 h-4 w-4" />

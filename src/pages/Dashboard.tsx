@@ -28,16 +28,19 @@ const Dashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showConnectingMessage, setShowConnectingMessage] = useState(false);
 
+  // Check if user has premium access
+  const hasPremiumAccess = profile?.has_active_subscription || profile?.plan_tier === 'premium';
+
   // Show connecting message for 3 seconds when profile loads but spotify isn't connected yet
   useEffect(() => {
-    if (profile && !profile.spotify_connected && !authLoading) {
+    if (profile && !profile.spotify_connected && !authLoading && !showConnectingMessage) {
       setShowConnectingMessage(true);
       const timer = setTimeout(() => {
         setShowConnectingMessage(false);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [profile, authLoading]);
+  }, [profile?.spotify_connected, authLoading]);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -99,7 +102,7 @@ const Dashboard = () => {
     );
   }
 
-  const isLocked = !profile?.has_active_subscription && profile?.plan_tier !== 'premium';
+  const isLocked = !hasPremiumAccess;
 
   if (dataLoading) {
     return (
@@ -186,7 +189,7 @@ const Dashboard = () => {
                 Weekly Giveaway
               </Button>
             </Link>
-            {(profile?.has_active_subscription || profile?.plan_tier === 'premium') && (
+            {hasPremiumAccess && (
               <Badge variant="outline" className="text-yellow-400 border-yellow-400 animate-pulse">
                 <Sparkles className="mr-1 h-3 w-3" />
                 Premium
@@ -294,7 +297,7 @@ const Dashboard = () => {
                 topArtists={topArtists}
                 recentlyPlayed={recentlyPlayed}
                 isLocked={isLocked}
-                hasActiveSubscription={!!(profile?.has_active_subscription || profile?.plan_tier === 'premium')}
+                hasActiveSubscription={hasPremiumAccess}
               />
             </div>
           )}
