@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import PromoCodeManager from '@/components/PromoCodeManager';
+import GiveawayManager from '@/components/GiveawayManager';
 import { 
   Users, 
   UserCheck, 
@@ -25,8 +26,7 @@ import {
   RefreshCw,
   Music,
   Gift,
-  Plus,
-  Edit
+  Crown
 } from 'lucide-react';
 
 interface User {
@@ -40,19 +40,6 @@ interface User {
   user_id: string;
 }
 
-interface Giveaway {
-  id: string;
-  gift_name: string;
-  gift_image_url: string | null;
-  gift_price: number;
-  withdrawal_date: string;
-  is_active: boolean;
-  winner_user_id: string | null;
-  winner_name: string | null;
-  winner_email: string | null;
-  created_at: string;
-}
-
 const Admin = () => {
   // Check admin authentication
   const adminSession = localStorage.getItem('admin_session');
@@ -61,19 +48,10 @@ const Admin = () => {
   }
 
   const [users, setUsers] = useState<User[]>([]);
-  const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [message, setMessage] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [showGiveawayForm, setShowGiveawayForm] = useState(false);
-  const [editingGiveaway, setEditingGiveaway] = useState<Giveaway | null>(null);
-  const [giveawayForm, setGiveawayForm] = useState({
-    gift_name: '',
-    gift_image_url: '',
-    gift_price: '',
-    withdrawal_date: ''
-  });
   const [stats, setStats] = useState({
     totalUsers: 0,
     premiumUsers: 0,
@@ -84,7 +62,6 @@ const Admin = () => {
   useEffect(() => {
     fetchUsers();
     fetchStats();
-    fetchGiveaways();
   }, []);
 
   const fetchUsers = async () => {
@@ -121,26 +98,6 @@ const Admin = () => {
     }
   };
 
-  const fetchGiveaways = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('giveaways')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching giveaways:', error);
-        setMessage('Error fetching giveaways: ' + error.message);
-        return;
-      }
-      
-      setGiveaways(data || []);
-    } catch (error) {
-      console.error('Error fetching giveaways:', error);
-      setMessage('Error fetching giveaways');
-    }
-  };
-
   const fetchStats = async () => {
     try {
       const { data, error } = await supabase
@@ -171,7 +128,6 @@ const Admin = () => {
   const grantPremium = async (userId: string) => {
     try {
       setActionLoading(userId);
-      console.log('Granting premium to user:', userId);
       
       const { error } = await supabase
         .from('profiles')
@@ -202,7 +158,6 @@ const Admin = () => {
   const revokePremium = async (userId: string) => {
     try {
       setActionLoading(userId);
-      console.log('Revoking premium from user:', userId);
       
       const { error } = await supabase
         .from('profiles')
@@ -237,9 +192,7 @@ const Admin = () => {
 
     try {
       setActionLoading(userId);
-      console.log('Deleting user:', userId);
       
-      // Call the delete-user edge function
       const { error } = await supabase.functions.invoke('delete-user', {
         body: { user_id: userId }
       });
@@ -258,145 +211,6 @@ const Admin = () => {
       setMessage('Error deleting user: ' + error.message);
     } finally {
       setActionLoading(null);
-    }
-  };
-
-  const createGiveaway = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setMessage('');
-      
-      if (!giveawayForm.gift_name || !giveawayForm.gift_price || !giveawayForm.withdrawal_date) {
-        setMessage('Please fill in all required fields');
-        return;
-      }
-
-      const giveawayData = {
-        gift_name: giveawayForm.gift_name,
-        gift_image_url: giveawayForm.gift_image_url || null,
-        gift_price: parseFloat(giveawayForm.gift_price),
-        withdrawal_date: giveawayForm.withdrawal_date,
-        is_active: true
-      };
-
-      if (editingGiveaway) {
-        const { error } = await supabase
-          .from('giveaways')
-          .update(giveawayData)
-          .eq('id', editingGiveaway.id);
-
-        if (error) {
-          console.error('Error updating giveaway:', error);
-          setMessage('Error updating giveaway: ' + error.message);
-          return;
-        }
-        setMessage('Giveaway updated successfully!');
-      } else {
-        const { error } = await supabase
-          .from('giveaways')
-          .insert(giveawayData);
-
-        if (error) {
-          console.error('Error creating giveaway:', error);
-          setMessage('Error creating giveaway: ' + error.message);
-          return;
-        }
-        setMessage('Giveaway created successfully!');
-      }
-
-      setShowGiveawayForm(false);
-      setEditingGiveaway(null);
-      setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' });
-      await fetchGiveaways();
-    } catch (error: any) {
-      console.error('Error with giveaway:', error);
-      setMessage('Error with giveaway: ' + error.message);
-    }
-  };
-
-  const editGiveaway = (giveaway: Giveaway) => {
-    setEditingGiveaway(giveaway);
-    setGiveawayForm({
-      gift_name: giveaway.gift_name,
-      gift_image_url: giveaway.gift_image_url || '',
-      gift_price: giveaway.gift_price.toString(),
-      withdrawal_date: new Date(giveaway.withdrawal_date).toISOString().slice(0, 16)
-    });
-    setShowGiveawayForm(true);
-  };
-
-  const deleteGiveaway = async (giveawayId: string, giftName: string) => {
-    if (!confirm(`Are you sure you want to delete the giveaway "${giftName}"?`)) {
-      return;
-    }
-
-    try {
-      setActionLoading(giveawayId);
-      const { error } = await supabase
-        .from('giveaways')
-        .delete()
-        .eq('id', giveawayId);
-
-      if (error) {
-        console.error('Error deleting giveaway:', error);
-        setMessage('Error deleting giveaway: ' + error.message);
-        return;
-      }
-
-      setMessage('Giveaway deleted successfully!');
-      await fetchGiveaways();
-    } catch (error: any) {
-      console.error('Error deleting giveaway:', error);
-      setMessage('Error deleting giveaway: ' + error.message);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const selectRandomWinner = async (giveawayId: string) => {
-    try {
-      setMessage('');
-      
-      const premiumUsers = users.filter(u => u.has_active_subscription);
-      
-      if (premiumUsers.length === 0) {
-        setMessage('No premium users available for this giveaway');
-        return;
-      }
-
-      // Filter out users who have already won giveaways
-      const eligibleUsers = premiumUsers.filter(user => {
-        return !giveaways.some(g => g.winner_user_id === user.user_id && g.id !== giveawayId);
-      });
-
-      if (eligibleUsers.length === 0) {
-        setMessage('No eligible users for this giveaway (all premium users have already won)');
-        return;
-      }
-
-      const randomWinner = eligibleUsers[Math.floor(Math.random() * eligibleUsers.length)];
-
-      const { error } = await supabase
-        .from('giveaways')
-        .update({ 
-          winner_user_id: randomWinner.user_id,
-          winner_name: randomWinner.full_name || randomWinner.email.split('@')[0],
-          winner_email: randomWinner.email,
-          is_active: false 
-        })
-        .eq('id', giveawayId);
-
-      if (error) {
-        console.error('Error selecting winner:', error);
-        setMessage('Error selecting winner: ' + error.message);
-        return;
-      }
-
-      setMessage(`Winner selected: ${randomWinner.email || randomWinner.full_name}`);
-      await fetchGiveaways();
-    } catch (error: any) {
-      console.error('Error selecting winner:', error);
-      setMessage('Error selecting winner: ' + error.message);
     }
   };
 
@@ -505,251 +319,138 @@ const Admin = () => {
           </Card>
         </div>
 
-        {/* Promo Code Management */}
-        <div className="mb-8">
-          <PromoCodeManager />
-        </div>
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="giveaways" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="giveaways" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Giveaways
+            </TabsTrigger>
+            <TabsTrigger value="promos" className="flex items-center gap-2">
+              <Crown className="h-4 w-4" />
+              Promo Codes
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Users
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Giveaway Management */}
-        <Card className="glass-effect border-border/50 mb-8">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center justify-between">
-              <div className="flex items-center">
-                <Gift className="mr-2 h-5 w-5" />
-                Weekly Giveaways ({giveaways.length})
-              </div>
-              <Button onClick={() => { setShowGiveawayForm(!showGiveawayForm); setEditingGiveaway(null); setGiveawayForm({ gift_name: '', gift_image_url: '', gift_price: '', withdrawal_date: '' }); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                {showGiveawayForm ? 'Cancel' : 'New Giveaway'}
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {showGiveawayForm && (
-              <form onSubmit={createGiveaway} className="mb-6 p-4 bg-background/30 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="gift_name">Gift Name *</Label>
-                    <Input
-                      id="gift_name"
-                      value={giveawayForm.gift_name}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_name: e.target.value})}
-                      placeholder="Enter gift name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="gift_price">Gift Price (₹) *</Label>
-                    <Input
-                      id="gift_price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={giveawayForm.gift_price}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_price: e.target.value})}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="gift_image_url">Gift Image URL (optional)</Label>
-                    <Input
-                      id="gift_image_url"
-                      type="url"
-                      value={giveawayForm.gift_image_url}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, gift_image_url: e.target.value})}
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="withdrawal_date">Withdrawal Date *</Label>
-                    <Input
-                      id="withdrawal_date"
-                      type="datetime-local"
-                      value={giveawayForm.withdrawal_date}
-                      onChange={(e) => setGiveawayForm({...giveawayForm, withdrawal_date: e.target.value})}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <Button type="submit">
-                    {editingGiveaway ? 'Update' : 'Create'} Giveaway
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => { setShowGiveawayForm(false); setEditingGiveaway(null); }}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            )}
+          <TabsContent value="giveaways">
+            <GiveawayManager />
+          </TabsContent>
 
-            <div className="space-y-3">
-              {giveaways.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Gift className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No giveaways created yet. Create your first giveaway above!</p>
+          <TabsContent value="promos">
+            <PromoCodeManager />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card className="glass-effect border-border/50">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center">
+                  <Database className="mr-2 h-5 w-5" />
+                  User Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users by email or name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-background/50 border-border text-foreground"
+                  />
                 </div>
-              ) : (
-                giveaways.map((giveaway) => (
-                  <div key={giveaway.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
-                    <div className="flex-1">
-                      <h3 className="text-foreground font-medium">{giveaway.gift_name}</h3>
-                      <p className="text-muted-foreground text-sm">₹{giveaway.gift_price}</p>
-                      <p className="text-muted-foreground text-xs">
-                        Withdrawal: {formatDate(giveaway.withdrawal_date)}
-                      </p>
-                      {giveaway.winner_name && (
-                        <p className="text-green-400 text-xs">
-                          Winner: {giveaway.winner_name} ({giveaway.winner_email})
-                        </p>
-                      )}
+
+                {/* User List */}
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {filteredUsers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {searchTerm ? 'No users found matching your search.' : 'No users found.'}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={giveaway.is_active ? "default" : "secondary"}>
-                        {giveaway.is_active ? 'Active' : 'Completed'}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => editGiveaway(giveaway)}
-                        disabled={actionLoading === giveaway.id}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteGiveaway(giveaway.id, giveaway.gift_name)}
-                        disabled={actionLoading === giveaway.id}
-                        className="text-red-400 border-red-400 hover:bg-red-400/10"
-                      >
-                        {actionLoading === giveaway.id ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </Button>
-                      {giveaway.is_active && !giveaway.winner_user_id && (
-                        <Button
-                          size="sm"
-                          onClick={() => selectRandomWinner(giveaway.id)}
-                        >
-                          Select Winner
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* User Management */}
-        <Card className="glass-effect border-border/50">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center">
-              <Database className="mr-2 h-5 w-5" />
-              User Management
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search users by email or name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-background/50 border-border text-foreground"
-              />
-            </div>
-
-            {/* User List */}
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {filteredUsers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  {searchTerm ? 'No users found matching your search.' : 'No users found.'}
-                </div>
-              ) : (
-                filteredUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-foreground font-medium">{user.email}</span>
-                      </div>
-                      {user.full_name && (
-                        <p className="text-sm text-muted-foreground mb-2">{user.full_name}</p>
-                      )}
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          Joined {formatDate(user.created_at)}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={user.has_active_subscription ? "default" : "secondary"}>
-                          {user.has_active_subscription ? 'Premium' : 'Free'}
-                        </Badge>
-                        {user.spotify_connected && (
-                          <Badge variant="outline" className="text-green-400 border-green-400">
-                            <Music className="mr-1 h-3 w-3" />
-                            Spotify
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {user.has_active_subscription ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => revokePremium(user.user_id)}
-                          disabled={actionLoading === user.id}
-                          className="text-red-400 border-red-400 hover:bg-red-400/10"
-                        >
-                          {actionLoading === user.id ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <X className="h-3 w-3" />
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg border border-border/50">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-foreground font-medium">{user.email}</span>
+                          </div>
+                          {user.full_name && (
+                            <p className="text-sm text-muted-foreground mb-2">{user.full_name}</p>
                           )}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => grantPremium(user.user_id)}
-                          disabled={actionLoading === user.id}
-                          className="text-green-400 border-green-400 hover:bg-green-400/10"
-                        >
-                          {actionLoading === user.id ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              Joined {formatDate(user.created_at)}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant={user.has_active_subscription ? "default" : "secondary"}>
+                              {user.has_active_subscription ? 'Premium' : 'Free'}
+                            </Badge>
+                            {user.spotify_connected && (
+                              <Badge variant="outline" className="text-green-400 border-green-400">
+                                <Music className="mr-1 h-3 w-3" />
+                                Spotify
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {user.has_active_subscription ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => revokePremium(user.user_id)}
+                              disabled={actionLoading === user.id}
+                              className="text-red-400 border-red-400 hover:bg-red-400/10"
+                            >
+                              {actionLoading === user.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <X className="h-3 w-3" />
+                              )}
+                            </Button>
                           ) : (
-                            <Check className="h-3 w-3" />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => grantPremium(user.user_id)}
+                              disabled={actionLoading === user.id}
+                              className="text-green-400 border-green-400 hover:bg-green-400/10"
+                            >
+                              {actionLoading === user.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </Button>
                           )}
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteUser(user.user_id, user.email)}
-                        disabled={actionLoading === user.id}
-                        className="text-red-400 border-red-400 hover:bg-red-400/10"
-                      >
-                        {actionLoading === user.id ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteUser(user.user_id, user.email)}
+                            disabled={actionLoading === user.id}
+                            className="text-red-400 border-red-400 hover:bg-red-400/10"
+                          >
+                            {actionLoading === user.id ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
