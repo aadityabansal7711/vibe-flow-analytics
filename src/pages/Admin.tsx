@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import PromoCodeManager from '@/components/PromoCodeManager';
 import GiveawayManager from '@/components/GiveawayManager';
+import ContactRequestsManager from '@/components/ContactRequestsManager';
 import { 
   Users, 
   UserCheck, 
@@ -321,7 +322,7 @@ const Admin = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="giveaways" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="giveaways" className="flex items-center gap-2">
               <Gift className="h-4 w-4" />
               Giveaways
@@ -329,6 +330,10 @@ const Admin = () => {
             <TabsTrigger value="promos" className="flex items-center gap-2">
               <Crown className="h-4 w-4" />
               Promo Codes
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Contact Requests
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Database className="h-4 w-4" />
@@ -342,6 +347,10 @@ const Admin = () => {
 
           <TabsContent value="promos">
             <PromoCodeManager />
+          </TabsContent>
+
+          <TabsContent value="contact">
+            <ContactRequestsManager />
           </TabsContent>
 
           <TabsContent value="users">

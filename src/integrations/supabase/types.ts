@@ -309,11 +309,14 @@ export type Database = {
       giveaways: {
         Row: {
           created_at: string
+          entry_requirements: string | null
           gift_image_url: string | null
           gift_name: string
           gift_price: number
+          giveaway_description: string | null
           id: string
           is_active: boolean
+          result_announcement_time: string | null
           updated_at: string
           winner_email: string | null
           winner_name: string | null
@@ -322,11 +325,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          entry_requirements?: string | null
           gift_image_url?: string | null
           gift_name: string
           gift_price: number
+          giveaway_description?: string | null
           id?: string
           is_active?: boolean
+          result_announcement_time?: string | null
           updated_at?: string
           winner_email?: string | null
           winner_name?: string | null
@@ -335,11 +341,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          entry_requirements?: string | null
           gift_image_url?: string | null
           gift_name?: string
           gift_price?: number
+          giveaway_description?: string | null
           id?: string
           is_active?: boolean
+          result_announcement_time?: string | null
           updated_at?: string
           winner_email?: string | null
           winner_name?: string | null

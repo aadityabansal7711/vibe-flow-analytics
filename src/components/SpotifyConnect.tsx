@@ -2,31 +2,34 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Music, User, Crown, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Music, User, Crown, AlertTriangle, CheckCircle, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useSearchParams } from 'react-router-dom';
 
 const SpotifyConnect = () => {
   const { user, profile, connectSpotify, loading, isUnlocked, fetchProfile } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [justConnected, setJustConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
 
-  // Check for connection success or error in URL params
+  // Check for connection success or error in URL params - only once
   useEffect(() => {
     const spotifyConnected = searchParams.get('spotify_connected');
     const spotifyError = searchParams.get('spotify_error');
 
     if (spotifyConnected === 'true') {
       setJustConnected(true);
-      setConnectionLoading(false);
-      // Clear the URL parameter without reload
-      const url = new URL(window.location.href);
-      url.searchParams.delete('spotify_connected');
-      window.history.replaceState({}, '', url.toString());
+      setConnectionStatus('success');
+      setConnectionError(null);
+      // Clear params immediately
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('spotify_connected');
+      setSearchParams(newParams, { replace: true });
       
-      // Fetch fresh profile data
+      // Refresh profile
       if (fetchProfile) {
         fetchProfile();
       }
@@ -34,33 +37,27 @@ const SpotifyConnect = () => {
 
     if (spotifyError) {
       console.error('Spotify connection error:', spotifyError);
-      setConnectionLoading(false);
-      // Clear the error parameter without reload
-      const url = new URL(window.location.href);
-      url.searchParams.delete('spotify_error');
-      window.history.replaceState({}, '', url.toString());
+      setConnectionError(decodeURIComponent(spotifyError));
+      setConnectionStatus('error');
+      setIsConnecting(false);
+      // Clear error param
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('spotify_error');
+      setSearchParams(newParams, { replace: true });
     }
-  }, [searchParams, fetchProfile]);
-
-  // Show connection loading for a few seconds after connecting
-  useEffect(() => {
-    if (profile?.spotify_connected && !justConnected) {
-      setConnectionLoading(true);
-      const timer = setTimeout(() => {
-        setConnectionLoading(false);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [profile?.spotify_connected, justConnected]);
+  }, []); // Empty dependency array to run only once
 
   const handleConnect = useCallback(async () => {
     setIsConnecting(true);
-    setConnectionLoading(true);
+    setConnectionStatus('connecting');
+    setConnectionError(null);
+    
     try {
       await connectSpotify();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Connection error:', error);
-      setConnectionLoading(false);
+      setConnectionError(error.message || 'Failed to connect to Spotify');
+      setConnectionStatus('error');
     } finally {
       setIsConnecting(false);
     }
@@ -69,10 +66,10 @@ const SpotifyConnect = () => {
   if (loading) {
     return (
       <Card className="glass-effect border-border/50">
-        <CardContent className="flex items-center justify-center p-6">
+        <CardContent className="flex items-center justify-center p-8">
           <div className="flex items-center space-x-3">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span className="text-muted-foreground">Loading...</span>
+            <span className="text-muted-foreground">Loading your profile...</span>
           </div>
         </CardContent>
       </Card>
@@ -88,7 +85,7 @@ const SpotifyConnect = () => {
             Authentication Required
           </CardTitle>
           <CardDescription>
-            You need to be logged in to connect your Spotify account
+            Please sign in to connect your Spotify account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -102,21 +99,26 @@ const SpotifyConnect = () => {
     );
   }
 
-  if (connectionLoading) {
+  if (connectionStatus === 'connecting' || isConnecting) {
     return (
       <Card className="glass-effect border-border/50">
         <CardHeader className="text-center">
           <CardTitle className="text-foreground flex items-center justify-center">
-            <Loader2 className="mr-2 h-6 w-6 animate-spin text-primary" />
-            Connecting Spotify...
+            <Wifi className="mr-2 h-6 w-6 animate-pulse text-primary" />
+            Connecting to Spotify...
           </CardTitle>
           <CardDescription>
             Please wait while we establish your connection
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="text-center text-sm text-muted-foreground">
-            This may take a few moments...
+        <CardContent className="text-center">
+          <div className="space-y-4">
+            <div className="w-full bg-muted rounded-full h-2">
+              <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You may be redirected to Spotify for authorization...
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -134,22 +136,26 @@ const SpotifyConnect = () => {
           <CardDescription>
             {profile?.spotify_display_name ? 
               `Connected as ${profile.spotify_display_name}` : 
-              'Your Spotify account is connected'
+              'Your Spotify account is now connected'
             }
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="text-center text-sm text-muted-foreground">
-            You can now view your personalized music insights!
+        <CardContent className="space-y-4">
+          <div className="text-center p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <p className="text-green-400 font-medium">🎉 Connection Successful!</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              You can now access all your personalized music insights and analytics.
+            </p>
           </div>
+          
           {isUnlocked && (
-            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
               <div className="flex items-center space-x-2 text-amber-400">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium">Premium Account Notice</span>
+                <Crown className="h-4 w-4" />
+                <span className="text-sm font-medium">Premium Account Active</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Premium users cannot disconnect their Spotify account to ensure continuous access to advanced analytics and features.
+                Premium users have secure connection locks to ensure continuous access to advanced features.
               </p>
             </div>
           )}
@@ -163,39 +169,50 @@ const SpotifyConnect = () => {
       <CardHeader className="text-center">
         <CardTitle className="text-foreground flex items-center justify-center">
           <Music className="mr-2 h-6 w-6" />
-          Connect Your Spotify
+          Connect Your Spotify Account
         </CardTitle>
         <CardDescription>
-          Connect your Spotify account to get personalized music insights and analytics
+          Connect your Spotify account to unlock personalized music insights and analytics
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-center">
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="text-center">
-              <Music className="h-8 w-8 text-green-400 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Top Tracks</p>
-            </div>
-            <div className="text-center">
-              <User className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Top Artists</p>
-            </div>
-            <div className="text-center">
-              <Crown className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Premium Insights</p>
-            </div>
+      <CardContent className="space-y-6">
+        {/* Connection Error */}
+        {connectionError && (
+          <Alert className="border-red-500/50 bg-red-500/10">
+            <WifiOff className="h-4 w-4" />
+            <AlertDescription className="text-red-400">
+              <strong>Connection Failed:</strong> {connectionError}
+              <br />
+              <span className="text-sm opacity-75">Please try again or contact support if the issue persists.</span>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Feature Preview */}
+        <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+          <div className="text-center">
+            <Music className="h-8 w-8 text-green-400 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Top Tracks & Artists</p>
+          </div>
+          <div className="text-center">
+            <User className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Listening Patterns</p>
+          </div>
+          <div className="text-center">
+            <Crown className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">AI Insights</p>
           </div>
         </div>
 
         <Button 
           onClick={handleConnect}
           disabled={isConnecting}
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
+          className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition-all hover:scale-105"
         >
           {isConnecting ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Connecting...
+              Connecting to Spotify...
             </>
           ) : (
             <>
@@ -205,16 +222,17 @@ const SpotifyConnect = () => {
           )}
         </Button>
 
-        <p className="text-xs text-muted-foreground text-center">
-          We'll redirect you to Spotify to authorize access to your music data. 
-          Your data is kept private and secure.
-        </p>
-        
-        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-          <p className="text-xs text-blue-400 text-center">
-            <strong>Note:</strong> Free users can connect and disconnect Spotify anytime. 
-            Premium users cannot disconnect to ensure continuous access to advanced features.
+        <div className="space-y-3 text-xs text-muted-foreground">
+          <p className="text-center">
+            🔒 We'll redirect you to Spotify to authorize secure access to your music data.
           </p>
+          
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <p className="text-blue-400 text-center">
+              <strong>Note:</strong> Free users can connect/disconnect anytime. 
+              Premium users get secure persistent connections for advanced features.
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
