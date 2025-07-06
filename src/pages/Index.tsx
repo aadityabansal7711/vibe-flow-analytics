@@ -249,9 +249,7 @@ const Index = () => {
               </Button>
             </Link>
             <Link to="/pricing">
-              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:border-white/50 px-8 py-4 rounded-full text-lg hover:scale-105 transition-all duration-300">
-                See Features
-              </Button>
+              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:border-white/50 px-8 py-4 rounded-full text-lg hover:scale-105 transition-all duration-300">See Pricing</Button>
             </Link>
           </div>
 
