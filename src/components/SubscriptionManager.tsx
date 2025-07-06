@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Crown, Calendar, CreditCard, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Crown, Calendar, CreditCard, AlertTriangle, RefreshCw, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Subscription {
@@ -67,7 +67,7 @@ const SubscriptionManager = () => {
     );
   }
 
-  if (!profile?.has_active_subscription || !subscription) {
+  if (!profile?.has_active_subscription) {
     return (
       <Card className="glass-effect border-border/50">
         <CardHeader>
@@ -80,7 +80,7 @@ const SubscriptionManager = () => {
           <div className="text-center py-6">
             <p className="text-muted-foreground mb-4">You're currently on the free plan</p>
             <Button asChild className="bg-gradient-to-r from-primary to-accent">
-              <a href="/buy">Upgrade to Premium</a>
+              <a href="/pricing">Upgrade to Premium</a>
             </Button>
           </div>
         </CardContent>
@@ -102,8 +102,20 @@ const SubscriptionManager = () => {
   };
 
   const handleContactSupport = () => {
-    window.open('mailto:support@myvibelytics.com?subject=Subscription Cancellation Request', '_blank');
+    window.open('mailto:aadityabansal1112@gmail.com?subject=Subscription Cancellation Request', '_blank');
   };
+
+  // Show subscription details based on profile data
+  const getSubscriptionDetails = () => {
+    if (profile?.plan_id === '3month_premium') {
+      return { planType: '3 Month Premium', amount: 14900, currency: 'inr' };
+    } else if (profile?.plan_id === '1year_premium') {
+      return { planType: '1 Year Premium', amount: 49900, currency: 'inr' };
+    }
+    return { planType: 'Premium Plan', amount: subscription?.amount || 0, currency: 'inr' };
+  };
+
+  const subscriptionDetails = getSubscriptionDetails();
 
   return (
     <Card className="glass-effect border-primary/50">
@@ -114,6 +126,7 @@ const SubscriptionManager = () => {
             Premium Subscription
           </CardTitle>
           <Badge className="bg-primary text-primary-foreground">
+            <CheckCircle className="mr-1 h-3 w-3" />
             Active
           </Badge>
         </div>
@@ -122,35 +135,36 @@ const SubscriptionManager = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Plan</p>
-            <p className="font-medium text-foreground capitalize">
-              {subscription.plan_type} Plan
+            <p className="font-medium text-foreground">
+              {subscriptionDetails.planType}
             </p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Amount Paid</p>
             <p className="font-medium text-foreground">
-              {formatAmount(subscription.amount, subscription.currency)}
+              {formatAmount(subscriptionDetails.amount, subscriptionDetails.currency)}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Started On</p>
+            <p className="font-medium text-foreground flex items-center">
+              <Calendar className="mr-1 h-4 w-4" />
+              {profile?.plan_start_date ? formatDate(profile.plan_start_date) : 'N/A'}
             </p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Valid Until</p>
             <p className="font-medium text-foreground flex items-center">
               <Calendar className="mr-1 h-4 w-4" />
-              {formatDate(subscription.current_period_end)}
+              {profile?.plan_end_date ? formatDate(profile.plan_end_date) : 'N/A'}
             </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Auto Renewal</p>
-            <Badge variant="secondary">
-              One-time Payment
-            </Badge>
           </div>
         </div>
 
         <Alert className="border-blue-500/20 bg-blue-500/5">
-          <AlertTriangle className="h-4 w-4 text-blue-500" />
+          <CheckCircle className="h-4 w-4 text-blue-500" />
           <AlertDescription className="text-blue-700 dark:text-blue-300">
-            This is a one-time yearly subscription. To cancel or get a refund, please contact our support team.
+            Your premium subscription is active and all premium features are unlocked!
           </AlertDescription>
         </Alert>
 
@@ -172,11 +186,13 @@ const SubscriptionManager = () => {
           </Button>
         </div>
 
-        <div className="text-xs text-muted-foreground space-y-1">
-          <p>Payment ID: {subscription.razorpay_payment_id}</p>
-          <p>Order ID: {subscription.razorpay_order_id}</p>
-          <p>Status: {subscription.status}</p>
-        </div>
+        {subscription && (
+          <div className="text-xs text-muted-foreground space-y-1 pt-4 border-t border-border">
+            <p>Payment ID: {subscription.razorpay_payment_id}</p>
+            <p>Order ID: {subscription.razorpay_order_id}</p>
+            <p>Status: {subscription.status}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

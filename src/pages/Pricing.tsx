@@ -34,14 +34,14 @@ const Pricing = () => {
     "🔓 Unlimited music analytics",
     "🎭 Advanced mood + personality analysis", 
     "🤝 Compare music taste with friends",
-    "🤖 AI-powered song & playlist insights",
     "📤 Unlimited shareable cards",
     "🎁 Weekly premium giveaway entries",
     "🚀 Early access to all new features",
     "🧑‍💼 Priority support",
     "📊 Advanced listening behavior analysis",
     "🎯 Personalized music recommendations",
-    "⚡ Real-time insights & notifications"
+    "⚡ Real-time insights & notifications",
+    "📤 Export your music data"
   ];
 
   return (
@@ -65,7 +65,7 @@ const Pricing = () => {
             Unlock Your Complete Music Analytics Experience
           </h2>
           <p className="text-muted-foreground max-w-3xl mx-auto text-lg leading-relaxed">
-            Start free and upgrade anytime to unlock advanced AI-powered insights, 
+            Start free and upgrade anytime to unlock advanced insights, 
             personality analysis, and exclusive community features.
           </p>
         </div>
@@ -106,7 +106,7 @@ const Pricing = () => {
           {/* 3 Months Plan */}
           <Card className="glass-effect border-blue-500/50 relative hover:scale-105 transition-all duration-300">
             <Badge className="absolute top-4 right-4 bg-blue-600 text-white animate-pulse">
-              💫 Best Value
+              💫 Most Popular
             </Badge>
             <CardHeader className="bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border-b text-center pb-8">
               <div className="flex items-center justify-center space-x-2 mb-4">
@@ -122,7 +122,7 @@ const Pricing = () => {
 
             <CardContent className="space-y-6 pt-6">
               <div className="space-y-3">
-                {premiumFeatures.slice(0, 8).map((feature, index) => (
+                {premiumFeatures.map((feature, index) => (
                   <div key={index} className="flex items-center space-x-3">
                     <Check className="h-5 w-5 text-blue-500 flex-shrink-0" />
                     <span className="text-sm">{feature}</span>
@@ -130,19 +130,19 @@ const Pricing = () => {
                 ))}
               </div>
 
-              <Link to="/buy" className="block">
+              <a href="https://rzp.io/rzp/IyWcC5m" target="_blank" rel="noopener noreferrer" className="block">
                 <Button className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 hover:scale-105 transition-all duration-200">
                   <Clock className="mr-2 h-5 w-5" />
                   Get 3 Months Premium
                 </Button>
-              </Link>
+              </a>
             </CardContent>
           </Card>
 
           {/* Annual Plan */}
           <Card className="glass-effect border-primary/50 relative hover:scale-105 transition-all duration-300">
             <Badge className="absolute top-4 right-4 bg-primary text-primary-foreground animate-pulse">
-              🌟 Most Popular
+              🌟 Best Value
             </Badge>
             <CardHeader className="bg-gradient-to-r from-primary/20 to-purple-600/20 border-b text-center pb-8">
               <div className="flex items-center justify-center space-x-2 mb-4">
@@ -166,12 +166,12 @@ const Pricing = () => {
                 ))}
               </div>
 
-              <Link to="/buy" className="block">
+              <a href="https://rzp.io/rzp/myvibelyrics" target="_blank" rel="noopener noreferrer" className="block">
                 <Button className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold py-3 hover:scale-105 transition-all duration-200">
                   <Crown className="mr-2 h-5 w-5" />
                   Get Annual Premium
                 </Button>
-              </Link>
+              </a>
             </CardContent>
           </Card>
         </div>
@@ -193,7 +193,7 @@ const Pricing = () => {
                   <strong className="text-foreground">Free:</strong> Basic stats
                 </div>
                 <div>
-                  <strong className="text-foreground">Premium:</strong> Advanced AI-powered insights
+                  <strong className="text-foreground">Premium:</strong> Advanced detailed insights
                 </div>
               </CardContent>
             </Card>
@@ -218,7 +218,7 @@ const Pricing = () => {
                 <Users className="h-12 w-12 text-green-500 mx-auto mb-4" />
                 <CardTitle className="text-xl">Community Features</CardTitle>
               </CardHeader>
-              <CardContent className="text-center text-sm text-muted-foreforeground">
+              <CardContent className="text-center text-sm text-muted-foreground">
                 <div className="mb-4">
                   <strong className="text-foreground">Free:</strong> Basic access
                 </div>
