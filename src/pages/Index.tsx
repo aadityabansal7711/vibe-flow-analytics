@@ -271,13 +271,13 @@ const Index = () => {
       </section>
 
       {/* Full Features Section */}
-      <section className="relative z-20 px-4 py-20 sm:px-6 lg:px-8">
+      <section className="relative z-20 px-4 sm:px-6 py-[39px] lg:px-[31px]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
               <span className="text-white">Complete Music</span>
               <br />
-              <span className="bg-gradient-to-r from-[#1DB954] to-[#00C3FF] bg-clip-text text-transparent">Analytics Suite</span>
+              <span className="bg-gradient-to-r from-[#1DB954] to-[#00C3FF] bg-clip-text text-transparent"> Analytics Suite</span>
             </h2>
             <p className="text-xl text-white/70 max-w-3xl mx-auto">
               From basic insights to advanced AI-powered analysis of your musical journey
